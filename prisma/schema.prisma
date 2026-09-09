@@ -1,0 +1,938 @@
+// =============================================================================
+// DronaSphere — data model
+// Prisma owns the schema, the migrations and the seed.
+// The Go API reads/writes these tables with pgx + hand-written SQL
+// (Prisma has no supported Go client), so this file is the contract between
+// the two halves of the stack. Change it here, run `npm run migrate`, then
+// update the SQL in api/internal/store/*.go.
+// =============================================================================
+
+generator client {
+  provider = "prisma-client"
+  output   = "../prisma/generated/client"
+}
+
+// Prisma 7: the connection URL lives in prisma.config.ts (read from .env),
+// never in this file.
+datasource db {
+  provider = "postgresql"
+}
+
+// ---------------------------------------------------------------- enums ------
+
+enum UserRole {
+  STUDENT
+  SPACE_MOD
+  CAMPUS_ADMIN
+  SUPERADMIN
+}
+
+enum UserStatus {
+  PENDING_VERIFICATION
+  ACTIVE
+  SUSPENDED
+  DEACTIVATED
+}
+
+enum VerificationMethod {
+  EMAIL_DOMAIN
+  ID_CARD_REVIEW
+}
+
+enum OtpPurpose {
+  SIGNUP
+  LOGIN
+  EMAIL_CHANGE
+}
+
+enum PostType {
+  TEXT
+  IMAGE
+  POLL
+  LINK
+  ASK
+}
+
+enum ThreadType {
+  DM // 1:1
+  DEN // group chat, max 256
+  SIGNAL // one-to-many broadcast
+  NEST // opened by a Love Finder match
+}
+
+enum ThreadMemberRole {
+  MEMBER
+  ADMIN
+  OWNER
+  SUBSCRIBER
+}
+
+enum ThreadMemberState {
+  REQUESTED // non-mutual DM lands in the request inbox
+  ACTIVE
+  LEFT
+  REMOVED
+}
+
+enum MessageKind {
+  TEXT
+  IMAGE
+  VOICE
+  SYSTEM
+}
+
+enum SwipeAction {
+  PASS
+  LIKE
+  TWINKLE
+}
+
+enum MatchStatus {
+  ACTIVE
+  WILTED
+  UNMATCHED
+}
+
+enum ReportStatus {
+  OPEN
+  IN_REVIEW
+  ACTIONED
+  DISMISSED
+}
+
+enum ReportTargetType {
+  USER
+  POST
+  COMMENT
+  MESSAGE
+  WHISPER
+  NOTE
+}
+
+enum WhisperStatus {
+  PENDING_REVIEW
+  PUBLISHED
+  BLOCKED
+}
+
+enum OwlRank {
+  SLEEPY_SPARROW
+  FLEDGLING
+  NIGHT_OWL
+  MOON_MOTH
+  COMET
+}
+
+enum StardustReason {
+  OWL_NIGHT
+  COCOON_BONUS
+  NOTE_UPLOAD
+  NOTE_UPVOTE
+  BURROW_SESSION
+  PURCHASE
+  SPEND
+  ADMIN_GRANT
+}
+
+enum ReactionSticker {
+  COOKIE // 🍪
+  SPARKLE // ✨
+  SOB // 😭
+  FIRE // 🔥
+  HEART_HANDS // 🫶
+}
+
+enum ReactionTargetType {
+  POST
+  COMMENT
+  MESSAGE
+}
+
+// -------------------------------------------------------------- identity -----
+
+model Campus {
+  id          String   @id @default(uuid()) @db.Uuid
+  name        String
+  slug        String   @unique
+  emailDomain String   @unique
+  city        String?
+  // 6.3 — Love Finder unlocks only above N verified users on the campus.
+  verifiedUserCount Int      @default(0)
+  datingUnlockedAt  DateTime?
+  createdAt   DateTime @default(now())
+
+  users  User[]
+  spaces Space[]
+
+  @@map("campuses")
+}
+
+model User {
+  id       String @id @default(uuid()) @db.Uuid
+  campusId String @db.Uuid
+
+  email       String  @unique
+  handle      String  @unique
+  displayName String
+  bio         String?
+
+  // 6.1 — avatar builder first, real photo optional.
+  avatar   Json    @default("{}")
+  photoUrl String?
+
+  // 10 — DOB is stored for the 18+ gate and never displayed.
+  dob    DateTime? @db.Date
+  batch  String?
+  branch String?
+  year   Int?
+
+  role   UserRole   @default(STUDENT)
+  status UserStatus @default(PENDING_VERIFICATION)
+
+  verificationMethod VerificationMethod?
+  emailVerifiedAt    DateTime?
+  idCardUrl          String?
+
+  isPrivate     Boolean @default(false)
+  // 6.1 — onboarding is not complete until follows >= ONBOARDING_MIN_FOLLOWS.
+  onboardingStep String @default("HANDLE")
+
+  // 6.3 — dating is opt-in and off by default.
+  loveFinderEnabled Boolean   @default(false)
+  photoVerifiedAt   DateTime?
+
+  typingIndicatorsOn Boolean @default(true)
+  readReceiptsOn     Boolean @default(true)
+
+  followerCount Int @default(0)
+  followingCount Int @default(0)
+  stardust      Int @default(0)
+  owlRank       OwlRank @default(SLEEPY_SPARROW)
+
+  lastSeenAt DateTime?
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+
+  campus Campus @relation(fields: [campusId], references: [id], onDelete: Cascade)
+
+  refreshTokens   RefreshToken[]
+  devices         Device[]
+  following       Follow[]           @relation("follower")
+  followers       Follow[]           @relation("followee")
+  posts           Post[]
+  comments        Comment[]
+  postVotes       PostVote[]
+  commentVotes    CommentVote[]
+  reactions       Reaction[]
+  pollVotes       PollVote[]
+  createdSpaces   Space[]            @relation("spaceCreator")
+  spaceMods       SpaceModerator[]
+  threadMembers   ThreadMember[]
+  messages        Message[]
+  messageReactions MessageReaction[]
+  nightSessions   NightSession[]
+  owlScores       OwlScore[]
+  cocoonClaims    CocoonClaim[]
+  burrowSessions  BurrowSession[]
+  stardustLedger  StardustLedger[]
+  notes           NoteLockerItem[]
+  noteVotes       NoteVote[]
+  swipesMade      Swipe[]            @relation("swiper")
+  swipesReceived  Swipe[]            @relation("swipee")
+  matchesA        Match[]            @relation("matchA")
+  matchesB        Match[]            @relation("matchB")
+  crushesMade     CrushJarEntry[]    @relation("crusher")
+  crushesOn       CrushJarEntry[]    @relation("crushee")
+  whispers        Whisper[]
+  reportsMade     Report[]           @relation("reporter")
+  reportsResolved Report[]           @relation("resolver")
+  blocksMade      Block[]            @relation("blocker")
+  blocksReceived  Block[]            @relation("blocked")
+  vibeChecks      VibeCheck[]
+  astroProfile    AstroProfile?
+  pushTokens      PushToken[]
+  notifications   Notification[]
+  badges          UserBadge[]
+
+  @@index([campusId, status])
+  @@index([handle])
+  @@map("users")
+}
+
+model EmailOtp {
+  id        String     @id @default(uuid()) @db.Uuid
+  email     String
+  codeHash  String
+  purpose   OtpPurpose @default(SIGNUP)
+  attempts  Int        @default(0)
+  expiresAt DateTime
+  consumedAt DateTime?
+  createdAt DateTime   @default(now())
+
+  @@index([email, purpose, createdAt])
+  @@map("email_otps")
+}
+
+model RefreshToken {
+  id        String   @id @default(uuid()) @db.Uuid
+  userId    String   @db.Uuid
+  tokenHash String   @unique
+  userAgent String?
+  ip        String?
+  expiresAt DateTime
+  revokedAt DateTime?
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("refresh_tokens")
+}
+
+// 6.2 anti-cheat + 10 ban-evasion: one account's points per device per night.
+model Device {
+  id          String   @id @default(uuid()) @db.Uuid
+  userId      String   @db.Uuid
+  fingerprint String
+  platform    String?
+  lastSeenAt  DateTime @default(now())
+  createdAt   DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, fingerprint])
+  @@index([fingerprint])
+  @@map("devices")
+}
+
+// ------------------------------------------------------------ social graph ---
+
+model Follow {
+  id         String   @id @default(uuid()) @db.Uuid
+  followerId String   @db.Uuid
+  followeeId String   @db.Uuid
+  createdAt  DateTime @default(now())
+
+  follower User @relation("follower", fields: [followerId], references: [id], onDelete: Cascade)
+  followee User @relation("followee", fields: [followeeId], references: [id], onDelete: Cascade)
+
+  @@unique([followerId, followeeId])
+  @@index([followeeId])
+  @@map("follows")
+}
+
+model Block {
+  id        String   @id @default(uuid()) @db.Uuid
+  blockerId String   @db.Uuid
+  blockedId String   @db.Uuid
+  createdAt DateTime @default(now())
+
+  blocker User @relation("blocker", fields: [blockerId], references: [id], onDelete: Cascade)
+  blocked User @relation("blocked", fields: [blockedId], references: [id], onDelete: Cascade)
+
+  @@unique([blockerId, blockedId])
+  @@map("blocks")
+}
+
+// -------------------------------------------------------------- the nest -----
+
+model Space {
+  id          String  @id @default(uuid()) @db.Uuid
+  campusId    String? @db.Uuid
+  slug        String
+  name        String
+  description String?
+  icon        String?
+  isDefault   Boolean @default(false)
+  createdById String? @db.Uuid
+  createdAt   DateTime @default(now())
+
+  campus    Campus? @relation(fields: [campusId], references: [id], onDelete: Cascade)
+  createdBy User?   @relation("spaceCreator", fields: [createdById], references: [id], onDelete: SetNull)
+
+  posts      Post[]
+  moderators SpaceModerator[]
+
+  @@unique([campusId, slug])
+  @@map("spaces")
+}
+
+model SpaceModerator {
+  id      String   @id @default(uuid()) @db.Uuid
+  spaceId String   @db.Uuid
+  userId  String   @db.Uuid
+  addedAt DateTime @default(now())
+
+  space Space @relation(fields: [spaceId], references: [id], onDelete: Cascade)
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([spaceId, userId])
+  @@map("space_moderators")
+}
+
+model Post {
+  id       String   @id @default(uuid()) @db.Uuid
+  spaceId  String   @db.Uuid
+  authorId String   @db.Uuid
+  type     PostType @default(TEXT)
+
+  title    String?
+  body     String?
+  imageUrl String?
+  linkUrl  String?
+
+  score        Int   @default(0)
+  commentCount Int   @default(0)
+  // 6.5 — hot = upvotes with time decay, recomputed on vote.
+  hotRank      Float @default(0)
+
+  isPinned  Boolean @default(false)
+  isLocked  Boolean @default(false)
+  isRemoved Boolean @default(false)
+  removedReason String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  space  Space @relation(fields: [spaceId], references: [id], onDelete: Cascade)
+  author User  @relation(fields: [authorId], references: [id], onDelete: Cascade)
+
+  comments  Comment[]
+  votes     PostVote[]
+  poll      Poll?
+
+  @@index([spaceId, hotRank(sort: Desc)])
+  @@index([authorId, createdAt(sort: Desc)])
+  @@index([createdAt(sort: Desc)])
+  @@map("posts")
+}
+
+model PostVote {
+  id     String @id @default(uuid()) @db.Uuid
+  postId String @db.Uuid
+  userId String @db.Uuid
+  // +1 or -1
+  value  Int
+  createdAt DateTime @default(now())
+
+  post Post @relation(fields: [postId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([postId, userId])
+  @@map("post_votes")
+}
+
+model Comment {
+  id       String  @id @default(uuid()) @db.Uuid
+  postId   String  @db.Uuid
+  authorId String  @db.Uuid
+  parentId String? @db.Uuid
+  body     String
+  depth    Int     @default(0)
+  score    Int     @default(0)
+  isRemoved Boolean @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  post     Post      @relation(fields: [postId], references: [id], onDelete: Cascade)
+  author   User      @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  parent   Comment?  @relation("commentTree", fields: [parentId], references: [id], onDelete: Cascade)
+  children Comment[] @relation("commentTree")
+  votes    CommentVote[]
+
+  @@index([postId, createdAt])
+  @@map("comments")
+}
+
+model CommentVote {
+  id        String @id @default(uuid()) @db.Uuid
+  commentId String @db.Uuid
+  userId    String @db.Uuid
+  value     Int
+  createdAt DateTime @default(now())
+
+  comment Comment @relation(fields: [commentId], references: [id], onDelete: Cascade)
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([commentId, userId])
+  @@map("comment_votes")
+}
+
+// 6.5 — sticker reactions never affect ranking. They exist so lurkers can
+// interact with zero risk.
+model Reaction {
+  id         String             @id @default(uuid()) @db.Uuid
+  userId     String             @db.Uuid
+  targetType ReactionTargetType
+  targetId   String             @db.Uuid
+  sticker    ReactionSticker
+  createdAt  DateTime           @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, targetType, targetId, sticker])
+  @@index([targetType, targetId])
+  @@map("reactions")
+}
+
+model Poll {
+  id        String   @id @default(uuid()) @db.Uuid
+  postId    String   @unique @db.Uuid
+  question  String
+  closesAt  DateTime?
+  createdAt DateTime @default(now())
+
+  post    Post         @relation(fields: [postId], references: [id], onDelete: Cascade)
+  options PollOption[]
+
+  @@map("polls")
+}
+
+model PollOption {
+  id     String @id @default(uuid()) @db.Uuid
+  pollId String @db.Uuid
+  label  String
+  idx    Int
+  count  Int    @default(0)
+
+  poll  Poll       @relation(fields: [pollId], references: [id], onDelete: Cascade)
+  votes PollVote[]
+
+  @@unique([pollId, idx])
+  @@map("poll_options")
+}
+
+model PollVote {
+  id       String @id @default(uuid()) @db.Uuid
+  optionId String @db.Uuid
+  pollId   String @db.Uuid
+  userId   String @db.Uuid
+  createdAt DateTime @default(now())
+
+  option PollOption @relation(fields: [optionId], references: [id], onDelete: Cascade)
+  user   User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([pollId, userId])
+  @@map("poll_votes")
+}
+
+// ---------------------------------------------------- chats, dens, signals ---
+
+model Thread {
+  id          String     @id @default(uuid()) @db.Uuid
+  type        ThreadType
+  title       String?
+  icon        String?
+  createdById String?    @db.Uuid
+  // 6.6 — Signals: comments optional, subscriber-only.
+  commentsEnabled Boolean @default(true)
+  // 6.6 — Dens cap at 256 members.
+  memberLimit Int        @default(256)
+  inviteCode  String?    @unique
+
+  lastMessageAt DateTime?
+  createdAt     DateTime  @default(now())
+
+  members  ThreadMember[]
+  messages Message[]
+  match    Match?
+
+  @@index([lastMessageAt(sort: Desc)])
+  @@map("threads")
+}
+
+model ThreadMember {
+  id       String            @id @default(uuid()) @db.Uuid
+  threadId String            @db.Uuid
+  userId   String            @db.Uuid
+  role     ThreadMemberRole  @default(MEMBER)
+  state    ThreadMemberState @default(ACTIVE)
+  muted    Boolean           @default(false)
+  lastReadMessageId String?  @db.Uuid
+  lastReadAt DateTime?
+  joinedAt DateTime          @default(now())
+
+  thread Thread @relation(fields: [threadId], references: [id], onDelete: Cascade)
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([threadId, userId])
+  @@index([userId, state])
+  @@map("thread_members")
+}
+
+// 12 — append-only, cursor paginated, never offset paged.
+model Message {
+  id        String      @id @default(uuid()) @db.Uuid
+  threadId  String      @db.Uuid
+  senderId  String      @db.Uuid
+  kind      MessageKind @default(TEXT)
+  body      String?
+  mediaUrl  String?
+  // media expires from hot storage after 90 days (6.6)
+  mediaExpiresAt DateTime?
+  replyToId String?     @db.Uuid
+  // client-generated id, makes send idempotent across reconnects
+  clientId  String?
+  editedAt  DateTime?
+  deletedAt DateTime?
+  createdAt DateTime    @default(now())
+
+  thread  Thread    @relation(fields: [threadId], references: [id], onDelete: Cascade)
+  sender  User      @relation(fields: [senderId], references: [id], onDelete: Cascade)
+  replyTo Message?  @relation("messageReplies", fields: [replyToId], references: [id], onDelete: SetNull)
+  replies Message[] @relation("messageReplies")
+  reactions MessageReaction[]
+
+  @@unique([threadId, clientId])
+  @@index([threadId, createdAt(sort: Desc)])
+  @@map("messages")
+}
+
+model MessageReaction {
+  id        String          @id @default(uuid()) @db.Uuid
+  messageId String          @db.Uuid
+  userId    String          @db.Uuid
+  sticker   ReactionSticker
+  createdAt DateTime        @default(now())
+
+  message Message @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([messageId, userId, sticker])
+  @@map("message_reactions")
+}
+
+// ------------------------------------------------------------- owl board -----
+
+// 6.2 — server-side heartbeats. Points come from distinct actions inside the
+// night window, never from idle app-open time.
+model NightSession {
+  id          String   @id @default(uuid()) @db.Uuid
+  userId      String   @db.Uuid
+  deviceId    String?  @db.Uuid
+  nightKey    String // YYYY-MM-DD of the night's 10PM, so 2AM belongs to the night before
+  startedAt   DateTime @default(now())
+  lastBeatAt  DateTime @default(now())
+  endedAt     DateTime?
+  actionCount Int      @default(0)
+  points      Int      @default(0)
+  curfewHitAt DateTime?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, nightKey, deviceId])
+  @@index([nightKey])
+  @@map("night_sessions")
+}
+
+// Nightly snapshot of the Redis sorted sets, so history survives the weekly reset.
+model OwlScore {
+  id       String @id @default(uuid()) @db.Uuid
+  userId   String @db.Uuid
+  campusId String @db.Uuid
+  weekKey  String // ISO year-week, e.g. 2026-W37
+  points   Int    @default(0)
+  rank     Int?
+  owlRank  OwlRank @default(SLEEPY_SPARROW)
+  snapshotAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, weekKey])
+  @@index([weekKey, points(sort: Desc)])
+  @@map("owl_scores")
+}
+
+// 6.2 — recovery outscores damage, by design.
+model CocoonClaim {
+  id         String   @id @default(uuid()) @db.Uuid
+  userId     String   @db.Uuid
+  dayKey     String // YYYY-MM-DD
+  sleepHours Float
+  stardust   Int
+  awardedAt  DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, dayKey])
+  @@map("cocoon_claims")
+}
+
+model Badge {
+  id          String @id @default(uuid()) @db.Uuid
+  code        String @unique
+  name        String
+  description String
+  emoji       String
+  season      String?
+
+  users UserBadge[]
+
+  @@map("badges")
+}
+
+model UserBadge {
+  id       String   @id @default(uuid()) @db.Uuid
+  userId   String   @db.Uuid
+  badgeId  String   @db.Uuid
+  earnedAt DateTime @default(now())
+
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  badge Badge @relation(fields: [badgeId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, badgeId])
+  @@map("user_badges")
+}
+
+// -------------------------------------------------------- study burrows ------
+
+model StudyBurrow {
+  id          String  @id @default(uuid()) @db.Uuid
+  campusId    String? @db.Uuid
+  name        String
+  subject     String?
+  focusMinutes Int    @default(25)
+  breakMinutes Int    @default(5)
+  createdAt   DateTime @default(now())
+
+  sessions BurrowSession[]
+
+  @@map("study_burrows")
+}
+
+model BurrowSession {
+  id        String   @id @default(uuid()) @db.Uuid
+  burrowId  String   @db.Uuid
+  userId    String   @db.Uuid
+  startedAt DateTime @default(now())
+  endedAt   DateTime?
+  focusedMinutes Int @default(0)
+
+  burrow StudyBurrow @relation(fields: [burrowId], references: [id], onDelete: Cascade)
+  user   User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([burrowId, startedAt])
+  @@map("burrow_sessions")
+}
+
+// --------------------------------------------------------- note locker -------
+
+model NoteLockerItem {
+  id         String @id @default(uuid()) @db.Uuid
+  uploaderId String @db.Uuid
+  subject    String
+  semester   Int
+  branch     String?
+  title      String
+  kind       String @default("NOTES") // NOTES | PYQ | LAB
+  fileUrl    String
+  fileSize   Int?
+  score      Int    @default(0)
+  downloads  Int    @default(0)
+  isRemoved  Boolean @default(false)
+  createdAt  DateTime @default(now())
+
+  uploader User       @relation(fields: [uploaderId], references: [id], onDelete: Cascade)
+  votes    NoteVote[]
+
+  @@index([subject, semester])
+  @@index([score(sort: Desc)])
+  @@map("note_locker_items")
+}
+
+model NoteVote {
+  id     String @id @default(uuid()) @db.Uuid
+  noteId String @db.Uuid
+  userId String @db.Uuid
+  value  Int
+  createdAt DateTime @default(now())
+
+  note NoteLockerItem @relation(fields: [noteId], references: [id], onDelete: Cascade)
+  user User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([noteId, userId])
+  @@map("note_votes")
+}
+
+// -------------------------------------------------------- love finder --------
+
+model Swipe {
+  id       String      @id @default(uuid()) @db.Uuid
+  actorId  String      @db.Uuid
+  targetId String      @db.Uuid
+  action   SwipeAction
+  createdAt DateTime   @default(now())
+
+  actor  User @relation("swiper", fields: [actorId], references: [id], onDelete: Cascade)
+  target User @relation("swipee", fields: [targetId], references: [id], onDelete: Cascade)
+
+  @@unique([actorId, targetId])
+  @@index([targetId, action])
+  @@map("swipes")
+}
+
+model Match {
+  id        String      @id @default(uuid()) @db.Uuid
+  // userAId < userBId always, so a pair can only match once
+  userAId   String      @db.Uuid
+  userBId   String      @db.Uuid
+  threadId  String?     @unique @db.Uuid
+  status    MatchStatus @default(ACTIVE)
+  // 6.3 — no message in MATCH_WILT_DAYS and the match wilts quietly.
+  wiltsAt   DateTime?
+  nudgedAt  DateTime?
+  wiltedAt  DateTime?
+  createdAt DateTime    @default(now())
+
+  userA  User    @relation("matchA", fields: [userAId], references: [id], onDelete: Cascade)
+  userB  User    @relation("matchB", fields: [userBId], references: [id], onDelete: Cascade)
+  thread Thread? @relation(fields: [threadId], references: [id], onDelete: SetNull)
+
+  @@unique([userAId, userBId])
+  @@index([status, wiltsAt])
+  @@map("matches")
+}
+
+// 7.2 — nothing is ever revealed unless it is mutual. No hints, no teasers.
+model CrushJarEntry {
+  id       String @id @default(uuid()) @db.Uuid
+  ownerId  String @db.Uuid
+  crushId  String @db.Uuid
+  revealedAt DateTime?
+  createdAt DateTime @default(now())
+
+  owner User @relation("crusher", fields: [ownerId], references: [id], onDelete: Cascade)
+  crush User @relation("crushee", fields: [crushId], references: [id], onDelete: Cascade)
+
+  @@unique([ownerId, crushId])
+  @@map("crush_jar_entries")
+}
+
+// 6.4 — entertainment only. Never an input to matching or ranking.
+model AstroProfile {
+  id       String    @id @default(uuid()) @db.Uuid
+  userId   String    @unique @db.Uuid
+  birthDate DateTime @db.Date
+  birthTime String?
+  birthPlace String?
+  sunSign  String
+  moonSign String?
+  optedIn  Boolean   @default(false)
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("astro_profiles")
+}
+
+// ------------------------------------------------- whispers, vibes, safety ---
+
+// 7.1 — identity stored server-side for abuse investigations, never surfaced.
+model Whisper {
+  id        String        @id @default(uuid()) @db.Uuid
+  authorId  String        @db.Uuid
+  body      String
+  status    WhisperStatus @default(PENDING_REVIEW)
+  filterHits String[]     @default([])
+  reviewedById String?    @db.Uuid
+  reviewedAt DateTime?
+  score     Int           @default(0)
+  createdAt DateTime      @default(now())
+
+  author User @relation(fields: [authorId], references: [id], onDelete: Cascade)
+
+  @@index([status, createdAt])
+  @@map("whispers")
+}
+
+model VibeCheck {
+  id        String   @id @default(uuid()) @db.Uuid
+  userId    String   @db.Uuid
+  emoji     String
+  text      String
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, expiresAt])
+  @@map("vibe_checks")
+}
+
+model Report {
+  id         String           @id @default(uuid()) @db.Uuid
+  reporterId String           @db.Uuid
+  targetType ReportTargetType
+  targetId   String           @db.Uuid
+  reason     String
+  details    String?
+  status     ReportStatus     @default(OPEN)
+  resolvedById String?        @db.Uuid
+  resolvedAt DateTime?
+  createdAt  DateTime         @default(now())
+
+  reporter User  @relation("reporter", fields: [reporterId], references: [id], onDelete: Cascade)
+  resolver User? @relation("resolver", fields: [resolvedById], references: [id], onDelete: SetNull)
+
+  @@index([status, createdAt])
+  @@map("reports")
+}
+
+// 10 — crisis routing. A hit surfaces a support card AND queues a human review.
+model CrisisFlag {
+  id         String   @id @default(uuid()) @db.Uuid
+  userId     String   @db.Uuid
+  surface    String // POST | COMMENT | MESSAGE | WHISPER
+  refId      String   @db.Uuid
+  pattern    String
+  reviewedAt DateTime?
+  createdAt  DateTime @default(now())
+
+  @@index([reviewedAt, createdAt])
+  @@map("crisis_flags")
+}
+
+// ------------------------------------------------------ stardust & misc ------
+
+model StardustLedger {
+  id     String         @id @default(uuid()) @db.Uuid
+  userId String         @db.Uuid
+  delta  Int
+  reason StardustReason
+  refId  String?
+  balanceAfter Int
+  createdAt DateTime    @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt(sort: Desc)])
+  @@map("stardust_ledger")
+}
+
+model PushToken {
+  id        String   @id @default(uuid()) @db.Uuid
+  userId    String   @db.Uuid
+  token     String   @unique
+  platform  String
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("push_tokens")
+}
+
+model Notification {
+  id     String   @id @default(uuid()) @db.Uuid
+  userId String   @db.Uuid
+  kind   String
+  title  String
+  body   String
+  data   Json     @default("{}")
+  readAt DateTime?
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, readAt, createdAt(sort: Desc)])
+  @@map("notifications")
+}

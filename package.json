@@ -1,0 +1,43 @@
+{
+  "name": "dronasphere",
+  "version": "0.1.0",
+  "private": true,
+  "description": "DronaSphere — campus-verified social app. Go API + Next.js web + Prisma/Postgres + Redis.",
+  "workspaces": [
+    "web"
+  ],
+  "scripts": {
+    "infra:up": "docker compose up -d postgres redis",
+    "infra:down": "docker compose down",
+    "infra:nuke": "docker compose down -v",
+    "db:migrate": "dotenv -e .env -- prisma migrate dev",
+    "db:deploy": "dotenv -e .env -- prisma migrate deploy",
+    "db:generate": "dotenv -e .env -- prisma generate",
+    "db:studio": "dotenv -e .env -- prisma studio",
+    "db:reset": "dotenv -e .env -- prisma migrate reset --force",
+    "db:seed": "dotenv -e .env -- tsx prisma/seed.ts",
+    "db:validate": "dotenv -e .env -- prisma validate",
+    "bootstrap": "npm run infra:up && npm run db:deploy && npm run db:seed",
+    "dev:api": "cd api && go run ./cmd/api",
+    "dev:web": "npm --workspace web run dev",
+    "test": "npm run test:api && npm run test:web",
+    "test:api": "cd api && go test ./...",
+    "test:api:cover": "cd api && go test -coverprofile=coverage.out ./... && go tool cover -func=coverage.out | tail -1",
+    "test:web": "npm --workspace web run test",
+    "lint:web": "npm --workspace web run lint",
+    "build:web": "npm --workspace web run build",
+    "build:api": "cd api && go build -o bin/api ./cmd/api"
+  },
+  "devDependencies": {
+    "@types/node": "^24.7.0",
+    "dotenv-cli": "^10.0.0",
+    "prisma": "^7.10.0",
+    "tsx": "^4.20.0",
+    "typescript": "^5.9.0"
+  },
+  "dependencies": {
+    "@prisma/adapter-pg": "^7.10.0",
+    "@prisma/client": "^7.10.0",
+    "dotenv": "^17.4.2"
+  }
+}

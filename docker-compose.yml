@@ -1,0 +1,140 @@
+# =============================================================================
+# DronaSphere — local stack
+#
+#   npm run infra:up     -> just Postgres + Redis (recommended for dev)
+#   docker compose up     -> the whole thing: db, cache, migrations, api, web
+#
+# Every value comes from .env. When you move to a hosted DB, point
+# DATABASE_URL / REDIS_URL at it and stop the postgres/redis services.
+# =============================================================================
+
+name: dronasphere
+
+services:
+  postgres:
+    image: postgres:17-alpine
+    container_name: drona-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-drona}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-drona_dev_password}
+      POSTGRES_DB: ${POSTGRES_DB:-dronasphere}
+      # deterministic collation so ORDER BY matches between machines
+      POSTGRES_INITDB_ARGS: "--encoding=UTF8 --locale=C"
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-drona} -d ${POSTGRES_DB:-dronasphere}"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 10s
+
+  redis:
+    image: redis:7-alpine
+    container_name: drona-redis
+    restart: unless-stopped
+    # appendonly so the Owl Board sorted sets survive a restart
+    command: ["redis-server", "--appendonly", "yes", "--save", "60", "1"]
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    volumes:
+      - redisdata:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  # One-shot: applies prisma/migrations, then seeds. Safe to re-run.
+  migrate:
+    build:
+      context: .
+      dockerfile: ./docker/migrate.Dockerfile
+    container_name: drona-migrate
+    profiles: ["full", "migrate"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-drona}:${POSTGRES_PASSWORD:-drona_dev_password}@postgres:5432/${POSTGRES_DB:-dronasphere}?schema=public
+    command: ["sh", "-c", "npx prisma migrate deploy && npx tsx prisma/seed.ts"]
+
+  api:
+    build:
+      context: ./api
+      dockerfile: Dockerfile
+    container_name: drona-api
+    profiles: ["full"]
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      API_PORT: 8080
+      API_ENV: ${API_ENV:-development}
+      LOG_LEVEL: ${LOG_LEVEL:-debug}
+      DATABASE_URL: postgresql://${POSTGRES_USER:-drona}:${POSTGRES_PASSWORD:-drona_dev_password}@postgres:5432/${POSTGRES_DB:-dronasphere}?schema=public
+      REDIS_URL: redis://redis:6379/0
+      JWT_SECRET: ${JWT_SECRET}
+      JWT_ACCESS_TTL: ${JWT_ACCESS_TTL:-15m}
+      JWT_REFRESH_TTL: ${JWT_REFRESH_TTL:-720h}
+      ALLOWED_ORIGINS: ${ALLOWED_ORIGINS:-http://localhost:3000}
+      CAMPUS_EMAIL_DOMAINS: ${CAMPUS_EMAIL_DOMAINS}
+      OTP_TTL: ${OTP_TTL:-10m}
+      OTP_LENGTH: ${OTP_LENGTH:-6}
+      OTP_MAX_ATTEMPTS: ${OTP_MAX_ATTEMPTS:-5}
+      OTP_RESEND_COOLDOWN: ${OTP_RESEND_COOLDOWN:-60s}
+      MAILER: ${MAILER:-log}
+      SMTP_HOST: ${SMTP_HOST:-}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_USER: ${SMTP_USER:-}
+      SMTP_PASSWORD: ${SMTP_PASSWORD:-}
+      SMTP_FROM: ${SMTP_FROM:-}
+      ONBOARDING_MIN_FOLLOWS: ${ONBOARDING_MIN_FOLLOWS:-8}
+      NIGHT_WINDOW_START: ${NIGHT_WINDOW_START:-22:00}
+      NIGHT_CURFEW: ${NIGHT_CURFEW:-03:00}
+      NIGHT_TIMEZONE: ${NIGHT_TIMEZONE:-Asia/Kolkata}
+      OWL_MIN_ACTIONS: ${OWL_MIN_ACTIONS:-3}
+      OWL_MAX_POINTS_PER_HOUR: ${OWL_MAX_POINTS_PER_HOUR:-120}
+      COCOON_MIN_SLEEP_HOURS: ${COCOON_MIN_SLEEP_HOURS:-7}
+      COCOON_STARDUST: ${COCOON_STARDUST:-250}
+      DATING_UNLOCK_MIN_USERS: ${DATING_UNLOCK_MIN_USERS:-400}
+      MATCH_WILT_DAYS: ${MATCH_WILT_DAYS:-7}
+      MATCH_NUDGE_DAYS: ${MATCH_NUDGE_DAYS:-5}
+    ports:
+      - "${API_PORT:-8080}:8080"
+    healthcheck:
+      test: ["CMD", "/app/api", "-healthcheck"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 5s
+
+  web:
+    build:
+      context: ./web
+      dockerfile: Dockerfile
+      args:
+        NEXT_PUBLIC_API_BASE_URL: ${NEXT_PUBLIC_API_BASE_URL:-http://localhost:8080}
+        NEXT_PUBLIC_WS_URL: ${NEXT_PUBLIC_WS_URL:-ws://localhost:8080/v1/ws}
+    container_name: drona-web
+    profiles: ["full"]
+    restart: unless-stopped
+    depends_on:
+      - api
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      NEXT_PUBLIC_API_BASE_URL: ${NEXT_PUBLIC_API_BASE_URL:-http://localhost:8080}
+      NEXT_PUBLIC_WS_URL: ${NEXT_PUBLIC_WS_URL:-ws://localhost:8080/v1/ws}
+    ports:
+      - "${WEB_PORT:-3000}:3000"
+
+volumes:
+  pgdata:
+  redisdata:
