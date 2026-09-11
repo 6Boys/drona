@@ -1,0 +1,417 @@
+@import "tailwindcss";
+
+/* Bridge the semantic tokens below into Tailwind's utility namespace with
+   `inline`, so utilities like `bg-surface` read the *live* custom property
+   (which flips per color-scheme and per [data-theme="dating"]) rather than a
+   value baked in at build time. */
+@theme inline {
+  --color-bg: var(--bg);
+  --color-bg-raised: var(--bg-raised);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-border: var(--border);
+  --color-border-strong: var(--border-strong);
+
+  --color-text: var(--text);
+  --color-text-muted: var(--text-muted);
+  --color-on-accent: var(--text-on-accent);
+
+  --color-accent: var(--accent);
+  --color-accent-strong: var(--accent-strong);
+  --color-accent-soft: var(--accent-soft);
+  --color-accent-wash: var(--accent-wash);
+
+  --color-positive: var(--positive);
+  --color-positive-soft: var(--positive-soft);
+  --color-negative: var(--negative);
+  --color-currency: var(--currency);
+  --color-currency-soft: var(--currency-soft);
+
+  --radius-sm: var(--radius-sm);
+  --radius-md: var(--radius-md);
+  --radius-lg: var(--radius-lg);
+  --radius-pill: var(--radius-pill);
+
+  --font-heading: var(--font-heading);
+  --font-body: var(--font-body);
+
+  --shadow-soft: var(--shadow-soft);
+  --shadow-pop: var(--shadow-pop);
+}
+
+/* =============================================================================
+   DronaSphere design system
+   ---------------------------------------------------------------------------
+   Two moods, one app:
+
+   1. Default — cream, lavender, calm. Reddit's bones (spaces, voting, threads)
+      wearing Instagram's polish (a real identity attached to everything).
+   2. Dating (Love Finder) — the same shapes and spacing, but the palette and
+      motion turn romantic: blush, flame-red, gold sparkle. Bumble/Hinge/Tinder
+      energy, scoped to one section so it reads as a deliberate mode change,
+      not a different app.
+
+   Tokens are tiered (PRD §8 + the project's own CSS guidance):
+     Tier 1 — raw palette (--ink-900, --rose-500, …)
+     Tier 2 — semantic (--bg, --text, --accent, …) — everything else reads THIS
+     Tier 3 — component tokens only where a component needs its own knob
+
+   The dating scope overrides Tier 2 only, via :where([data-theme="dating"]),
+   so every component built against semantic tokens re-themes for free.
+   ========================================================================= */
+
+@layer reset, tokens, base, components, utilities;
+
+@layer tokens {
+  :root {
+    color-scheme: light dark;
+
+    /* ---------- Tier 1: raw palette (PRD §8) ---------- */
+    --cream-50: #fffdf9;
+    --cream-100: #fff9f2;
+    --cream-200: #fff3e6;
+    --cocoa-600: #6b5347;
+    --cocoa-800: #4a3b34;
+    --cocoa-900: #362b26;
+
+    --ube-300: #c4b0fa;
+    --ube-500: #8a6ff0;
+    --ube-600: #7c5ce0;
+    --ube-700: #6647c4;
+
+    --peach-300: #ffcfc2;
+    --peach-500: #ffb4a2;
+
+    --mint-300: #c3f0dd;
+    --mint-500: #8fddb9;
+    --mint-600: #4cae7f;
+
+    --butter-300: #ffecb8;
+    --butter-500: #ffe29a;
+    --butter-600: #e0a527;
+
+    --indigo-900: #1e1b33;
+    --indigo-800: #272346;
+    --indigo-700: #322c58;
+    --indigo-300: #a99ee0;
+
+    /* ---------- Tier 1: romance palette (Love Finder only) ---------- */
+    --rose-050: #fff1f3;
+    --rose-100: #ffe1e6;
+    --rose-300: #ff9db0;
+    --rose-500: #ff4d6d;
+    --rose-600: #ec3a5b;
+    --rose-700: #c62148;
+    --flame-500: #ff6b4a;
+    --gold-400: #ffcf3c;
+    --gold-600: #e0a500;
+    --maroon-800: #5c2333;
+    --maroon-900: #401726;
+
+    /* ---------- Tier 2: semantic — default theme ---------- */
+    --bg: var(--cream-100);
+    --bg-raised: var(--cream-50);
+    --surface: #ffffff;
+    --surface-2: var(--cream-200);
+    --border: color-mix(in oklab, var(--cocoa-800) 12%, transparent);
+    --border-strong: color-mix(in oklab, var(--cocoa-800) 24%, transparent);
+
+    --text: var(--cocoa-900);
+    --text-muted: var(--cocoa-600);
+    --text-on-accent: #ffffff;
+
+    --accent: var(--ube-600);
+    --accent-strong: var(--ube-700);
+    --accent-soft: var(--ube-300);
+    --accent-wash: color-mix(in oklab, var(--ube-500) 12%, var(--surface));
+
+    --positive: var(--mint-600);
+    --positive-soft: var(--mint-300);
+    --negative: #e0637a;
+    --currency: var(--butter-600);
+    --currency-soft: var(--butter-300);
+
+    --focus-ring: var(--ube-600);
+    --radius-sm: 0.875rem;
+    --radius-md: 1.25rem;
+    --radius-lg: 1.75rem;
+    --radius-pill: 999px;
+
+    --shadow-soft:
+      0 1px 2px color-mix(in oklab, var(--cocoa-900) 6%, transparent),
+      0 8px 20px -6px color-mix(in oklab, var(--cocoa-900) 14%, transparent);
+    --shadow-pop:
+      0 2px 4px color-mix(in oklab, var(--cocoa-900) 10%, transparent),
+      0 16px 32px -10px color-mix(in oklab, var(--cocoa-900) 22%, transparent);
+
+    --font-heading: var(--font-baloo), ui-rounded, "Segoe UI", sans-serif;
+    --font-body: var(--font-quicksand), ui-sans-serif, system-ui, sans-serif;
+
+    /* identity transforms — see swipe-card note below */
+    translate: 0;
+    rotate: 0deg;
+    scale: 1;
+  }
+
+  /* ---------- Dark mode: "Moonlight" (PRD §8) ---------- */
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="dating"]) {
+      --bg: var(--indigo-900);
+      --bg-raised: var(--indigo-800);
+      --surface: var(--indigo-800);
+      --surface-2: var(--indigo-700);
+      --border: color-mix(in oklab, var(--indigo-300) 22%, transparent);
+      --border-strong: color-mix(in oklab, var(--indigo-300) 38%, transparent);
+
+      --text: #f3efe8;
+      --text-muted: color-mix(in oklab, var(--indigo-300) 70%, #f3efe8);
+      --text-on-accent: #ffffff;
+
+      /* pastels desaturate slightly rather than glow, per PRD */
+      --accent: color-mix(in oklab, var(--ube-500) 82%, white 4%);
+      --accent-strong: var(--ube-300);
+      --accent-soft: color-mix(in oklab, var(--ube-500) 45%, var(--indigo-800));
+      --accent-wash: color-mix(in oklab, var(--ube-500) 16%, var(--surface));
+
+      --positive: var(--mint-500);
+      --currency: var(--butter-500);
+
+      --shadow-soft: 0 8px 24px -8px rgb(0 0 0 / 0.5);
+      --shadow-pop: 0 20px 40px -12px rgb(0 0 0 / 0.6);
+    }
+  }
+
+  /* ---------- Love Finder scope: the vibe shift ---------- *
+   * Same shapes, same spacing scale, same components — only the semantic
+   * color tier turns over. :where() keeps this at zero specificity so any
+   * component-level override still wins predictably.                     */
+  :where([data-theme="dating"]) {
+    color-scheme: light;
+    --bg: var(--rose-050);
+    --bg-raised: #ffffff;
+    --surface: #ffffff;
+    --surface-2: var(--rose-100);
+    --border: color-mix(in oklab, var(--maroon-800) 10%, transparent);
+    --border-strong: color-mix(in oklab, var(--maroon-800) 22%, transparent);
+
+    --text: var(--maroon-900);
+    --text-muted: color-mix(in oklab, var(--maroon-800) 65%, var(--rose-050));
+    --text-on-accent: #ffffff;
+
+    --accent: var(--rose-500);
+    --accent-strong: var(--rose-700);
+    --accent-soft: var(--rose-300);
+    --accent-wash: color-mix(in oklab, var(--rose-500) 10%, var(--surface));
+
+    --positive: var(--rose-600);
+    --positive-soft: var(--rose-100);
+    --negative: #97a0b3;
+    --currency: var(--gold-600);
+    --currency-soft: color-mix(in oklab, var(--gold-400) 35%, white);
+
+    --focus-ring: var(--rose-600);
+    --shadow-soft:
+      0 1px 2px color-mix(in oklab, var(--maroon-900) 8%, transparent),
+      0 10px 24px -8px color-mix(in oklab, var(--rose-600) 28%, transparent);
+    --shadow-pop:
+      0 4px 10px color-mix(in oklab, var(--maroon-900) 12%, transparent),
+      0 24px 48px -12px color-mix(in oklab, var(--rose-600) 40%, transparent);
+
+    /* romance-only tokens */
+    --flame-grad: linear-gradient(135deg, var(--rose-300) 0%, var(--rose-500) 45%, var(--flame-500) 100%);
+    --gold-grad: linear-gradient(135deg, #ffe083 0%, var(--gold-400) 60%, var(--gold-600) 100%);
+    --match-grad: linear-gradient(
+      160deg,
+      var(--rose-500) 0%,
+      var(--flame-500) 55%,
+      var(--gold-400) 100%
+    );
+  }
+}
+
+@layer reset {
+  *,
+  *::before,
+  *::after {
+    box-sizing: border-box;
+    translate: 0;
+    rotate: 0deg;
+    scale: 1;
+  }
+
+  html {
+    -webkit-text-size-adjust: 100%;
+    scrollbar-color: var(--border-strong) transparent;
+    scrollbar-width: thin;
+  }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font-body);
+    -webkit-font-smoothing: antialiased;
+    min-height: 100dvh;
+  }
+
+  img,
+  svg {
+    display: block;
+    max-width: 100%;
+  }
+
+  button {
+    font: inherit;
+    color: inherit;
+  }
+
+  a {
+    color: inherit;
+    text-decoration: none;
+  }
+
+  ::selection {
+    background: var(--accent-soft);
+    color: var(--text);
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--focus-ring);
+    outline-offset: 2px;
+    border-radius: var(--radius-sm);
+  }
+
+  h1,
+  h2,
+  h3,
+  h4 {
+    font-family: var(--font-heading);
+    font-weight: 600;
+    line-height: 1.15;
+    text-wrap: balance;
+  }
+
+  p {
+    text-wrap: pretty;
+  }
+}
+
+@layer base {
+  /* Whole-app transition when the Love Finder theme scope mounts/unmounts,
+     used together with the View Transitions nav helper in lib/view-transition.ts.
+     Reduced-motion users get an instant swap (handled by the helper itself). */
+  ::view-transition-old(root),
+  ::view-transition-new(root) {
+    animation-duration: 0.5s;
+    animation-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.001ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.001ms !important;
+      scroll-behavior: auto !important;
+    }
+    ::view-transition-group(*),
+    ::view-transition-old(*),
+    ::view-transition-new(*) {
+      animation: none !important;
+    }
+  }
+}
+
+@layer components {
+  .surface-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-soft);
+  }
+
+  .pill-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.4em;
+    border-radius: var(--radius-pill);
+    font-family: var(--font-heading);
+    font-weight: 600;
+    white-space: nowrap;
+    transition:
+      scale 0.15s ease,
+      background-color 0.15s ease,
+      box-shadow 0.15s ease;
+    scale: 1;
+  }
+
+  .pill-btn:active {
+    scale: 0.94;
+  }
+
+  @media (hover: hover) {
+    .pill-btn:hover {
+      scale: 1.02;
+    }
+  }
+
+  /* Dronu blinks on idle — a small sign of life in empty states. */
+  @keyframes dronu-blink {
+    0%,
+    92%,
+    100% {
+      scale: 1 1;
+    }
+    95% {
+      scale: 1 0.15;
+    }
+  }
+
+  .dronu-idle {
+    transform-origin: center 62%;
+    animation: dronu-blink 5.5s ease-in-out infinite;
+  }
+
+  @keyframes float-y {
+    0%,
+    100% {
+      translate: 0 0;
+    }
+    50% {
+      translate: 0 -6px;
+    }
+  }
+
+  .float-idle {
+    animation: float-y 4s ease-in-out infinite;
+  }
+
+  @keyframes pop-in {
+    from {
+      scale: 0.85;
+      opacity: 0;
+    }
+    to {
+      scale: 1;
+      opacity: 1;
+    }
+  }
+
+  .pop-in {
+    animation: pop-in 0.35s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+  }
+
+  @keyframes confetti-fall {
+    0% {
+      translate: var(--x-start, 0) -10vh;
+      rotate: 0deg;
+      opacity: 1;
+    }
+    100% {
+      translate: var(--x-end, 0) 105vh;
+      rotate: 540deg;
+      opacity: 0.9;
+    }
+  }
+}

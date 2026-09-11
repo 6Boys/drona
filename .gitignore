@@ -30,3 +30,5 @@ prisma/.env
 *.log
 .idea/
 .vscode/
+.claude/
+
