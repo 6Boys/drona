@@ -5,6 +5,7 @@
 import type { ApiErrorBody } from "./types";
 
 const BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8080";
+const WS_URL = process.env.NEXT_PUBLIC_WS_URL ?? BASE_URL.replace(/^http/, "ws") + "/v1/ws";
 
 export class ApiError extends Error {
   code: string;
@@ -153,4 +154,12 @@ export const api = {
   delete: <T>(path: string) => request<T>(path, { method: "DELETE" }),
 };
 
-export { BASE_URL as API_BASE_URL };
+export { BASE_URL as API_BASE_URL, WS_URL as API_WS_URL };
+
+/** Friendly-first error copy. The API writes the human sentence; the client
+ * never invents one on top of it. */
+export function errorMessage(err: unknown, fallback = "something went wrong"): string {
+  if (err instanceof ApiError) return err.friendly || err.message || fallback;
+  if (err instanceof Error && err.message) return err.message;
+  return fallback;
+}

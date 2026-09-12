@@ -191,7 +191,7 @@ func (s *Server) routes() {
 	})
 
 	r.NotFound(func(w http.ResponseWriter, r *http.Request) {
-		httpx.Fail(w, r, httpx.NotFound("no route here").WithFriendly("nothing lives at this address 🦉"))
+		httpx.Fail(w, r, httpx.NotFound("no route here").WithFriendly("Nothing lives at this address."))
 	})
 	r.MethodNotAllowed(func(w http.ResponseWriter, r *http.Request) {
 		httpx.Fail(w, r, httpx.BadRequest("that method is not allowed on this route"))

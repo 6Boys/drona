@@ -121,7 +121,7 @@ func (s *OwlService) RecordAction(ctx context.Context, userID, fingerprint strin
 			s.log.WarnContext(ctx, "could not mark curfew", "error", err, "session", session.ID)
 		}
 		s.publishUser(ctx, userID, realtime.EventOwlCurfew, map[string]any{
-			"message":  "the board is closed for tonight — go to sleep 🌙",
+			"message":  "The board is closed for tonight. Points resume when the window reopens.",
 			"cozyMode": true,
 		})
 	}
@@ -276,11 +276,11 @@ func (s *OwlService) Heartbeat(ctx context.Context, userID, campusID, fingerprin
 
 	switch {
 	case status.CozyMode:
-		status.Message = "the board closed at " + s.cfg.NightCurfew.String() + ". go to sleep — Dronu already did 🌙"
+		status.Message = "The board closed at " + s.cfg.NightCurfew.String() + ". Points are paused until tomorrow night."
 	case nightOpen:
-		status.Message = "the night is open. " + s.cfg.NightCurfew.String() + " is the hard stop ✨"
+		status.Message = "Night window is open. " + s.cfg.NightCurfew.String() + " is the hard stop."
 	default:
-		status.Message = "the board opens at " + s.cfg.NightWindowStart.String() + " 🦉"
+		status.Message = "The board opens at " + s.cfg.NightWindowStart.String() + "."
 	}
 	return status, nil
 }
@@ -541,12 +541,12 @@ func (s *OwlService) ClaimCocoon(ctx context.Context, userID string) (*CocoonRes
 		return nil, httpx.Internal("could not check today's bonus").WithCause(err)
 	}
 	if claimed {
-		return &CocoonResult{SleepHours: check.SleepHours, Message: "already claimed today — see you tomorrow ✨"}, nil
+		return &CocoonResult{SleepHours: check.SleepHours, Message: "Already claimed today. Come back after your next full rest."}, nil
 	}
 
 	if err := s.db.ClaimCocoon(ctx, userID, check.DayKey, check.SleepHours, s.cfg.CocoonStardust); err != nil {
 		if errors.Is(err, store.ErrConflict) {
-			return &CocoonResult{SleepHours: check.SleepHours, Message: "already claimed today — see you tomorrow ✨"}, nil
+			return &CocoonResult{SleepHours: check.SleepHours, Message: "Already claimed today. Come back after your next full rest."}, nil
 		}
 		return nil, httpx.Internal("could not award the bonus").WithCause(err)
 	}
@@ -564,7 +564,7 @@ func (s *OwlService) ClaimCocoon(ctx context.Context, userID string) (*CocoonRes
 		SleepHours: check.SleepHours,
 		Stardust:   s.cfg.CocoonStardust,
 		Balance:    balance,
-		Message:    "you actually slept 🛏️✨ that beats a whole night of grinding",
+		Message:    "A full rest logged. That beats a whole night of grinding.",
 	}
 	s.publishUser(ctx, userID, realtime.EventOwlCocoon, result)
 	return result, nil

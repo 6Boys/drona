@@ -181,7 +181,7 @@ func (s *UserService) UpdateProfile(ctx context.Context, userID string, req Upda
 			return nil, httpx.Internal("could not check that handle").WithCause(err)
 		}
 		if taken {
-			return nil, httpx.Conflict("that handle is taken").WithFriendly("someone got there first — try another? 🫶")
+			return nil, httpx.Conflict("that handle is taken").WithFriendly("That one is taken — try another.")
 		}
 		params.Handle = &h
 	}
@@ -357,7 +357,7 @@ func (s *UserService) Follow(ctx context.Context, followerID, targetHandle strin
 	}
 	if target.ID == followerID {
 		return nil, httpx.BadRequest("you cannot follow yourself").
-			WithFriendly("you're already your own biggest fan ✨")
+			WithFriendly("You cannot follow yourself.")
 	}
 
 	created, err := s.db.Follow(ctx, followerID, target.ID)

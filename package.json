@@ -20,6 +20,7 @@
     "bootstrap": "npm run infra:up && npm run db:deploy && npm run db:seed",
     "dev:api": "cd api && go run ./cmd/api",
     "dev:web": "npm --workspace web run dev",
+    "mock:api": "node tools/mock-api/server.mjs",
     "test": "npm run test:api && npm run test:web",
     "test:api": "cd api && go test ./...",
     "test:api:cover": "cd api && go test -coverprofile=coverage.out ./... && go tool cover -func=coverage.out | tail -1",

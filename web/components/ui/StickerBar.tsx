@@ -1,9 +1,9 @@
 "use client";
 
-import type { StickerCount, Sticker } from "@/lib/types";
+import type { Sticker, StickerCount } from "@/lib/types";
 import { cn } from "@/lib/cn";
 
-const ALL_STICKERS: { sticker: Sticker; emoji: string }[] = [
+const ALL: { sticker: Sticker; emoji: string }[] = [
   { sticker: "COOKIE", emoji: "🍪" },
   { sticker: "SPARKLE", emoji: "✨" },
   { sticker: "SOB", emoji: "😭" },
@@ -11,11 +11,12 @@ const ALL_STICKERS: { sticker: Sticker; emoji: string }[] = [
   { sticker: "HEART_HANDS", emoji: "🫶" },
 ];
 
-/** Zero-risk reactions (PRD 6.5) — deliberately separate from voting so a
+/** Zero-risk reactions (PRD 6.5) — deliberately separate from voting, so a
  * lurker can react without their name attaching to an opinion. */
 export function StickerBar({
   stickers,
   onToggle,
+  /** Hides empty buckets; the full row only appears on hover/focus. */
   compact,
 }: {
   stickers: StickerCount[];
@@ -25,25 +26,33 @@ export function StickerBar({
   const byKey = new Map(stickers.map((s) => [s.sticker, s]));
 
   return (
-    <div className="flex flex-wrap items-center gap-1.5">
-      {ALL_STICKERS.map(({ sticker, emoji }) => {
+    <div className="flex flex-wrap items-center gap-1">
+      {ALL.map(({ sticker, emoji }) => {
         const state = byKey.get(sticker);
         const count = state?.count ?? 0;
-        if (compact && count === 0) return null;
+        const hidden = compact && count === 0;
+
         return (
           <button
             key={sticker}
             type="button"
+            aria-label={`React ${emoji}`}
+            aria-pressed={state?.reacted ?? false}
             onClick={() => onToggle?.(sticker)}
+            disabled={!onToggle}
             className={cn(
-              "flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs transition-colors",
+              "flex h-6 items-center gap-1 rounded-full border px-1.5 text-xs transition-colors",
+              onToggle ? "cursor-pointer" : "cursor-default",
               state?.reacted
-                ? "border-accent bg-accent-wash text-accent-strong"
-                : "border-border text-text-muted hover:border-border-strong",
+                ? "border-[color-mix(in_oklab,var(--accent)_45%,transparent)] bg-accent-wash text-accent-hi"
+                : "border-border text-muted hover:border-border-strong hover:text-text",
+              hidden && "hidden group-hover/post:flex group-focus-within/post:flex",
             )}
           >
-            <span>{emoji}</span>
-            {count > 0 && <span className="font-semibold tabular-nums">{count}</span>}
+            <span aria-hidden className="text-[0.8125rem] leading-none">
+              {emoji}
+            </span>
+            {count > 0 && <span className="tabnum font-medium">{count}</span>}
           </button>
         );
       })}

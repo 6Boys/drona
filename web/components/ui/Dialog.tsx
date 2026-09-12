@@ -1,55 +1,79 @@
 "use client";
 
-import { forwardRef, useEffect, useImperativeHandle, useRef } from "react";
+import { useEffect, type ReactNode } from "react";
+import { XIcon } from "./Icons";
 import { cn } from "@/lib/cn";
 
-export interface DialogHandle {
-  showModal: () => void;
-  close: () => void;
-}
-
-interface DialogProps {
-  children: React.ReactNode;
-  className?: string;
-  onClose?: () => void;
-  /** Bare wraps the dialog content with no default card chrome — used by the
-   * match-celebration screen, which draws its own full-bleed gradient. */
-  bare?: boolean;
-}
-
-/** A native <dialog> gives us focus-trapping, Escape-to-close and light
- * dismiss for free (per the modern-web-guidance dialog patterns) — no
- * hand-rolled a11y needed. */
-export const Dialog = forwardRef<DialogHandle, DialogProps>(function Dialog(
-  { children, className, onClose, bare },
-  ref,
-) {
-  const dialogRef = useRef<HTMLDialogElement>(null);
-
-  useImperativeHandle(ref, () => ({
-    showModal: () => dialogRef.current?.showModal(),
-    close: () => dialogRef.current?.close(),
-  }));
-
+export function Dialog({
+  open,
+  onClose,
+  title,
+  description,
+  children,
+  footer,
+  width = "md",
+}: {
+  open: boolean;
+  onClose: () => void;
+  title: string;
+  description?: string;
+  children?: ReactNode;
+  footer?: ReactNode;
+  width?: "sm" | "md" | "lg";
+}) {
   useEffect(() => {
-    const el = dialogRef.current;
-    if (!el || !onClose) return;
-    el.addEventListener("close", onClose);
-    return () => el.removeEventListener("close", onClose);
-  }, [onClose]);
+    if (!open) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    document.addEventListener("keydown", onKey);
+    const previous = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.removeEventListener("keydown", onKey);
+      document.body.style.overflow = previous;
+    };
+  }, [open, onClose]);
+
+  if (!open) return null;
 
   return (
-    <dialog
-      ref={dialogRef}
-      closedby="any"
-      className={cn(
-        "m-auto max-h-[90dvh] w-[min(30rem,92vw)] overflow-y-auto backdrop:bg-black/40 backdrop:backdrop-blur-sm",
-        !bare && "surface-card p-6",
-        bare && "bg-transparent p-0",
-        className,
-      )}
-    >
-      {children}
-    </dialog>
+    <div className="fixed inset-0 z-50 flex items-end justify-center p-0 sm:items-center sm:p-6">
+      <button
+        aria-label="Close"
+        onClick={onClose}
+        className="absolute inset-0 cursor-default bg-[rgb(22_21_15_/_0.3)] backdrop-blur-md"
+      />
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-label={title}
+        className={cn(
+          "glass glass-strong pop relative flex max-h-[88dvh] w-full flex-col overflow-hidden",
+          "rounded-t-[var(--r-xl)] sm:rounded-[var(--r-xl)]",
+          width === "sm" && "sm:max-w-sm",
+          width === "md" && "sm:max-w-lg",
+          width === "lg" && "sm:max-w-2xl",
+        )}
+      >
+        <header className="flex items-start justify-between gap-4 border-b border-border px-5 py-4">
+          <div className="min-w-0">
+            <h2 className="text-[0.9375rem] font-medium">{title}</h2>
+            {description && <p className="mt-0.5 text-[0.8125rem] text-muted">{description}</p>}
+          </div>
+          <button
+            onClick={onClose}
+            aria-label="Close"
+            className="-mr-1 -mt-1 cursor-pointer rounded-[var(--r-sm)] p-1.5 text-muted transition-colors hover:bg-surface-2 hover:text-text"
+          >
+            <XIcon size={18} />
+          </button>
+        </header>
+
+        <div className="min-h-0 flex-1 overflow-y-auto px-5 py-4">{children}</div>
+
+        {footer && <footer className="flex justify-end gap-2 border-t border-border px-5 py-3.5">{footer}</footer>}
+      </div>
+    </div>
   );
-});
+}

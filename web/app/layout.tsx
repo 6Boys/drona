@@ -1,42 +1,53 @@
 import type { Metadata, Viewport } from "next";
-import { Baloo_2, Quicksand } from "next/font/google";
+import { Inter, Instrument_Serif, JetBrains_Mono } from "next/font/google";
+import { AuthProvider } from "@/lib/auth-context";
+import { ToastProvider } from "@/components/ui/Toast";
 import "./globals.css";
 
-const baloo = Baloo_2({
+const inter = Inter({
   subsets: ["latin"],
-  weight: ["500", "600", "700", "800"],
-  variable: "--font-baloo",
+  variable: "--font-inter",
   display: "swap",
 });
 
-const quicksand = Quicksand({
+const serif = Instrument_Serif({
   subsets: ["latin"],
-  weight: ["400", "500", "600", "700"],
-  variable: "--font-quicksand",
+  weight: ["400"],
+  style: ["normal", "italic"],
+  variable: "--font-serif-face",
+  display: "swap",
+});
+
+const mono = JetBrains_Mono({
+  subsets: ["latin"],
+  weight: ["400", "500"],
+  variable: "--font-mono-face",
   display: "swap",
 });
 
 export const metadata: Metadata = {
   title: {
-    default: "DronaSphere",
+    default: "DronaSphere — your campus, in one place",
     template: "%s · DronaSphere",
   },
-  description: "Your whole campus in one place — feed, chats, and a night-owl leaderboard.",
+  description:
+    "A campus-verified social platform: one feed, real chats, a night-owl leaderboard that knows when to tell you to sleep, and a note locker that works on a dead Tuesday.",
 };
 
 export const viewport: Viewport = {
-  themeColor: [
-    { media: "(prefers-color-scheme: light)", color: "#fff9f2" },
-    { media: "(prefers-color-scheme: dark)", color: "#1e1b33" },
-  ],
+  themeColor: "#faf9f6",
   width: "device-width",
   initialScale: 1,
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" className={`${baloo.variable} ${quicksand.variable}`}>
-      <body>{children}</body>
+    <html lang="en" className={`${inter.variable} ${serif.variable} ${mono.variable}`}>
+      <body>
+        <AuthProvider>
+          <ToastProvider>{children}</ToastProvider>
+        </AuthProvider>
+      </body>
     </html>
   );
 }

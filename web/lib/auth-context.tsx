@@ -1,20 +1,39 @@
 "use client";
 
-import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from "react";
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+  type ReactNode,
+} from "react";
 import { useRouter } from "next/navigation";
-import { api, clearSession, getAccessToken } from "./api";
-import type { MeResponse } from "./types";
+import { api, clearSession, getAccessToken, getRefreshToken, setSession } from "./api";
+import type { MeResponse, OnboardingStep, SessionResponse } from "./types";
 
 interface AuthState {
   me: MeResponse | null;
   loading: boolean;
-  /** Re-fetches /v1/me — call after anything that can move onboardingStep,
-   * follower counts, Stardust, or the Love Finder toggle. */
-  refresh: () => Promise<void>;
-  logout: () => void;
+  signedIn: boolean;
+  /** Stores tokens from a verified OTP and loads the account behind them. */
+  signIn: (session: SessionResponse) => Promise<MeResponse | null>;
+  /** Re-fetches /v1/me — call after anything that moves onboarding, follows,
+   * Stardust or the Love Finder toggle. */
+  refresh: () => Promise<MeResponse | null>;
+  /** Applies a MeResponse the caller already has, skipping a round trip. */
+  apply: (me: MeResponse) => void;
+  logout: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthState | null>(null);
+
+/** Where an account belongs given how far onboarding got. The API decides the
+ * step; the client only maps it to a route. */
+export function routeForStep(step: OnboardingStep): string {
+  return step === "DONE" ? "/feed" : "/onboarding";
+}
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [me, setMe] = useState<MeResponse | null>(null);
@@ -25,13 +44,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (!getAccessToken()) {
       setMe(null);
       setLoading(false);
-      return;
+      return null;
     }
     try {
       const data = await api.get<MeResponse>("/v1/me");
       setMe(data);
+      return data;
     } catch {
       setMe(null);
+      return null;
     } finally {
       setLoading(false);
     }
@@ -39,16 +60,34 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     refresh();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [refresh]);
 
-  const logout = useCallback(() => {
+  const signIn = useCallback(
+    async (session: SessionResponse) => {
+      setSession(session.accessToken, session.refreshToken);
+      return refresh();
+    },
+    [refresh],
+  );
+
+  const logout = useCallback(async () => {
+    const refreshToken = getRefreshToken();
+    if (refreshToken) {
+      // Best effort: the local session is cleared either way, so a failed
+      // revoke must never strand someone in a half-signed-out state.
+      await api.post("/v1/auth/logout", { refreshToken }).catch(() => {});
+    }
     clearSession();
     setMe(null);
     router.push("/login");
   }, [router]);
 
-  return <AuthContext.Provider value={{ me, loading, refresh, logout }}>{children}</AuthContext.Provider>;
+  const value = useMemo<AuthState>(
+    () => ({ me, loading, signedIn: !!me, signIn, refresh, apply: setMe, logout }),
+    [me, loading, signIn, refresh, logout],
+  );
+
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
 
 export function useAuth(): AuthState {
