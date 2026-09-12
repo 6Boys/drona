@@ -4,7 +4,12 @@
 
 import type { ApiErrorBody } from "./types";
 
-const BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8080";
+// Empty string means "this same origin" — the app's own /v1/* Route Handlers
+// (app/v1/[...slug]/route.js) in every environment, dev or deployed, with no
+// separate host and no CORS to configure. Set NEXT_PUBLIC_API_BASE_URL only to
+// point at something else instead — e.g. the standalone mock server on
+// localhost:8080 for realtime while developing, or a real deployed backend.
+const BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL ?? "";
 const WS_URL = process.env.NEXT_PUBLIC_WS_URL ?? BASE_URL.replace(/^http/, "ws") + "/v1/ws";
 
 export class ApiError extends Error {
@@ -102,7 +107,12 @@ interface RequestOptions {
 }
 
 function buildUrl(path: string, query?: RequestOptions["query"]): string {
-  const url = new URL(BASE_URL + path);
+  // `new URL(path, base)` resolves `path` against `base` whether `base` is
+  // absolute (a configured BASE_URL) or we fall back to the page's own
+  // origin (BASE_URL === "", meaning "this same deployment") — unlike
+  // `new URL(BASE_URL + path)`, which throws on a bare "/v1/..." string.
+  const base = BASE_URL || (typeof window !== "undefined" ? window.location.origin : "http://localhost");
+  const url = new URL(path, base);
   if (query) {
     for (const [key, value] of Object.entries(query)) {
       if (value !== undefined && value !== "") url.searchParams.set(key, String(value));
