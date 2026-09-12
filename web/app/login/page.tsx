@@ -54,10 +54,15 @@ function LoginFlow() {
   }, [cooldown]);
 
   const request = useCallback(async (address: string) => {
+    let normalized = address.trim();
+    if (normalized && !normalized.includes("@")) {
+      normalized = `${normalized}@dronacharya.info`;
+    }
+
     setBusy(true);
     setError(null);
     try {
-      const result = await api.post<OtpRequestResult>("/v1/auth/otp/request", { email: address });
+      const result = await api.post<OtpRequestResult>("/v1/auth/otp/request", { email: normalized });
       setSent(result);
       setStep("code");
       setCooldown(60);
@@ -173,10 +178,11 @@ function LoginFlow() {
             >
               <GlowInput
                 id="email"
-                label="college email"
-                type="email"
+                label="college email (or username)"
+                type="text"
                 required
                 autoFocus
+                spellCheck={false}
                 autoComplete="email"
                 placeholder="you@dronacharya.info"
                 value={email}
