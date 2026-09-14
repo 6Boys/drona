@@ -26,6 +26,7 @@ import (
 	"github.com/aniketrathour/dronasphere/api/internal/httpx"
 	"github.com/aniketrathour/dronasphere/api/internal/logx"
 	"github.com/aniketrathour/dronasphere/api/internal/mailer"
+	"github.com/aniketrathour/dronasphere/api/internal/media"
 	"github.com/aniketrathour/dronasphere/api/internal/realtime"
 	"github.com/aniketrathour/dronasphere/api/internal/service"
 	"github.com/aniketrathour/dronasphere/api/internal/store"
@@ -123,6 +124,12 @@ func run() error {
 	chatSvc := service.NewChatService(cfg, db, redisClient, bus, owlSvc, logger, utcNow)
 	noteSvc := service.NewNoteService(cfg, db, logger, utcNow)
 
+	mediaStore, err := media.New(cfg.MediaDir)
+	if err != nil {
+		return err
+	}
+	logger.Info("media store ready", "dir", cfg.MediaDir, "max_bytes", media.MaxBytes)
+
 	gateway := realtime.NewGateway(bus, chatSvc, realtime.NewHub(), logger, cfg.AllowedOrigins)
 
 	server := api.NewServer(api.Deps{
@@ -136,6 +143,7 @@ func run() error {
 		Chat:    chatSvc,
 		Owl:     owlSvc,
 		Notes:   noteSvc,
+		Media:   mediaStore,
 		Gateway: gateway,
 		Health: func(r *http.Request) map[string]string {
 			checks := map[string]string{"postgres": "ok"}

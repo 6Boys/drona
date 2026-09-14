@@ -34,6 +34,7 @@
   - [Option B: Hybrid Local Development (Recommended)](#option-b-hybrid-local-development-recommended)
   - [Option C: Instant Frontend Preview (Zero-Docker Mock API)](#option-c-instant-frontend-preview-zero-docker-mock-api)
 - [Environment Variables (.env)](#-environment-variables-env)
+- [Self-Hosting on a Homelab](#-self-hosting-on-a-homelab)
 - [Database Management & Prisma](#-database-management--prisma)
 - [Testing & Code Quality](#-testing--code-quality)
 - [License](#-license)
@@ -306,6 +307,114 @@ Key variables from `.env.example`:
 | `NIGHT_TIMEZONE` | `Asia/Kolkata` | Timezone for the late-night window |
 | `DATING_UNLOCK_MIN_USERS`| `400` | Verified campus users needed to unlock Love Finder |
 | `MATCH_WILT_DAYS` | `7` | Days of inactivity before a match wilts |
+| `ALLOWED_ORIGINS` | `http://localhost:3000` | Origins the API accepts browser calls from (CORS **and** the WebSocket origin check) |
+| `MEDIA_DIR` | `./data/media` (Docker: `/data/media`) | Where uploaded pictures are written |
+| `MEDIA_PUBLIC_BASE_URL` | *(empty)* | Only set if pictures must resolve somewhere other than the API's own origin |
+| `NEXT_PUBLIC_API_BASE_URL` | `http://localhost:8080` | **Build-time.** Where the browser reaches the API |
+| `NEXT_PUBLIC_WS_URL` | `ws://localhost:8080/v1/ws` | **Build-time.** Where the browser opens the live socket |
+
+---
+
+## 🏡 Self-Hosting on a Homelab
+
+This stack is designed to run on one modest box — the database, uploaded
+pictures and all. Nothing is stored with a third party.
+
+### What holds your data
+
+| What | Where it lives | Back this up |
+|---|---|---|
+| Everything relational (accounts, posts, chats, matches) | Postgres → `dronasphere_pgdata` volume | **Yes** |
+| Uploaded pictures | Disk → `dronasphere_media` volume | **Yes** — Postgres cannot regenerate these |
+| Owl Board live counters, rate limits, socket fanout | Redis → `dronasphere_redisdata` volume | Optional — rebuilt from Postgres snapshots |
+
+```bash
+# Back up both halves of "the data"
+docker run --rm -v dronasphere_pgdata:/src -v "$PWD":/out alpine \
+  tar czf /out/pgdata-$(date +%F).tgz -C /src .
+docker run --rm -v dronasphere_media:/src -v "$PWD":/out alpine \
+  tar czf /out/media-$(date +%F).tgz -C /src .
+```
+
+### Pictures: 5 MB, images and GIFs, no video
+
+Uploads go to the API's own disk-backed store (`api/internal/media`), served
+back from `GET /media/<name>` with immutable caching.
+
+- **5 MB ceiling** per file.
+- **JPEG, PNG, WEBP and GIF only** — animated GIFs included. Every video
+  format is refused no matter how small it is.
+- The type is decided by **sniffing the actual bytes**, so renaming an `.mp4`
+  to `.png` does not get it past the gate.
+- Uploads require a signed-in account, and sit under the API's strictest rate
+  limit — disk is finite on a small box.
+
+These are constants in `api/internal/media`, deliberately **not** environment
+variables: a storage budget that a typo in a `.env` could quietly multiply is
+not a budget. To change them, edit that file and rebuild.
+
+Next.js image optimisation is off (`next.config.ts`) — re-encoding every
+upload on demand is real CPU on a small machine, for no gain over bytes that
+are already capped and already cached.
+
+### Pointing it at your box
+
+The two `NEXT_PUBLIC_*` values are **compiled into the browser bundle**, so
+they must be addresses a phone on your network can reach — not a Docker
+service name. And `ALLOWED_ORIGINS` must list the web app's origin, or every
+API call fails CORS with a blank-looking app and no obvious cause.
+
+```bash
+# .env — LAN example, homelab at 192.168.1.50
+NEXT_PUBLIC_API_BASE_URL=http://192.168.1.50:8080
+NEXT_PUBLIC_WS_URL=ws://192.168.1.50:8080/v1/ws
+ALLOWED_ORIGINS=http://192.168.1.50:3000
+
+# …or behind a reverse proxy with TLS
+NEXT_PUBLIC_API_BASE_URL=https://api.drona.example.com
+NEXT_PUBLIC_WS_URL=wss://api.drona.example.com/v1/ws
+ALLOWED_ORIGINS=https://drona.example.com
+```
+
+```bash
+docker compose --profile full up --build -d   # first run: builds and migrates
+docker compose --profile migrate up           # after a schema change
+docker compose build web && docker compose up -d web   # after changing a NEXT_PUBLIC_* value
+```
+
+> A changed `NEXT_PUBLIC_*` needs a **rebuild**, not a restart. That is how
+> Next.js inlines public env vars; a restart alone silently keeps the old URL.
+
+### Before you open it up
+
+- `JWT_SECRET` — generate a real one (`openssl rand -base64 48`). The API
+  refuses to boot in production with the placeholder.
+- `MAILER=log` prints OTP codes to the container log instead of emailing
+  them. Fine while testing on your own; set up SMTP before anyone else signs in.
+- `DATING_UNLOCK_MIN_USERS` defaults to `400`. On a fresh instance Love Finder
+  will correctly report itself locked until that many verified accounts exist —
+  lower it if your campus is smaller, or it will look broken rather than gated.
+- Love Finder also requires an 18+ date of birth and a photo on file per
+  account. The photo step is self-attested, not moderated — see
+  `UserService.VerifyPhoto`.
+
+### Keeping it light
+
+Postgres, Redis and both apps are Alpine-based and idle in well under 1 GB
+combined. If the box is shared, cap them:
+
+```yaml
+# docker-compose.override.yml
+services:
+  postgres: { mem_limit: 512m }
+  redis:    { mem_limit: 128m }
+  api:      { mem_limit: 256m }
+  web:      { mem_limit: 384m }
+```
+
+Redis is optional — the API logs a warning and degrades to in-process rate
+limiting and fanout if it is unreachable. On a single-instance homelab that
+costs you very little.
 
 ---
 

@@ -252,6 +252,18 @@ func (db *DB) SetLoveFinderEnabled(ctx context.Context, userID string, on bool) 
 	return mapErr(err)
 }
 
+// SetPhotoVerified records a verification photo and stamps the gate Love
+// Finder checks (domain.UserPrivate.CanUseDating). It also overwrites
+// "photoUrl", so the verification photo becomes the account's public photo —
+// there being no separate column for "the photo nobody but you and a
+// moderator ever sees" is a deliberate MVP simplification; see the service
+// method this backs for the caveat that goes with it.
+func (db *DB) SetPhotoVerified(ctx context.Context, userID, photoURL string) (*domain.UserPrivate, error) {
+	return scanUser(db.pool.QueryRow(ctx,
+		`UPDATE "users" SET "photoUrl" = $2, "photoVerifiedAt" = now(), "updatedAt" = now()
+		 WHERE "id" = $1 RETURNING `+userColumns, userID, photoURL))
+}
+
 // TouchLastSeen records presence. Cheap enough to call on every authed request.
 func (db *DB) TouchLastSeen(ctx context.Context, userID string) error {
 	_, err := db.pool.Exec(ctx, `UPDATE "users" SET "lastSeenAt" = now() WHERE "id" = $1`, userID)

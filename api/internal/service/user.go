@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"net/url"
 	"strings"
 	"time"
 
@@ -530,6 +531,44 @@ func (s *UserService) SetLoveFinderEnabled(ctx context.Context, userID string, o
 		return httpx.Internal("could not save that setting").WithCause(err)
 	}
 	return nil
+}
+
+// VerifyPhoto submits a photo against the Love Finder photo-verification gate
+// (domain.UserPrivate.CanUseDating). photoURL must already be a URL this
+// instance's own media store just handed back — see handleUploadMedia — never
+// an arbitrary link, so a client can't "verify" with a photo of someone else
+// pulled from anywhere on the internet.
+//
+// This is deliberately self-attestation, not moderation: the photo is
+// accepted the moment it's submitted, with no human or model checking that
+// it's a real, current photo of the account holder. That is an honest MVP
+// trade-off for a small, trusted campus, not the final word on identity
+// verification — a deployment opening this up beyond a campus its operators
+// know personally should put a review step in front of this, e.g. routing
+// through the existing moderation queue (handleListReports /
+// handleResolveReport) before photoVerifiedAt is ever set.
+func (s *UserService) VerifyPhoto(ctx context.Context, userID, photoURL string) (*MeResponse, error) {
+	photoURL = strings.TrimSpace(photoURL)
+	if photoURL == "" {
+		return nil, httpx.Validation(map[string]string{"photoUrl": "required"})
+	}
+	// "/media/<name>" (relative, same origin) or an absolute URL whose path
+	// starts there — either way it must be one of this instance's own uploads,
+	// not a link to an arbitrary image anywhere on the internet.
+	path := photoURL
+	if u, err := url.Parse(photoURL); err == nil && u.IsAbs() {
+		path = u.Path
+	}
+	if !strings.HasPrefix(path, "/media/") {
+		return nil, httpx.Validation(map[string]string{
+			"photoUrl": "must be a photo you uploaded through this app, not a link",
+		})
+	}
+
+	if _, err := s.db.SetPhotoVerified(ctx, userID, photoURL); err != nil {
+		return nil, notFoundOr(err, "we could not find your account")
+	}
+	return s.Me(ctx, userID)
 }
 
 // Block blocks an account.

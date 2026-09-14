@@ -5,6 +5,7 @@ import { Dialog } from "@/components/ui/Dialog";
 import { Button } from "@/components/ui/Button";
 import { Input, Select, Textarea } from "@/components/ui/Field";
 import { Segmented } from "@/components/ui/Segmented";
+import { MediaUpload } from "@/components/ui/MediaUpload";
 import { PlusIcon, XIcon } from "@/components/ui/Icons";
 import { SupportCard } from "@/components/ui/SupportCard";
 import { useToast } from "@/components/ui/Toast";
@@ -47,6 +48,7 @@ export function Composer({
   const options = spaces.data?.items ?? [];
   const filledOptions = pollOptions.map((o) => o.trim()).filter(Boolean);
   const pollReady = type !== "POLL" || filledOptions.length >= 2;
+  const urlReady = (type !== "LINK" && type !== "IMAGE") || url.trim().length > 0;
   const chosen = space || defaultSpace || options[0]?.slug || "";
 
   const reset = () => {
@@ -135,7 +137,7 @@ export function Composer({
           </Button>
           <Button
             loading={busy}
-            disabled={title.trim().length < 3 || !chosen || !pollReady}
+            disabled={title.trim().length < 3 || !chosen || !pollReady || !urlReady}
             onClick={submit}
           >
             Post
@@ -145,7 +147,18 @@ export function Composer({
     >
       <div className="space-y-4">
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <Segmented options={TYPES} value={type} onChange={setType} size="sm" />
+          <Segmented
+            options={TYPES}
+            value={type}
+            // `url` backs both the link field and the uploaded picture, so
+            // switching type has to drop it — otherwise an image you just
+            // uploaded turns up prefilled as a link.
+            onChange={(next) => {
+              setType(next);
+              setUrl("");
+            }}
+            size="sm"
+          />
           <Select
             aria-label="Space"
             value={chosen}
@@ -210,14 +223,11 @@ export function Composer({
           </div>
         )}
 
-        {(type === "LINK" || type === "IMAGE") && (
-          <Input
-            label={type === "LINK" ? "Link" : "Image URL"}
-            value={url}
-            onChange={(e) => setUrl(e.target.value)}
-            placeholder="https://"
-          />
+        {type === "LINK" && (
+          <Input label="Link" value={url} onChange={(e) => setUrl(e.target.value)} placeholder="https://" />
         )}
+
+        {type === "IMAGE" && <MediaUpload value={url} onChange={setUrl} />}
 
         <Textarea
           label="Body"

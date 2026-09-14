@@ -58,6 +58,18 @@ type Config struct {
 	DatingUnlockMinUsers int           // 6.3 Love Finder stays locked below this
 	MatchWilt            time.Duration // 6.3 a silent match wilts
 	MatchNudge           time.Duration
+
+	// Media: this instance's own disk-backed object storage (internal/media).
+	// There is deliberately no env var for the size/type policy — see that
+	// package's doc comment for why a homelab's storage budget is a constant a
+	// deployer edits and rebuilds, not something an environment can loosen.
+	MediaDir string
+	// MediaPublicBaseURL overrides the origin uploaded files are linked with.
+	// Leave unset to derive it from each request (internal/media.BaseURLFromRequest)
+	// — the right default when the API is reachable at one hostname. Set it
+	// when uploads must resolve to somewhere else, e.g. a CDN or a different
+	// public path than the one a reverse proxy uses internally.
+	MediaPublicBaseURL string
 }
 
 // TimeOfDay is a wall-clock time with no date, e.g. the 22:00 night boundary.
@@ -173,6 +185,9 @@ func Load() (*Config, error) {
 	nudgeDays, err := envInt("MATCH_NUDGE_DAYS", 5)
 	pick(err)
 	c.MatchNudge = time.Duration(nudgeDays) * 24 * time.Hour
+
+	c.MediaDir = env("MEDIA_DIR", "./data/media")
+	c.MediaPublicBaseURL = strings.TrimRight(os.Getenv("MEDIA_PUBLIC_BASE_URL"), "/")
 
 	// Hard requirements — refuse to boot half-configured.
 	if c.DatabaseURL == "" {

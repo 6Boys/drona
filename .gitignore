@@ -21,6 +21,11 @@ api/tmp/
 *.test
 api/coverage.out
 
+# uploaded pictures from a local run (MEDIA_DIR defaults to ./data/media);
+# in Docker these live in the `media` volume instead
+api/data/
+data/
+
 # prisma
 prisma/generated/
 prisma/.env

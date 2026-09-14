@@ -58,6 +58,9 @@ func TestLoad_DefaultsAreTheProductRulesFromThePRD(t *testing.T) {
 	assert.Equal(t, 400, cfg.DatingUnlockMinUsers, "dating stays locked below 400 verified users")
 	assert.Equal(t, 7*24*time.Hour, cfg.MatchWilt)
 	assert.Equal(t, 5*24*time.Hour, cfg.MatchNudge)
+
+	assert.Equal(t, "./data/media", cfg.MediaDir, "works out of the box with no MEDIA_DIR set")
+	assert.Equal(t, "", cfg.MediaPublicBaseURL, "empty means derive it per-request")
 }
 
 func TestLoad_RefusesToBootHalfConfigured(t *testing.T) {

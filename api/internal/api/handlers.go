@@ -1,6 +1,7 @@
 package api
 
 import (
+	"errors"
 	"net/http"
 	"strconv"
 	"strings"
@@ -11,6 +12,7 @@ import (
 	"github.com/aniketrathour/dronasphere/api/internal/auth"
 	"github.com/aniketrathour/dronasphere/api/internal/domain"
 	"github.com/aniketrathour/dronasphere/api/internal/httpx"
+	"github.com/aniketrathour/dronasphere/api/internal/media"
 	"github.com/aniketrathour/dronasphere/api/internal/service"
 	"github.com/aniketrathour/dronasphere/api/internal/store"
 )
@@ -136,6 +138,70 @@ func (s *Server) handleLogoutAll(w http.ResponseWriter, r *http.Request) error {
 	return nil
 }
 
+// ------------------------------------------------------------------ media -----
+
+// mediaUploadMaxRequestBytes bounds the whole multipart request, not just the
+// file field inside it: headroom over media.MaxBytes for the multipart
+// boundary/part headers, generous enough that it never rejects a real upload
+// but tight enough that a client can't use this endpoint to stream an
+// unbounded body at the server before media.Store ever gets to sniff it.
+const mediaUploadMaxRequestBytes = media.MaxBytes + 64<<10
+
+// handleUploadMedia is this instance's own object storage: a picture in, a URL
+// out. It is deliberately the only way anything in the product acquires an
+// imageUrl/photoUrl — see internal/media for the size and type policy, which
+// this handler enforces at the transport level (body size) before internal/
+// media.Store enforces it again on the decoded bytes.
+func (s *Server) handleUploadMedia(w http.ResponseWriter, r *http.Request) error {
+	if _, err := auth.MustActor(r.Context()); err != nil {
+		return err
+	}
+
+	r.Body = http.MaxBytesReader(w, r.Body, mediaUploadMaxRequestBytes)
+	if err := r.ParseMultipartForm(mediaUploadMaxRequestBytes); err != nil {
+		var maxErr *http.MaxBytesError
+		if errors.As(err, &maxErr) {
+			return httpx.BadRequest("that file is larger than 5 MB").
+				WithFriendly("that's a bit big — 5 MB max, and no video, just images or a GIF")
+		}
+		return httpx.BadRequest("could not read that upload: " + err.Error())
+	}
+	defer func() {
+		if r.MultipartForm != nil {
+			_ = r.MultipartForm.RemoveAll()
+		}
+	}()
+
+	file, _, err := r.FormFile("file")
+	if err != nil {
+		return httpx.BadRequest(`send the file as multipart/form-data under the field name "file"`)
+	}
+	defer file.Close()
+
+	result, err := s.deps.Media.Save(file)
+	if err != nil {
+		switch {
+		case errors.Is(err, media.ErrTooLarge):
+			return httpx.BadRequest(err.Error()).
+				WithFriendly("that's a bit big — 5 MB max, and no video, just images or a GIF")
+		case errors.Is(err, media.ErrUnsupportedType):
+			return httpx.Validation(map[string]string{"file": err.Error()}).
+				WithFriendly("only pictures and GIFs — no video files")
+		default:
+			return httpx.Internal("could not save that file").WithCause(err)
+		}
+	}
+
+	base := s.deps.Config.MediaPublicBaseURL
+	if base == "" {
+		base = media.BaseURLFromRequest(r)
+	}
+	result.URL = base + result.URL
+
+	httpx.JSON(w, http.StatusCreated, result)
+	return nil
+}
+
 // ------------------------------------------------------------------- me --------
 
 func (s *Server) handleMe(w http.ResponseWriter, r *http.Request) error {
@@ -202,6 +268,27 @@ func (s *Server) handleSetLoveFinder(w http.ResponseWriter, r *http.Request) err
 		return err
 	}
 	me, err := s.deps.Users.Me(r.Context(), actor.UserID)
+	if err != nil {
+		return err
+	}
+	httpx.JSON(w, http.StatusOK, me)
+	return nil
+}
+
+type verifyPhotoBody struct {
+	PhotoURL string `json:"photoUrl"`
+}
+
+func (s *Server) handleVerifyPhoto(w http.ResponseWriter, r *http.Request) error {
+	actor, err := auth.MustActor(r.Context())
+	if err != nil {
+		return err
+	}
+	var body verifyPhotoBody
+	if err := httpx.Decode(r, &body); err != nil {
+		return err
+	}
+	me, err := s.deps.Users.VerifyPhoto(r.Context(), actor.UserID, body.PhotoURL)
 	if err != nil {
 		return err
 	}

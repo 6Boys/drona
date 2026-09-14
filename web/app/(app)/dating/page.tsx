@@ -9,6 +9,7 @@ import { SwipeDeck, type SwipeDecision } from "@/components/dating/SwipeDeck";
 import { LikesYouGrid } from "@/components/dating/LikesYouGrid";
 import { MatchesPanel } from "@/components/dating/MatchesPanel";
 import { DatingProfileEditor } from "@/components/dating/DatingProfileEditor";
+import { VerifyPhotoPanel } from "@/components/dating/VerifyPhotoPanel";
 import { Atmosphere } from "@/components/fx/Backdrops";
 import { Glow } from "@/components/fx/Glow";
 import { FlipWords } from "@/components/fx/Text";
@@ -146,7 +147,12 @@ export default function DatingPage() {
       />
 
       <PageBody width={tab === "you" || tab === "likes" ? "lg" : "md"}>
-        {gated ? (
+        {gated && me.user.isAdult !== false && !me.user.photoVerified ? (
+          // The one real gate left once age is cleared: api/internal/domain's
+          // CanUseDating requires a photo on file, and nothing else in this
+          // app ever asks for one (every other identity is a gradient).
+          <VerifyPhotoPanel />
+        ) : gated ? (
           <Panel
             icon={LockIcon}
             title="Not open for you yet"

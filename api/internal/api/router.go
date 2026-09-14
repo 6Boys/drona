@@ -6,6 +6,7 @@ package api
 import (
 	"log/slog"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/go-chi/chi/v5"
@@ -14,6 +15,7 @@ import (
 	"github.com/aniketrathour/dronasphere/api/internal/auth"
 	"github.com/aniketrathour/dronasphere/api/internal/config"
 	"github.com/aniketrathour/dronasphere/api/internal/httpx"
+	"github.com/aniketrathour/dronasphere/api/internal/media"
 	"github.com/aniketrathour/dronasphere/api/internal/realtime"
 	"github.com/aniketrathour/dronasphere/api/internal/safety"
 	"github.com/aniketrathour/dronasphere/api/internal/service"
@@ -33,6 +35,7 @@ type Deps struct {
 	Chat  *service.ChatService
 	Owl   *service.OwlService
 	Notes *service.NoteService
+	Media *media.Store
 
 	Gateway *realtime.Gateway
 
@@ -77,6 +80,16 @@ func (s *Server) routes() {
 	})
 	r.Get("/readyz", s.handleReady())
 
+	// Uploaded pictures, served straight off disk — no auth, the same as any
+	// other image on the public web, since a post's imageUrl has to load in a
+	// plain <img> tag. Every name under here came out of internal/media.Store
+	// as a random hex string with no directories, so mediaFileServer refuses
+	// anything containing a "/" rather than lean solely on http.Dir's own
+	// (also sufficient) path cleaning to keep this safe.
+	if s.deps.Media != nil {
+		r.Get("/media/*", mediaFileServer(s.deps.Media.Dir()))
+	}
+
 	r.Route("/v1", func(v1 chi.Router) {
 		// --- auth: unauthenticated, tightly rate limited by IP ---
 		v1.Group(func(pub chi.Router) {
@@ -105,6 +118,7 @@ func (s *Server) routes() {
 			pri.Method(http.MethodPatch, "/me", httpx.Handler(s.handleUpdateProfile))
 			pri.Method(http.MethodPut, "/me/avatar", httpx.Handler(s.handleUpdateAvatar))
 			pri.Method(http.MethodPost, "/me/love-finder", httpx.Handler(s.handleSetLoveFinder))
+			pri.Method(http.MethodPost, "/me/verify-photo", httpx.Handler(s.handleVerifyPhoto))
 			pri.Method(http.MethodPost, "/auth/logout-all", httpx.Handler(s.handleLogoutAll))
 
 			// The follow-8 gate: reachable while onboarding, by design.
@@ -177,6 +191,9 @@ func (s *Server) routes() {
 			write.Method(http.MethodPost, "/posts/{id}/comments", httpx.Handler(s.handleCreateComment))
 			write.Method(http.MethodPost, "/threads/{id}/messages", httpx.Handler(s.handleSendMessage))
 			write.Method(http.MethodPost, "/notes", httpx.Handler(s.handleUploadNote))
+			// A disk write worth its own stricter budget too, same as every
+			// other route in this group — doubly so on a storage-constrained box.
+			write.Method(http.MethodPost, "/media/upload", httpx.Handler(s.handleUploadMedia))
 		})
 
 		// --- moderation ---
@@ -217,6 +234,29 @@ func (s *Server) handleReady() http.HandlerFunc {
 			"status": map[bool]string{true: "ok", false: "degraded"}[status == http.StatusOK],
 			"checks": checks,
 		})
+	}
+}
+
+// mediaFileServer serves exactly one flat directory of uploaded files. It
+// rejects any name containing a path separator before ever touching disk —
+// belt-and-braces alongside http.Dir's own "..": traversal cannot escape a
+// directory that contains no subdirectories in the first place, so this only
+// ever turns an already-impossible request into a clean 404 instead of
+// relying on that guarantee implicitly.
+func mediaFileServer(dir string) http.HandlerFunc {
+	fs := http.FileServer(http.Dir(dir))
+	strip := http.StripPrefix("/media/", fs)
+
+	return func(w http.ResponseWriter, r *http.Request) {
+		name := strings.TrimPrefix(r.URL.Path, "/media/")
+		if name == "" || strings.ContainsRune(name, '/') {
+			httpx.Fail(w, r, httpx.NotFound("no file here"))
+			return
+		}
+		// Filenames are random and permanent per URL, so a client (or a CDN in
+		// front of this box) can cache them forever without ever revalidating.
+		w.Header().Set("Cache-Control", "public, max-age=31536000, immutable")
+		strip.ServeHTTP(w, r)
 	}
 }
 

@@ -1,0 +1,36 @@
+# Build context for the `web` and `migrate` images (both build from the repo
+# root — see docker-compose.yml).
+#
+# Two reasons this file matters, beyond the obvious one of not shipping a few
+# hundred megabytes to the daemon on every build:
+#
+#   1. node_modules built on the host are the host's platform. Copying them
+#      into the image would sit on top of the container's own `npm ci` and
+#      produce native binaries that don't match the image's libc.
+#   2. A stale .next/ from a local `npm run build` would be copied in and then
+#      partially overwritten by the container's build — the sort of thing that
+#      works on your machine and fails nowhere else.
+
+node_modules
+**/node_modules
+
+web/.next
+web/out
+web/coverage
+web/tsconfig.tsbuildinfo
+
+# The Go service has its own context (api/) and its own .dockerignore; none of
+# it belongs in the web or migrate images.
+api
+
+.git
+.gitignore
+.github
+
+# Secrets never enter an image. Compose passes real values as environment.
+.env
+.env.local
+.env.*.local
+
+*.log
+.DS_Store

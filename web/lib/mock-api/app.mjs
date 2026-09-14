@@ -617,6 +617,68 @@ function send(res, status, body) {
 const fail = (res, status, code, message, friendly) =>
   send(res, status, { error: { code, message, friendly } });
 
+// --------------------------------------------------------------- media -----
+// Mirrors api/internal/media's policy exactly (5 MiB, image/gif only, real
+// bytes sniffed rather than trusting a declared Content-Type) but skips real
+// disk storage: this module also runs as a Vercel Route Handler, where the
+// filesystem is read-only and not shared across invocations anyway. A data:
+// URL is a complete, self-contained answer for a demo — it renders in an
+// <img> immediately and needs nowhere to persist to — it's just not a
+// permanent link, which is exactly the trade-off "this is a mock" implies.
+const MEDIA_MAX_BYTES = 5 * 1024 * 1024;
+
+const MEDIA_SIGNATURES = [
+  { mime: "image/png", bytes: [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a] },
+  { mime: "image/jpeg", bytes: [0xff, 0xd8, 0xff] },
+  { mime: "image/gif", bytes: [0x47, 0x49, 0x46, 0x38] }, // GIF87a / GIF89a share this prefix
+];
+
+function sniffImageType(buf) {
+  for (const { mime, bytes } of MEDIA_SIGNATURES) {
+    if (buf.length >= bytes.length && bytes.every((b, i) => buf[i] === b)) return mime;
+  }
+  // WEBP: "RIFF"....'WEBP' — the size field in bytes 4-7 varies, so check the
+  // two fixed anchors either side of it rather than one contiguous prefix.
+  if (buf.length >= 12 && buf.toString("ascii", 0, 4) === "RIFF" && buf.toString("ascii", 8, 12) === "WEBP") {
+    return "image/webp";
+  }
+  return null;
+}
+
+// A single-file multipart/form-data body is: a boundary line, a small block
+// of part headers, a blank line, the raw file bytes, then the closing
+// boundary. Good enough for exactly what the upload form sends — one "file"
+// field — without pulling in a parsing library for it.
+function parseMultipartFile(buffer, contentType) {
+  const match = /boundary=(?:"([^"]+)"|([^;]+))/i.exec(contentType);
+  const boundary = match?.[1] ?? match?.[2];
+  if (!boundary) return null;
+
+  const marker = Buffer.from(`--${boundary}`);
+  const parts = [];
+  let cursor = buffer.indexOf(marker);
+  while (cursor !== -1) {
+    const next = buffer.indexOf(marker, cursor + marker.length);
+    if (next === -1) break;
+    parts.push(buffer.subarray(cursor + marker.length, next));
+    cursor = next;
+  }
+
+  for (const part of parts) {
+    const headerEnd = part.indexOf("\r\n\r\n");
+    if (headerEnd === -1) continue;
+    const headers = part.subarray(0, headerEnd).toString("utf8");
+    if (!/name="file"/i.test(headers)) continue;
+
+    // Strip the leading \r\n after the boundary marker and the trailing \r\n
+    // before the next boundary.
+    let data = part.subarray(headerEnd + 4);
+    if (data.subarray(-2).equals(Buffer.from("\r\n"))) data = data.subarray(0, -2);
+    return data;
+  }
+  return null;
+}
+
 function page(items, limit, cursorRaw) {
   const start = cursorRaw ? Number(Buffer.from(cursorRaw, "base64url").toString()) || 0 : 0;
   const slice = items.slice(start, start + limit);
@@ -803,6 +865,58 @@ route("PUT", "/v1/me/avatar", (ctx) => {
 route("POST", "/v1/me/love-finder", (ctx) => {
   ctx.user.loveFinderEnabled = !!ctx.body.enabled;
   send(ctx.res, 200, meResponse(ctx.user));
+});
+
+// Mirrors the real API's photo-verification gate (see api/internal/domain's
+// CanUseDating) — self-attested here too, not reviewed, same as there.
+route("POST", "/v1/me/verify-photo", (ctx) => {
+  const photoUrl = String(ctx.body.photoUrl ?? "").trim();
+  if (!photoUrl) return fail(ctx.res, 422, "VALIDATION", "photoUrl is required");
+  ctx.user.photoUrl = photoUrl;
+  ctx.user.photoVerified = true;
+  send(ctx.res, 200, meResponse(ctx.user));
+});
+
+// See the "media" helpers above (sniffImageType, parseMultipartFile) for what
+// this mirrors from api/internal/media, and why it returns a data: URL
+// instead of writing to disk.
+route("POST", "/v1/media/upload", (ctx) => {
+  const raw = ctx.body.__multipart;
+  const contentType = ctx.body.__contentType ?? "";
+  if (!Buffer.isBuffer(raw)) {
+    return fail(ctx.res, 400, "BAD_REQUEST", 'send the file as multipart/form-data under the field name "file"');
+  }
+
+  const data = parseMultipartFile(raw, contentType);
+  if (!data || data.length === 0) {
+    return fail(ctx.res, 400, "BAD_REQUEST", 'send the file as multipart/form-data under the field name "file"');
+  }
+  if (data.length > MEDIA_MAX_BYTES) {
+    return fail(
+      ctx.res,
+      400,
+      "BAD_REQUEST",
+      `file is larger than ${MEDIA_MAX_BYTES} bytes`,
+      "that's a bit big — 5 MB max, and no video, just images or a GIF",
+    );
+  }
+
+  const mime = sniffImageType(data);
+  if (!mime) {
+    return fail(
+      ctx.res,
+      422,
+      "VALIDATION",
+      "only JPEG, PNG, WEBP or GIF images are accepted — no video",
+      "only pictures and GIFs — no video files",
+    );
+  }
+
+  send(ctx.res, 201, {
+    url: `data:${mime};base64,${data.toString("base64")}`,
+    size: data.length,
+    contentType: mime,
+  });
 });
 
 route("GET", "/v1/avatar/options", (ctx) =>
@@ -1538,12 +1652,22 @@ export async function dispatch(req, res) {
   if (req.method !== "GET" && req.method !== "DELETE") {
     const chunks = [];
     for await (const chunk of req) chunks.push(chunk);
-    const raw = Buffer.concat(chunks).toString();
-    if (raw) {
-      try {
-        body = JSON.parse(raw);
-      } catch {
-        return fail(res, 400, "BAD_JSON", "that request body is not valid JSON");
+    const rawBuffer = Buffer.concat(chunks);
+    const contentType = req.headers["content-type"] ?? "";
+
+    // multipart/form-data (the media upload route) is binary and is never
+    // JSON — hand the route handler the raw bytes instead of trying, and
+    // failing, to JSON.parse a file's contents.
+    if (contentType.startsWith("multipart/form-data")) {
+      body = { __multipart: rawBuffer, __contentType: contentType };
+    } else {
+      const raw = rawBuffer.toString();
+      if (raw) {
+        try {
+          body = JSON.parse(raw);
+        } catch {
+          return fail(res, 400, "BAD_JSON", "that request body is not valid JSON");
+        }
       }
     }
   }

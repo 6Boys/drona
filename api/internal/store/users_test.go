@@ -174,6 +174,27 @@ func TestUsers_AvatarRoundTrips(t *testing.T) {
 	assert.Equal(t, avatar, reloaded.Avatar, "the avatar must survive a reload from JSONB")
 }
 
+func TestUsers_PhotoVerification(t *testing.T) {
+	db := testDB(t)
+	campusID := testCampus(t, db)
+	ctx := context.Background()
+	u := testUserRow(t, db, campusID, "photouser")
+
+	require.Nil(t, u.PhotoVerifiedAt, "unverified by default")
+	require.Empty(t, u.PhotoURL)
+
+	updated, err := db.SetPhotoVerified(ctx, u.ID, "https://example.test/media/abc123.jpg")
+	require.NoError(t, err)
+	assert.Equal(t, "https://example.test/media/abc123.jpg", updated.PhotoURL)
+	require.NotNil(t, updated.PhotoVerifiedAt)
+	assert.WithinDuration(t, time.Now(), *updated.PhotoVerifiedAt, 5*time.Second)
+
+	reloaded, err := db.UserByID(ctx, u.ID)
+	require.NoError(t, err)
+	require.NotNil(t, reloaded.PhotoVerifiedAt, "the gate survives a reload, not just the RETURNING row")
+	assert.Equal(t, "https://example.test/media/abc123.jpg", reloaded.PhotoURL)
+}
+
 func TestUsers_OnboardingStep(t *testing.T) {
 	db := testDB(t)
 	campusID := testCampus(t, db)

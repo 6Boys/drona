@@ -164,6 +164,44 @@ export const api = {
   delete: <T>(path: string) => request<T>(path, { method: "DELETE" }),
 };
 
+/** What POST /v1/media/upload hands back — see api/internal/media. */
+export interface MediaUploadResult {
+  url: string;
+  size: number;
+  contentType: string;
+}
+
+/**
+ * Uploads one file to this instance's own media store (a picture in, a URL
+ * out — never a third-party bucket). Bypasses `request()`: this is the one
+ * call in the app that sends `multipart/form-data`, not JSON, and it needs
+ * the raw Response to read the server's real error message when the file is
+ * rejected — the "5 MB, no video" policy is enforced server-side no matter
+ * what a caller checked first, so its wording belongs to the server too.
+ *
+ * Deliberately does not go through the 401-refresh-and-retry dance the rest
+ * of the client has: an upload has already sent the file bytes by the time a
+ * 401 could come back, and retrying would mean uploading them twice. Callers
+ * see the ApiError and can just ask the user to try again.
+ */
+export async function uploadMedia(file: File): Promise<MediaUploadResult> {
+  const headers: Record<string, string> = {};
+  const token = getAccessToken();
+  if (token) headers.Authorization = `Bearer ${token}`;
+  const fp = deviceFingerprint();
+  if (fp) headers["X-Device-Fingerprint"] = fp;
+
+  const body = new FormData();
+  body.append("file", file);
+
+  const res = await fetch(buildUrl("/v1/media/upload"), { method: "POST", headers, body });
+
+  const text = await res.text();
+  const data = text ? JSON.parse(text) : undefined;
+  if (!res.ok) throw new ApiError(res.status, data as ApiErrorBody);
+  return data as MediaUploadResult;
+}
+
 export { BASE_URL as API_BASE_URL, WS_URL as API_WS_URL };
 
 /** Friendly-first error copy. The API writes the human sentence; the client

@@ -69,6 +69,10 @@ services:
     container_name: drona-api
     profiles: ["full"]
     restart: unless-stopped
+    volumes:
+      # Uploaded pictures. Back this up alongside pgdata — it is the other
+      # half of "the data", and nothing in Postgres can regenerate it.
+      - media:/data/media
     depends_on:
       postgres:
         condition: service_healthy
@@ -106,6 +110,14 @@ services:
       DATING_UNLOCK_MIN_USERS: ${DATING_UNLOCK_MIN_USERS:-400}
       MATCH_WILT_DAYS: ${MATCH_WILT_DAYS:-7}
       MATCH_NUDGE_DAYS: ${MATCH_NUDGE_DAYS:-5}
+      # Uploaded pictures: written here, served from GET /media/<name>. The
+      # 5 MB / images-and-GIFs-only policy is a constant in
+      # api/internal/media, deliberately not an environment knob.
+      MEDIA_DIR: /data/media
+      # Leave unset unless uploaded pictures must resolve to somewhere other
+      # than the origin the API itself was reached on (a CDN, a different
+      # public path). Empty = derive it from each request.
+      MEDIA_PUBLIC_BASE_URL: ${MEDIA_PUBLIC_BASE_URL:-}
     ports:
       - "${API_PORT:-8080}:8080"
     healthcheck:
@@ -117,9 +129,16 @@ services:
 
   web:
     build:
-      context: ./web
-      dockerfile: Dockerfile
+      # The repo root, not ./web: this is an npm workspace and the lockfile
+      # the build installs from lives at the top level.
+      context: .
+      dockerfile: ./web/Dockerfile
       args:
+        # Baked into the browser bundle at build time — these must be reachable
+        # from a user's device, not just from inside this compose network. On a
+        # homelab that means the box's LAN address or its public hostname, e.g.
+        # http://192.168.1.50:8080 or https://drona.example.com. Changing them
+        # needs a rebuild (`docker compose build web`), not just a restart.
         NEXT_PUBLIC_API_BASE_URL: ${NEXT_PUBLIC_API_BASE_URL:-http://localhost:8080}
         NEXT_PUBLIC_WS_URL: ${NEXT_PUBLIC_WS_URL:-ws://localhost:8080/v1/ws}
     container_name: drona-web
@@ -138,3 +157,4 @@ services:
 volumes:
   pgdata:
   redisdata:
+  media:
