@@ -68,6 +68,129 @@ const DEMO_USERS = [
   { n: 10, handle: "arnav",      name: "Arnav Gupta",      branch: "IT",  year: 3, batch: "2023-27", rank: "SLEEPY_SPARROW", role: "STUDENT",      bio: "lurker. do not perceive me" },
   { n: 11, handle: "codingclub", name: "Coding Club DCE",  branch: "CSE", year: 3, batch: "2023-27", rank: "NIGHT_OWL",      role: "SPACE_MOD",    bio: "official coding club 💻 weekly contests" },
   { n: 12, handle: "lostfound",  name: "Lost & Found DCE", branch: "CSE", year: 2, batch: "2024-28", rank: "SLEEPY_SPARROW", role: "SPACE_MOD",    bio: "lost your id card again? post here." },
+  // 13–30: no posts or threads reference these — they exist to make the
+  // campus (and Love Finder's deck, see DATING_PROFILES below) look like more
+  // than twelve people. All real students; none of the club/bot accounts
+  // above ever gets a dating card, on purpose.
+  { n: 13, handle: "karan",      name: "Karan Mehta",      branch: "CSE", year: 2, batch: "2024-28", rank: "NIGHT_OWL",      role: "STUDENT",      bio: "vim, not emacs. this is not up for debate" },
+  { n: 14, handle: "priya",      name: "Priya Nair",       branch: "IT",  year: 3, batch: "2023-27", rank: "FLEDGLING",      role: "STUDENT",      bio: "plans every trip. goes on none of them" },
+  { n: 15, handle: "rohan",      name: "Rohan Verma",      branch: "ME",  year: 1, batch: "2025-29", rank: "SLEEPY_SPARROW", role: "STUDENT",      bio: "first sem, still finding the ME block" },
+  { n: 16, handle: "sanya",      name: "Sanya Kapoor",     branch: "ECE", year: 3, batch: "2023-27", rank: "MOON_MOTH",      role: "STUDENT",      bio: "debate society, reformed argumentative" },
+  { n: 17, handle: "aditya",     name: "Aditya Singh",     branch: "CSE", year: 4, batch: "2022-26", rank: "NIGHT_OWL",      role: "STUDENT",      bio: "placement season survivor, has opinions on DP" },
+  { n: 18, handle: "neha",       name: "Neha Reddy",       branch: "EEE", year: 2, batch: "2024-28", rank: "FLEDGLING",      role: "STUDENT",      bio: "circuit lab survivor, chronically caffeinated" },
+  { n: 19, handle: "varun",      name: "Varun Chawla",     branch: "CIVIL", year: 2, batch: "2024-28", rank: "SLEEPY_SPARROW", role: "STUDENT",    bio: "site visits, sketchbook, strong opinions on bridges" },
+  { n: 20, handle: "pooja",      name: "Pooja Iyer",       branch: "IT",  year: 1, batch: "2025-29", rank: "SLEEPY_SPARROW", role: "STUDENT",      bio: "orientation week broke me a little" },
+  { n: 21, handle: "yash",       name: "Yash Malhotra",    branch: "ME",  year: 3, batch: "2023-27", rank: "NIGHT_OWL",      role: "STUDENT",      bio: "gym at 6, workshop by 9, tired by noon" },
+  { n: 22, handle: "ananya",     name: "Ananya Joshi",     branch: "CSE", year: 2, batch: "2024-28", rank: "FLEDGLING",      role: "STUDENT",      bio: "colour-codes everything, judges those who don't" },
+  { n: 23, handle: "dhruv",      name: "Dhruv Khanna",     branch: "ECE", year: 4, batch: "2022-26", rank: "MOON_MOTH",      role: "STUDENT",      bio: "four years in, still can't use the oscilloscope" },
+  { n: 24, handle: "riya",       name: "Riya Chatterjee",  branch: "CSE", year: 1, batch: "2025-29", rank: "SLEEPY_SPARROW", role: "STUDENT",      bio: "still figuring out which building is which" },
+  { n: 25, handle: "nikhil",     name: "Nikhil Bhatt",     branch: "ME",  year: 2, batch: "2024-28", rank: "FLEDGLING",      role: "STUDENT",      bio: "plays bass badly, loudly, happily" },
+  { n: 26, handle: "simran",     name: "Simran Dutta",     branch: "ME",  year: 2, batch: "2024-28", rank: "NIGHT_OWL",      role: "STUDENT",      bio: "better with a wrench than with words" },
+  { n: 27, handle: "arjun",      name: "Arjun Rao",        branch: "EEE", year: 3, batch: "2023-27", rank: "MOON_MOTH",      role: "STUDENT",      bio: "permanently smells like solder" },
+  { n: 28, handle: "tara",       name: "Tara Sharma",      branch: "CSE", year: 3, batch: "2023-27", rank: "NIGHT_OWL",      role: "STUDENT",      bio: "runs the 6am club, alone, most days" },
+  { n: 29, handle: "vihaan",     name: "Vihaan Kumar",     branch: "ECE", year: 3, batch: "2023-27", rank: "FLEDGLING",      role: "STUDENT",      bio: "fixes everyone's laptop, fixes nothing else" },
+  { n: 30, handle: "aisha",      name: "Aisha Siddiqui",   branch: "IT",  year: 4, batch: "2022-26", rank: "MOON_MOTH",      role: "STUDENT",      bio: "quiet in groups, unbearable one-on-one" },
+] as const;
+
+// Love Finder cards (PRD 6.3) — a Hinge-style profile is separate from the
+// account itself (dating_profiles), and the deck only shows someone who has
+// written at least one prompt answer (see api/internal/store/dating.go's
+// Deck query) — a card with nothing on it is a gradient and a name, not a
+// person to swipe on. Not every student gets one: a few (rohan, pooja,
+// dhruv) exist as ordinary accounts who just haven't filled theirs in yet,
+// same as a real campus on day one.
+const DATING_PROFILES = [
+  { n: 3, vibe: "sings in the stairwell, unbothered", interests: ["stairwell singing", "thrifting", "bad horror films"], prompts: [
+    { question: "The way to win me over is", answer: "argue with me about a song for forty minutes and then send it to me anyway." },
+    { question: "A shower thought I recently had", answer: "the ECE building echoes like a concert hall and I will not be taking questions." },
+    { question: "Green flag I look for", answer: "shows up on time to the group project. bonus points for bringing snacks." },
+  ] },
+  { n: 5, vibe: "sem 3 survivor, professionally tired", interests: ["naps between classes", "stationery shopping", "reality tv"], prompts: [
+    { question: "My love language is", answer: "free food. specifically someone else's tiffin." },
+    { question: "I will not shut up about", answer: "the group project member who did zero work and still presented first." },
+  ] },
+  { n: 6, vibe: "workshop till 2am, chai after", interests: ["workshop till 2am", "cycling", "filter coffee"], prompts: [
+    { question: "My most useless skill", answer: "I can identify any lathe by sound. This has helped me zero times socially." },
+    { question: "First date, my choice", answer: "the canteen at 11pm when it's basically empty and the chai guy knows both our orders." },
+  ] },
+  { n: 7, vibe: "eight hours of sleep, non-negotiable", interests: ["crosswords", "long walks", "gym at 6am"], prompts: [
+    { question: "An unpopular opinion I hold", answer: "the Owl Board is a trap and the Cocoon Bonus is the only correct strategy." },
+    { question: "Dating me is like", answer: "being gently but firmly told to go to sleep. I will not be negotiating this." },
+  ] },
+  { n: 8, vibe: "robotics club, roof access", interests: ["film photography", "biryani rankings", "robotics club"], prompts: [
+    { question: "Best campus discovery", answer: "the roof of the ECE block at 6am. don't tell the guard I told you." },
+    { question: "Together we could", answer: "finally settle the biryani debate. I have a ranked list. I will defend it." },
+  ] },
+  { n: 9, vibe: "note hoarder, chronically caffeinated", interests: ["note hoarding", "kdramas", "chai at 3am"], prompts: [
+    { question: "Two truths and a lie", answer: "I have every PYQ since 2019. I've never been to the canteen. I own four identical hoodies." },
+    { question: "I'll fall for you if", answer: "you actually return the notes you borrow. set the bar low, I know." },
+  ] },
+  { n: 10, vibe: "lurker, professionally quiet", interests: ["overthinking texts", "street food tours", "late night walks"], prompts: [
+    { question: "I'm weirdly good at", answer: "noticing when someone's changed their profile picture. don't ask how." },
+    { question: "Together we could", answer: "finally finish the Gurugram food crawl I've been planning alone for a year." },
+  ] },
+  { n: 13, vibe: "argues about vim vs emacs, unprompted", interests: ["competitive programming", "chess", "late night debugging"], prompts: [
+    { question: "Unpopular opinion", answer: "tabs are objectively correct and I will die on this hill." },
+    { question: "First date, my choice", answer: "a 24-hour café so we can keep arguing past closing time." },
+  ] },
+  { n: 14, vibe: "plans everyone's trip, goes on none of them", interests: ["trip planning", "spotify wrapped analysis", "street shopping"], prompts: [
+    { question: "I'm the friend who", answer: "has a spreadsheet for a two-day trip. yes, with tabs." },
+    { question: "Green flag I look for", answer: "actually reads the itinerary before asking questions the itinerary already answers." },
+  ] },
+  { n: 16, vibe: "debate society, reformed argumentative", interests: ["debate society", "second-hand bookshops", "badminton"], prompts: [
+    { question: "I'm convinced that", answer: "every good idea on this campus started as a complaint in the auto queue." },
+    { question: "A perfect Sunday", answer: "Daryaganj book market, then paratha, then regretting how many books I bought." },
+  ] },
+  { n: 17, vibe: "placement season survivor, has opinions on DP", interests: ["leetcode", "badminton", "filter coffee"], prompts: [
+    { question: "Ask me about", answer: "the 47 companies I applied to. I have a spreadsheet. it has colours." },
+    { question: "My most useless skill", answer: "reciting the time complexity of every sorting algorithm at 2am, unprompted." },
+  ] },
+  { n: 18, vibe: "circuit lab survivor, chronically caffeinated", interests: ["baking", "true crime podcasts", "hostel gossip"], prompts: [
+    { question: "Two truths and a lie", answer: "I've soldered my own earphones. I've never watched a full cricket match. I bake better than the mess cooks." },
+    { question: "The way to win me over is", answer: "bring snacks to a group study session and not mention you brought them." },
+  ] },
+  { n: 19, vibe: "site visits, sketchbook, strong opinions on bridges", interests: ["sketching buildings", "metro trivia", "filter coffee"], prompts: [
+    { question: "My most controversial take", answer: "the Yellow Line is objectively the best line and the Blue Line is chaos with a schedule." },
+    { question: "Give me a Sunday and I'll", answer: "walk you around Mehrauli explaining arches until you visibly regret asking." },
+  ] },
+  { n: 21, vibe: "gym at 6, workshop by 9, tired by noon", interests: ["gym", "cycling", "cricket on the ground floor"], prompts: [
+    { question: "Don't hate me if I", answer: "talk about my deadlift PR for longer than is socially acceptable." },
+    { question: "First date, my choice", answer: "the ground floor cricket match — you keep score, I'll explain the rules wrong on purpose." },
+  ] },
+  { n: 22, vibe: "colour-codes everything, judges those who don't", interests: ["stationery", "kdramas", "note hoarding"], prompts: [
+    { question: "I'll fall for you if", answer: "you return my highlighters. all four colours. I'm not asking twice." },
+    { question: "My simple pleasures", answer: "a fresh notebook, a finished assignment, and being right about a plot twist." },
+  ] },
+  { n: 24, vibe: "still figuring out which building is which", interests: ["thrifting", "bad horror films", "stairwell singing"], prompts: [
+    { question: "An unpopular opinion I hold", answer: "orientation week should just be a campus scavenger hunt — I'm still lost." },
+    { question: "The way to win me over is", answer: "help me find the CSE block without laughing at me first." },
+  ] },
+  { n: 25, vibe: "plays bass badly, loudly, happily", interests: ["bass", "open mics", "long bus rides"], prompts: [
+    { question: "Two truths and a lie", answer: "I've played three open mics. I own two basses. I can read sheet music." },
+    { question: "The hill I will die on", answer: "the auditorium sound system is fine, people just don't know where to stand." },
+  ] },
+  { n: 26, vibe: "better with a wrench than with words", interests: ["cycling", "repair café", "cricket on the ground floor"], prompts: [
+    { question: "My most useless skill", answer: "I can fix a bike chain blindfolded. I still can't parallel park." },
+    { question: "Together we could", answer: "actually finish the go-kart project instead of just talking about it for a semester." },
+  ] },
+  { n: 27, vibe: "permanently smells like solder", interests: ["robotics club", "chess", "late night debugging"], prompts: [
+    { question: "I'm looking for", answer: "someone who won't judge me for naming my soldering iron." },
+    { question: "Best campus discovery", answer: "the EEE lab has the best AC on campus. don't tell facilities." },
+  ] },
+  { n: 28, vibe: "runs the 6am club, alone, most days", interests: ["running", "film photography", "biryani rankings"], prompts: [
+    { question: "My ranked list of campus food", answer: "gate 2 momos, then the ECE canteen chai, then everything else, then the library sandwich." },
+    { question: "I'm looking for", answer: "someone who'll come to the 6am run once, hate it, and still show up the next week." },
+    { question: "Best advice I've been given", answer: "finish the bad first draft. it applies to essays, labs and apparently texting people." },
+  ] },
+  { n: 29, vibe: "fixes everyone's laptop, fixes nothing else", interests: ["repair café", "synths", "badminton"], prompts: [
+    { question: "The way to win me over is", answer: "bring me something broken. I will fix it and then talk about it for a week." },
+    { question: "A life goal of mine", answer: "build a synth from scratch that doesn't hum. currently 0 for 3." },
+  ] },
+  { n: 30, vibe: "quiet in groups, unbearable one-on-one", interests: ["chess", "crosswords", "ghazals"], prompts: [
+    { question: "You should leave a comment if", answer: "you have a strong opinion about the Sunday crossword. correct opinions preferred." },
+    { question: "I'm weirdly attracted to", answer: "people who finish their sentences. it's a low bar and the campus keeps limbo-ing under it." },
+    { question: "Typical Friday night", answer: "three chess games, one loss I'm still thinking about, and dinner at an unreasonable hour." },
+  ] },
 ] as const;
 
 const HATS = ["beanie", "grad-cap", "flower", "none", "headphones"] as const;
@@ -163,14 +286,40 @@ async function main() {
         emailVerifiedAt: new Date(),
         onboardingStep: "DONE",
         owlRank: u.rank as never,
-        loveFinderEnabled: u.n % 3 === 0,
-        photoVerifiedAt: u.n % 3 === 0 ? new Date() : null,
+        // Love Finder eligibility is set below, per DATING_PROFILES — never
+        // here. Everyone starts opted out and unverified for it, same as a
+        // real signup; a club or bot account (dronu, codingclub, lostfound)
+        // is never in DATING_PROFILES, so it never becomes eligible at all.
         stardust: 100 + u.n * 37,
         lastSeenAt: hoursAgo(u.n % 6),
       },
     });
   }
   console.log(`  users   ${DEMO_USERS.length}`);
+
+  // -------------------------------------------------------- love finder -----
+  // Opts each card-holder into the deck and writes their card in one step —
+  // photoVerifiedAt is what api/internal/domain's CanUseDating actually
+  // checks, and the deck additionally requires at least one written prompt
+  // (see api/internal/store/dating.go's Deck query), so both have to be true
+  // together for anyone to actually appear as a swipeable candidate.
+  for (const dp of DATING_PROFILES) {
+    await prisma.user.update({
+      where: { id: uid(dp.n) },
+      data: { loveFinderEnabled: true, photoVerifiedAt: new Date() },
+    });
+    await prisma.datingProfile.upsert({
+      where: { userId: uid(dp.n) },
+      update: { vibe: dp.vibe, interests: [...dp.interests], prompts: dp.prompts.map((p) => ({ ...p })) },
+      create: {
+        userId: uid(dp.n),
+        vibe: dp.vibe,
+        interests: [...dp.interests],
+        prompts: dp.prompts.map((p) => ({ ...p })),
+      },
+    });
+  }
+  console.log(`  dating  ${DATING_PROFILES.length} cards in the deck`);
 
   // --------------------------------------------------------------- follows ---
   // PRD 6.1: a feed with fewer than ~8 sources looks empty, and onboarding is
@@ -459,9 +608,13 @@ async function main() {
   console.log(`
 ✨ done.
 
-   campus     ${campus.name}
+   campus     ${campus.name} — ${DEMO_USERS.length} verified students
+   love finder ${DATING_PROFILES.length} cards in the deck
    sign in as  ${DEMO_USERS.map((u) => `${u.handle}@${EMAIL_DOMAIN}`).slice(0, 3).join("  ")}  …
    the OTP is printed by the API when MAILER=log.
+
+   DATING_UNLOCK_MIN_USERS defaults to 400 — with ${DEMO_USERS.length} seeded
+   here, Love Finder will report itself locked until you lower it in .env.
 `);
 }
 
