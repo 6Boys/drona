@@ -235,6 +235,22 @@
     --ring: var(--rose-500);
     --hero-gradient: linear-gradient(160deg, #f3e6e2 0%, #e7cfd2 45%, #d9bcc6 100%);
   }
+
+  /* The rule above was written before dark mode existed and never revisited:
+     --accent-wash stayed a near-white pink unconditionally, so any dark-mode
+     text painted in a light ink (text-text, a Badge's accent-hi, ...) on top
+     of it went to near-invisible instead of just re-tinting. Same fix
+     :is(.surface-dark, :root.dark) already applies to the base palette —
+     lighten what sits ON the wash, darken the wash itself — just on the
+     rose ramp instead of plum. Needs real specificity to win over the
+     :where() above, which was written at zero on purpose. */
+  :is(.surface-dark, :root.dark) [data-theme="dating"] {
+    --accent: var(--rose-400);
+    --accent-hi: color-mix(in oklab, var(--rose-400) 65%, white);
+    --accent-soft: color-mix(in oklab, var(--rose-400) 40%, var(--night-800));
+    --accent-wash: color-mix(in oklab, var(--rose-400) 16%, var(--night-800));
+    --ring: var(--rose-400);
+  }
 }
 
 @layer base {

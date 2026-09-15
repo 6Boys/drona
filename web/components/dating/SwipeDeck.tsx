@@ -233,7 +233,12 @@ export function SwipeDeck({
           dragElastic={0.9}
           onDragEnd={handleDragEnd}
         >
-          <ProfileCard candidate={top} interactive onLike={(target) => setPending(target)} />
+          <ProfileCard
+            candidate={top}
+            interactive
+            onLike={(target) => setPending(target)}
+            onRemove={() => setDeck((prev) => prev.slice(1))}
+          />
 
           <Verdict label="Like" style={{ opacity: likeOpacity }} className="left-8 text-accent" />
           <Verdict label="Pass" style={{ opacity: nopeOpacity }} className="right-8 text-muted" />

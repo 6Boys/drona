@@ -65,7 +65,12 @@ async function handle(request) {
 
   await dispatch(req, res);
 
-  return new Response(Buffer.concat(chunks), { status, headers: outHeaders });
+  // The Fetch API spec forbids a body on a null-body status — not just an
+  // empty one. Passing even a zero-length Buffer alongside status: 204
+  // throws ("Response with null body status cannot have body") in Node's
+  // fetch implementation, so this can't just always pass Buffer.concat().
+  const nullBodyStatus = status === 204 || status === 205 || status === 304;
+  return new Response(nullBodyStatus ? null : Buffer.concat(chunks), { status, headers: outHeaders });
 }
 
 export const GET = handle;

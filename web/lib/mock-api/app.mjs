@@ -95,6 +95,8 @@ const byHandle = (handle) => [...users.values()].find((u) => u.handle === handle
 
 // follows: Set of "follower>target"
 const follows = new Set();
+// blocks: Set of "blocker>blocked"
+const blocks = new Set();
 const uid = (n) => id("usr", n);
 [2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].forEach((n) => {
   follows.add(`${uid(1)}>${uid(n)}`);
@@ -1276,6 +1278,22 @@ route("DELETE", "/v1/users/:handle/follow", (ctx) => {
   if (!target) return fail(ctx.res, 404, "NOT_FOUND", "no account with that handle");
   follows.delete(`${ctx.user.id}>${target.id}`);
   send(ctx.res, 200, followResult(ctx, target, false));
+});
+
+route("POST", "/v1/users/:handle/block", (ctx) => {
+  const target = byHandle(ctx.params.handle);
+  if (!target) return fail(ctx.res, 404, "NOT_FOUND", "no account with that handle");
+  blocks.add(`${ctx.user.id}>${target.id}`);
+  follows.delete(`${ctx.user.id}>${target.id}`);
+  follows.delete(`${target.id}>${ctx.user.id}`);
+  send(ctx.res, 204);
+});
+
+route("DELETE", "/v1/users/:handle/block", (ctx) => {
+  const target = byHandle(ctx.params.handle);
+  if (!target) return fail(ctx.res, 404, "NOT_FOUND", "no account with that handle");
+  blocks.delete(`${ctx.user.id}>${target.id}`);
+  send(ctx.res, 204);
 });
 
 route("GET", "/v1/users/:handle", (ctx) => {

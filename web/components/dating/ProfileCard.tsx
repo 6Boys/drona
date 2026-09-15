@@ -4,7 +4,9 @@ import { useState, type ReactNode } from "react";
 import { motion } from "framer-motion";
 import { avatarBackground, avatarColours, initialsFor } from "@/components/ui/GradientAvatar";
 import { CanvasReveal } from "@/components/fx/CanvasReveal";
-import { HeartIcon, CheckIcon } from "@/components/ui/Icons";
+import { Badge } from "@/components/ui/Badge";
+import { HeartIcon, CheckIcon, BookIcon, HomeIcon, SparkleIcon } from "@/components/ui/Icons";
+import { ReportBlockMenu } from "./ReportBlockMenu";
 import type { DatingCandidate, LikeTarget } from "@/lib/types";
 import { cn } from "@/lib/cn";
 
@@ -44,7 +46,7 @@ function LikeButton({
       }}
       onPointerDown={(e) => e.stopPropagation()}
       className={cn(
-        "glass glass-pill flex size-11 cursor-pointer items-center justify-center transition-colors duration-200",
+        "flex size-11 cursor-pointer items-center justify-center rounded-full bg-surface shadow-[var(--sh-pop)] transition-colors duration-200",
         liked ? "text-accent" : "text-muted hover:text-accent",
         className,
       )}
@@ -66,6 +68,7 @@ export function ProfileCard({
   candidate,
   interactive = false,
   onLike,
+  onRemove,
   likedTargets,
   className,
   scrollable = true,
@@ -73,6 +76,9 @@ export function ProfileCard({
   candidate: DatingCandidate;
   interactive?: boolean;
   onLike?: (target: LikeTarget) => void;
+  /** Called after a successful report or block — the caller should drop this
+   * candidate from whatever list is showing it. */
+  onRemove?: () => void;
   /** Keys already liked: "photo" or "prompt:0". Shows state without re-fetching. */
   likedTargets?: Set<string>;
   className?: string;
@@ -122,6 +128,10 @@ export function ProfileCard({
               Verified student
             </span>
           )}
+
+          {interactive && (
+            <ReportBlockMenu candidate={candidate} onHandled={onRemove} className="absolute top-3 right-3" />
+          )}
         </div>
 
         {interactive && (
@@ -138,14 +148,25 @@ export function ProfileCard({
       <Block className="relative z-10 pt-7 pb-5">
         <h2 className="display text-[2.5rem] text-text">{candidate.displayName}</h2>
 
-        <p className="mt-2 text-[0.8125rem] text-muted">
-          {[candidate.branch, candidate.year ? `Year ${candidate.year}` : null, "Same campus"]
-            .filter(Boolean)
-            .join(" · ")}
-        </p>
+        <div className="mt-3 flex flex-wrap items-center gap-1.5">
+          {candidate.branch && (
+            <Badge tone="neutral">
+              <BookIcon size={11} />
+              {candidate.branch}
+            </Badge>
+          )}
+          {candidate.year && <Badge tone="neutral">Year {candidate.year}</Badge>}
+          <Badge tone="neutral">
+            <HomeIcon size={11} />
+            Same campus
+          </Badge>
+        </div>
 
         {candidate.vibe && (
-          <p className="serif mt-3 text-[1.0625rem] leading-snug text-muted">{candidate.vibe}</p>
+          <div className="relative mt-4 rounded-[var(--r-md)] border border-[color-mix(in_oklab,var(--accent)_22%,transparent)] bg-accent-wash py-3 pr-4 pl-9">
+            <SparkleIcon size={14} className="absolute top-3.5 left-3 text-accent-hi" />
+            <p className="serif text-[1.0625rem] leading-snug text-text">{candidate.vibe}</p>
+          </div>
         )}
       </Block>
 
