@@ -10,6 +10,7 @@ import {
   type PanInfo,
 } from "framer-motion";
 import { ProfileCard } from "./ProfileCard";
+import { TempCandidateWidget } from "./TempCandidateWidget";
 import { LikeNoteSheet } from "./LikeNoteSheet";
 import { SparkleIcon, XIcon } from "@/components/ui/Icons";
 import type { DatingCandidate, LikeTarget, SwipeAction } from "@/lib/types";
@@ -208,18 +209,21 @@ export function SwipeDeck({
           .reverse()
           .map((candidate, reverseIndex) => {
             const depth = behind.length - reverseIndex;
+            // Peeking from alternating sides rather than dead-center behind
+            // the top card — a fanned deck, not a stack of identical shadows.
+            const side = depth % 2 === 0 ? 1 : -1;
             return (
               <div
                 key={candidate.id}
                 className="absolute inset-0 origin-bottom"
                 style={{
-                  transform: `translateY(${depth * 12}px) scale(${1 - depth * 0.03})`,
+                  transform: `translate(${side * depth * 7}px, ${depth * 12}px) rotate(${side * depth * 1.5}deg) scale(${1 - depth * 0.04})`,
                   zIndex: 10 - depth,
                   opacity: 1 - depth * 0.4,
                 }}
                 aria-hidden
               >
-                <ProfileCard candidate={candidate} scrollable={false} />
+                <TempCandidateWidget candidate={candidate} />
               </div>
             );
           })}
