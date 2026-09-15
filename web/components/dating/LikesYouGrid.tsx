@@ -23,8 +23,10 @@ import type { DatingLike, DatingMatch, DatingPrompt } from "@/lib/types";
  * card, so it quotes their prompt — and stays vague rather than guessing when
  * the viewer hasn't written that answer yet. */
 function targetLine(like: DatingLike, myPrompts: DatingPrompt[]): string {
-  if (like.target.kind === "photo") return "liked your picture";
-  const mine = myPrompts[like.target.index];
+  if (like.target.kind !== "PROMPT" || like.target.promptIndex === undefined) {
+    return "liked your picture";
+  }
+  const mine = myPrompts[like.target.promptIndex];
   return mine ? `liked "${mine.question}"` : "liked one of your answers";
 }
 
@@ -42,7 +44,7 @@ export function LikesYouGrid({
 }: {
   likes: DatingLike[];
   myPrompts: DatingPrompt[];
-  onAnswer: (like: DatingLike, accept: boolean) => DatingMatch | null;
+  onAnswer: (like: DatingLike, accept: boolean) => void;
 }) {
   const [preview, setPreview] = useState<DatingLike | null>(null);
 
@@ -57,24 +59,25 @@ export function LikesYouGrid({
 
   const cards: LayoutGridCard[] = likes.map((like, i) => ({
     id: like.id,
-    // The first tile gets the big slot: on a grid this small, an even mosaic
-    // reads as a contact sheet, and one anchor makes it read as a page.
-    className: i === 0 ? "md:col-span-2 md:row-span-2" : undefined,
+    // The first tile anchors the mosaic — but only once there are enough
+    // tiles for it to be a mosaic. A lone like blown up to 2x2 just looks
+    // like a layout mistake.
+    className: i === 0 && likes.length >= 3 ? "md:col-span-2 md:row-span-2" : undefined,
     thumbnail: (open: boolean) => (
       <ProfileTile
         candidate={like.candidate}
         active={open}
         /* Once the panel below is quoting the comment in full, the tile saying
            it too is just the same sentence twice. */
-        quote={i === 0 && !open ? quoteFor(like) : undefined}
+        quote={(i === 0 || likes.length < 3) && !open ? quoteFor(like) : undefined}
         footer={
           <p className="mt-1 flex items-center gap-1.5 text-[0.6875rem] text-white/75">
-            {like.twinkle ? (
+            {like.action === "TWINKLE" ? (
               <SparkleIcon size={11} className="text-gold" />
             ) : (
               <HeartIcon size={11} />
             )}
-            {targetLine(like, myPrompts)} · {timeAgo(like.at)}
+            {targetLine(like, myPrompts)} · {timeAgo(like.createdAt)}
           </p>
         }
       />
@@ -82,7 +85,7 @@ export function LikesYouGrid({
     content: (
       <div className="glass glass-strong glass-panel p-5">
         <p className="mono-label">
-          {like.twinkle ? "twinkled" : "liked"} · {targetLine(like, myPrompts)}
+          {like.action === "TWINKLE" ? "twinkled" : "liked"} · {targetLine(like, myPrompts)}
         </p>
 
         {like.note ? (

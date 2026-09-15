@@ -6,7 +6,7 @@ import { GradientAvatar } from "@/components/ui/GradientAvatar";
 import { Atmosphere } from "@/components/fx/Backdrops";
 import { Button } from "@/components/ui/Button";
 import { SendIcon } from "@/components/ui/Icons";
-import type { Avatar as AvatarShape, DatingCandidate } from "@/lib/types";
+import type { Avatar as AvatarShape, DatingMatch } from "@/lib/types";
 
 /* -----------------------------------------------------------------------------
    The match moment.
@@ -18,13 +18,13 @@ import type { Avatar as AvatarShape, DatingCandidate } from "@/lib/types";
    -------------------------------------------------------------------------- */
 
 export function MatchModal({
-  candidate,
+  match,
   viewerAvatar,
   viewerName,
   onClose,
   onSend,
 }: {
-  candidate: DatingCandidate | null;
+  match: DatingMatch | null;
   viewerAvatar: AvatarShape;
   viewerName: string;
   onClose: () => void;
@@ -34,7 +34,7 @@ export function MatchModal({
   const ref = useRef<HTMLInputElement | null>(null);
 
   useEffect(() => {
-    if (!candidate) return;
+    if (!match) return;
     setDraft("");
     const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
     document.addEventListener("keydown", onKey);
@@ -46,8 +46,9 @@ export function MatchModal({
       document.body.style.overflow = previous;
       clearTimeout(focus);
     };
-  }, [candidate, onClose]);
+  }, [match, onClose]);
 
+  const candidate = match?.candidate ?? null;
   const first = candidate?.displayName.split(" ")[0] ?? "";
 
   const send = () => {
@@ -57,7 +58,7 @@ export function MatchModal({
 
   return (
     <AnimatePresence>
-      {candidate && (
+      {match && candidate && (
         <motion.div
           className="fixed inset-0 z-50 flex items-center justify-center p-4"
           initial={{ opacity: 0 }}

@@ -88,15 +88,16 @@ export function ProfileCard({
       onPointerEnter={() => setHot(true)}
       onPointerLeave={() => setHot(false)}
       className={cn(
-        "glass glass-strong no-scrollbar flex h-full w-full flex-col rounded-[var(--r-2xl)] select-none",
+        "no-scrollbar flex h-full w-full flex-col rounded-[var(--r-2xl)] select-none",
+        "border border-border bg-surface shadow-[var(--sh-pop)]",
         scrollable ? "overflow-y-auto overscroll-contain" : "overflow-hidden",
         className,
       )}
     >
       {/* ---------------------------------------------------------- photo -- */}
-      <div className="relative z-10 shrink-0 px-3 pt-3">
+      <div className="relative z-10 shrink-0 basis-[max(11rem,44%)] px-3 pt-3">
         <div
-          className="relative flex h-[19rem] items-center justify-center overflow-hidden rounded-[var(--r-xl)]"
+          className="relative flex h-full items-center justify-center overflow-hidden rounded-[var(--r-xl)]"
           style={{ background: avatarBackground(candidate.avatar) }}
         >
           <CanvasReveal active={hot} colours={colours} dotSize={2} gap={5} />
@@ -115,7 +116,7 @@ export function ProfileCard({
             {initialsFor(candidate.displayName)}
           </span>
 
-          {candidate.verified && (
+          {candidate.photoVerified && (
             <span className="glass glass-pill absolute top-3 left-3 flex items-center gap-1.5 px-2.5 py-1 text-[0.6875rem] text-text">
               <CheckIcon size={11} className="text-positive" />
               Verified student
@@ -127,7 +128,7 @@ export function ProfileCard({
           <LikeButton
             label={`Like ${candidate.displayName}'s picture`}
             liked={liked("photo")}
-            onClick={onLike && (() => onLike({ kind: "photo" }))}
+            onClick={onLike && (() => onLike({ kind: "PHOTO" }))}
             className="absolute right-6 -bottom-5 z-20"
           />
         )}
@@ -138,7 +139,9 @@ export function ProfileCard({
         <h2 className="display text-[2.5rem] text-text">{candidate.displayName}</h2>
 
         <p className="mt-2 text-[0.8125rem] text-muted">
-          {candidate.branch} · Year {candidate.year} · {candidate.distanceNote}
+          {[candidate.branch, candidate.year ? `Year ${candidate.year}` : null, "Same campus"]
+            .filter(Boolean)
+            .join(" · ")}
         </p>
 
         {candidate.vibe && (
@@ -157,7 +160,7 @@ export function ProfileCard({
               <LikeButton
                 label={`Like this answer from ${candidate.displayName}`}
                 liked={liked("prompt:0")}
-                onClick={onLike && (() => onLike({ kind: "prompt", index: 0 }))}
+                onClick={onLike && (() => onLike({ kind: "PROMPT", promptIndex: 0 }))}
                 className="absolute right-6 -bottom-5 z-20"
               />
             )}
@@ -196,7 +199,7 @@ export function ProfileCard({
               <LikeButton
                 label={`Like this answer from ${candidate.displayName}`}
                 liked={liked(`prompt:${i + 1}`)}
-                onClick={onLike && (() => onLike({ kind: "prompt", index: i + 1 }))}
+                onClick={onLike && (() => onLike({ kind: "PROMPT", promptIndex: i + 1 }))}
                 className="absolute right-6 -bottom-5 z-20"
               />
             )}

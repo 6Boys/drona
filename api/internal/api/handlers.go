@@ -816,6 +816,106 @@ func (s *Server) handleBurrow(w http.ResponseWriter, r *http.Request) error {
 	return nil
 }
 
+// ------------------------------------------------------------ love finder -----
+
+func (s *Server) handleDatingProfile(w http.ResponseWriter, r *http.Request) error {
+	actor, err := auth.MustActor(r.Context())
+	if err != nil {
+		return err
+	}
+	profile, err := s.deps.Dating.Profile(r.Context(), actor.UserID)
+	if err != nil {
+		return err
+	}
+	httpx.JSON(w, http.StatusOK, profile)
+	return nil
+}
+
+func (s *Server) handleSaveDatingProfile(w http.ResponseWriter, r *http.Request) error {
+	actor, err := auth.MustActor(r.Context())
+	if err != nil {
+		return err
+	}
+	var body service.SaveProfileRequest
+	if err := httpx.Decode(r, &body); err != nil {
+		return err
+	}
+	profile, err := s.deps.Dating.SaveProfile(r.Context(), actor.UserID, body)
+	if err != nil {
+		return err
+	}
+	httpx.JSON(w, http.StatusOK, profile)
+	return nil
+}
+
+func (s *Server) handleDeck(w http.ResponseWriter, r *http.Request) error {
+	actor, err := auth.MustActor(r.Context())
+	if err != nil {
+		return err
+	}
+	deck, err := s.deps.Dating.Deck(r.Context(), actor.UserID, intQuery(r, "limit", 20))
+	if err != nil {
+		return err
+	}
+	httpx.JSON(w, http.StatusOK, deck)
+	return nil
+}
+
+func (s *Server) handleSwipe(w http.ResponseWriter, r *http.Request) error {
+	actor, err := auth.MustActor(r.Context())
+	if err != nil {
+		return err
+	}
+	var body service.SwipeRequest
+	if err := httpx.Decode(r, &body); err != nil {
+		return err
+	}
+	result, err := s.deps.Dating.Swipe(r.Context(), actor.UserID, body)
+	if err != nil {
+		return err
+	}
+	httpx.JSON(w, http.StatusOK, result)
+	return nil
+}
+
+func (s *Server) handleDatingLikes(w http.ResponseWriter, r *http.Request) error {
+	actor, err := auth.MustActor(r.Context())
+	if err != nil {
+		return err
+	}
+	likes, err := s.deps.Dating.Likes(r.Context(), actor.UserID, intQuery(r, "limit", 30))
+	if err != nil {
+		return err
+	}
+	httpx.JSON(w, http.StatusOK, map[string]any{"items": likes})
+	return nil
+}
+
+func (s *Server) handleDatingMatches(w http.ResponseWriter, r *http.Request) error {
+	actor, err := auth.MustActor(r.Context())
+	if err != nil {
+		return err
+	}
+	matches, err := s.deps.Dating.Matches(r.Context(), actor.UserID)
+	if err != nil {
+		return err
+	}
+	httpx.JSON(w, http.StatusOK, map[string]any{"items": matches})
+	return nil
+}
+
+func (s *Server) handleUnmatch(w http.ResponseWriter, r *http.Request) error {
+	actor, err := auth.MustActor(r.Context())
+	if err != nil {
+		return err
+	}
+	if err := s.deps.Dating.Unmatch(r.Context(), actor.UserID, chi.URLParam(r, "handle")); err != nil {
+		return err
+	}
+	httpx.NoContent(w)
+	return nil
+}
+
 // ------------------------------------------------------------- note locker -----
 
 func (s *Server) handleNotes(w http.ResponseWriter, r *http.Request) error {

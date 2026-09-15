@@ -414,65 +414,74 @@ export interface TypingPayload {
 }
 
 // -------------------------------------------------------------- love finder --
-// The swipe deck has no backend endpoint yet (the API exposes only the opt-in
-// toggle). These shapes describe the local deck in lib/mock-dating.ts, kept in
-// the shape the real API will return so wiring it up later is a swap, not a
-// rewrite.
+// These mirror api/internal/domain's Love Finder types exactly — the deck,
+// swipes, likes and matches are all real rows in Postgres (swipes,
+// matches, dating_profiles), not client state.
 
 export interface DatingPrompt {
   question: string;
   answer: string;
 }
 
-export interface DatingCandidate {
-  id: string;
-  handle: string;
-  displayName: string;
-  year: number;
-  branch: string;
-  batch: string;
-  avatar: Avatar;
-  /** One-line personality tag shown under the name, Hinge-style. */
+/** The card someone writes for the deck, separate from their User profile. */
+export interface DatingProfile {
   vibe: string;
-  verified: boolean;
   interests: string[];
-  /** Hinge-style stacked prompt/answer blocks — a deck card shows 2–3. */
   prompts: DatingPrompt[];
-  /** PRD 6.3 has no distance filter — everyone is on the same campus. */
-  distanceNote: string;
 }
+
+/** A deck entry: a full user plus whatever they wrote on their card. The API
+ * embeds one in the other, so a candidate is a User everywhere a User works. */
+export type DatingCandidate = User & DatingProfile;
 
 export type SwipeAction = "PASS" | "LIKE" | "TWINKLE";
 
 /** What exactly was liked. Hinge's whole shape: you don't like a person, you
  * like the photo or one specific answer, and that is what they see first. */
-export type LikeTarget = { kind: "photo" } | { kind: "prompt"; index: number };
+export interface LikeTarget {
+  kind: "PHOTO" | "PROMPT";
+  /** Only set when kind is PROMPT: which of their answers, by position. */
+  promptIndex?: number;
+}
 
 export interface DatingLike {
   id: string;
   candidate: DatingCandidate;
+  action: SwipeAction;
   target: LikeTarget;
   /** The optional comment sent with the like. */
   note?: string;
-  /** Twinkles are the scarce, one-a-day signal. */
-  twinkle?: boolean;
-  /** ISO timestamp. */
-  at: string;
+  createdAt: string;
 }
 
 export interface DatingMatch {
   handle: string;
   candidate: DatingCandidate;
-  at: string;
-  /** Set once either side has said something, so the list can show what's live. */
+  /** The NEST thread this match opened — where "say hi" posts to. */
+  threadId: string;
+  createdAt: string;
+  /** Absent once someone has spoken: a live match no longer wilts. */
+  wiltsAt?: string;
+  /** The first message in the thread, if there is one. */
   opener?: string;
-  /** Matches wilt if nobody speaks — this is when that happens. */
-  expiresAt: string;
 }
 
-/** The viewer's own card, as they edit it before it enters anyone's deck. */
-export interface MyDatingProfile {
-  vibe: string;
-  interests: string[];
-  prompts: DatingPrompt[];
+/** GET /v1/dating/deck — the cards plus the state the deck's UI needs. */
+export interface DeckResponse {
+  items: DatingCandidate[];
+  twinklesLeft: number;
+}
+
+/** POST /v1/dating/swipe */
+export interface SwipeRequest {
+  handle: string;
+  action: SwipeAction;
+  target?: LikeTarget;
+  note?: string;
+}
+
+export interface SwipeResult {
+  matched: boolean;
+  match?: DatingMatch;
+  twinklesLeft: number;
 }

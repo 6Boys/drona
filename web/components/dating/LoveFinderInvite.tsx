@@ -9,7 +9,7 @@ import { Atmosphere } from "@/components/fx/Backdrops";
 import { Glow } from "@/components/fx/Glow";
 import { ButtonLink } from "@/components/ui/Button";
 import { ArrowRightIcon, HeartIcon } from "@/components/ui/Icons";
-import { deckFor, pendingLikes, useDating } from "@/lib/dating-store";
+import { useDeck, useLikes } from "@/lib/dating-store";
 import { useAuth } from "@/lib/auth-context";
 import type { DatingCandidate } from "@/lib/types";
 
@@ -55,26 +55,27 @@ function FaceStack({ people }: { people: DatingCandidate[] }) {
 
 export function LoveFinderInvite() {
   const { me } = useAuth();
-  const state = useDating();
+  // Both hooks fetch on mount; the gate below decides whether any of it is
+  // rendered. Hooks cannot be called conditionally, so the early return has
+  // to come after them.
+  const deck = useDeck();
+  const likes = useLikes();
 
   if (!me || !me.loveFinderAvailable) return null;
 
-  const likes = pendingLikes(state);
-  const deck = deckFor(state, me.user.handle);
   const inDeck = me.user.loveFinderEnabled;
-
-  const faces = (likes.length ? likes.map((l) => l.candidate) : deck).slice(0, 3);
-  if (!faces.length && inDeck && !likes.length) return null;
+  const faces = (likes.items.length ? likes.items.map((l) => l.candidate) : deck.items).slice(0, 3);
+  if (!faces.length && inDeck && !likes.items.length) return null;
 
   const headline = !inDeck
     ? "Love Finder is open on your campus"
-    : likes.length
-      ? `${likes.length} ${likes.length === 1 ? "person" : "people"} liked you`
-      : `${deck.length} new ${deck.length === 1 ? "card" : "cards"} in the deck`;
+    : likes.items.length
+      ? `${likes.items.length} ${likes.items.length === 1 ? "person" : "people"} liked you`
+      : `${deck.items.length} new ${deck.items.length === 1 ? "card" : "cards"} in the deck`;
 
   const body = !inDeck
     ? "Opt in and your card joins the deck. Same campus, verified students only, and you can take it back out whenever you like."
-    : likes.length
+    : likes.items.length
       ? "They liked something specific — a picture, or one answer you wrote. Nothing is blurred and nothing costs anything."
       : "Same campus, verified, and nobody is told you looked.";
 
@@ -98,7 +99,7 @@ export function LoveFinderInvite() {
             className="mt-4"
             icon={<ArrowRightIcon size={14} />}
           >
-            {inDeck ? (likes.length ? "See who" : "Open the deck") : "Put me in the deck"}
+            {inDeck ? (likes.items.length ? "See who" : "Open the deck") : "Put me in the deck"}
           </ButtonLink>
         </div>
 

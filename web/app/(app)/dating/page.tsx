@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, type ComponentType } from "react";
+import { useCallback, useState, type ComponentType } from "react";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { PageBody, TopBar } from "@/components/app-shell/TopBar";
@@ -16,19 +16,13 @@ import { FlipWords } from "@/components/fx/Text";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { Segmented } from "@/components/ui/Segmented";
+import { Skeleton } from "@/components/ui/Skeleton";
 import { HeartIcon, LockIcon, SparkleIcon } from "@/components/ui/Icons";
 import { useToast } from "@/components/ui/Toast";
 import { api, errorMessage } from "@/lib/api";
 import { useAuth } from "@/lib/auth-context";
-import {
-  dating,
-  deckFor,
-  liveMatches,
-  pendingLikes,
-  twinklesLeft as twinklesLeftFor,
-  useDating,
-} from "@/lib/dating-store";
-import type { DatingCandidate, MeResponse } from "@/lib/types";
+import { dating, useDatingProfile, useDeck, useLikes, useMatches } from "@/lib/dating-store";
+import type { DatingMatch, MeResponse } from "@/lib/types";
 
 type Tab = "deck" | "likes" | "matches" | "you";
 
@@ -36,8 +30,9 @@ type Tab = "deck" | "likes" | "matches" | "you";
    Love Finder.
 
    Four surfaces behind one header: the deck, the likes you've received, the
-   matches that came out of them, and your own card. They share one store, so
-   the counts in the tab strip are always the counts on the screens.
+   matches that came out of them, and your own card. All four read from
+   /v1/dating/* — the counts in the tab strip are the server's counts, and a
+   swipe is a row in Postgres before it is an animation.
    -------------------------------------------------------------------------- */
 
 function Panel({
@@ -69,20 +64,66 @@ function Panel({
   );
 }
 
+/** The deck's own loading state: the card's silhouette, not a spinner in a
+ * void — the shape that's coming is the most useful thing to show. */
+function DeckSkeleton() {
+  return (
+    <div className="flex flex-col items-center">
+      <Skeleton className="h-[clamp(24rem,calc(100dvh-22rem),38rem)] w-full max-w-[25rem] rounded-[var(--r-2xl)]" />
+      <div className="mt-8 flex items-center gap-6">
+        <Skeleton className="size-14 rounded-full" />
+        <Skeleton className="size-11 rounded-full" />
+        <Skeleton className="size-14 rounded-full" />
+      </div>
+    </div>
+  );
+}
+
 export default function DatingPage() {
   const router = useRouter();
   const { me, apply } = useAuth();
   const toast = useToast();
-  const state = useDating();
 
   const [tab, setTab] = useState<Tab>("deck");
   const [busy, setBusy] = useState(false);
-  const [matched, setMatched] = useState<DatingCandidate | null>(null);
+  const [matched, setMatched] = useState<DatingMatch | null>(null);
 
-  const twinkles = twinklesLeftFor(state);
-  const likes = useMemo(() => pendingLikes(state), [state]);
-  const matches = useMemo(() => liveMatches(state), [state]);
-  const deck = useMemo(() => deckFor(state, me?.user.handle), [state, me?.user.handle]);
+  const deck = useDeck();
+  const likes = useLikes();
+  const matches = useMatches();
+  const card = useDatingProfile();
+
+  const { setTwinklesLeft, advance } = deck;
+  const reloadLikes = likes.reload;
+  const reloadMatches = matches.reload;
+
+  /** One place every swipe lands, wherever it came from: the deck's gesture,
+   * the deck's buttons, or answering a like. The server decides; this only
+   * reports what it decided. */
+  const swipe = useCallback(
+    async ({ action, candidate, target, note }: SwipeDecision) => {
+      advance(candidate.handle);
+      try {
+        const result = await dating.swipe(candidate.handle, action, target, note);
+        setTwinklesLeft(result.twinklesLeft);
+
+        if (result.matched && result.match) {
+          setMatched(result.match);
+          void reloadMatches();
+        } else if (action === "TWINKLE") {
+          toast(`Twinkle sent to ${candidate.displayName}`, "success");
+        } else if (note) {
+          toast(`Comment sent to ${candidate.displayName}`, "success");
+        }
+        void reloadLikes();
+      } catch (err) {
+        toast(errorMessage(err, "that didn't go through"), "error");
+        // Put them back: the swipe never happened as far as the server knows.
+        void deck.reload();
+      }
+    },
+    [advance, setTwinklesLeft, toast, reloadLikes, reloadMatches, deck],
+  );
 
   if (!me) return null;
 
@@ -91,28 +132,12 @@ export default function DatingPage() {
     try {
       apply(await api.post<MeResponse>("/v1/me/love-finder", { enabled }));
       toast(enabled ? "You're in the deck" : "Your card is out of the deck", "success");
+      if (enabled) void deck.reload();
     } catch (err) {
       toast(errorMessage(err, "could not change that"), "error");
     } finally {
       setBusy(false);
     }
-  };
-
-  const decide = ({ action, candidate, target, note, twinkle }: SwipeDecision) => {
-    if (action === "PASS") {
-      dating.pass(candidate.handle);
-      return;
-    }
-
-    const match = dating.like(candidate, target, note, twinkle || action === "TWINKLE");
-
-    if (twinkle || action === "TWINKLE") {
-      toast(`Twinkle sent to ${candidate.displayName}`, "success");
-    } else if (note) {
-      toast(`Comment sent to ${candidate.displayName}`, "success");
-    }
-
-    if (match) setMatched(candidate);
   };
 
   const gated = !me.loveFinderAvailable;
@@ -136,9 +161,9 @@ export default function DatingPage() {
               value={tab}
               onChange={setTab}
               options={[
-                { value: "deck", label: "Discover", count: deck.length },
-                { value: "likes", label: "Likes you", count: likes.length },
-                { value: "matches", label: "Matches", count: matches.length },
+                { value: "deck", label: "Discover", count: deck.items.length },
+                { value: "likes", label: "Likes you", count: likes.items.length },
+                { value: "matches", label: "Matches", count: matches.items.length },
                 { value: "you", label: "Your card" },
               ]}
             />
@@ -190,29 +215,33 @@ export default function DatingPage() {
                     />
                   </p>
 
-                  <SwipeDeck
-                    candidates={deck}
-                    twinklesLeft={twinkles}
-                    onDecide={decide}
-                    onTwinkleBlocked={() =>
-                      toast("No Twinkles left today. One a day, on purpose.", "info")
-                    }
-                    emptyState={
-                      <Panel
-                        title="That's everyone for today"
-                        body="The deck refills as more people opt in. Nothing you did is lost — the ones you liked stay liked, and anyone you passed on can be dealt back in."
-                        action={
-                          <Button variant="outline" onClick={() => dating.resetDeck()}>
-                            Deal the passes back in
-                          </Button>
-                        }
-                      />
-                    }
-                  />
+                  {deck.loading ? (
+                    <DeckSkeleton />
+                  ) : (
+                    <SwipeDeck
+                      candidates={deck.items}
+                      twinklesLeft={deck.twinklesLeft}
+                      onDecide={swipe}
+                      onTwinkleBlocked={() =>
+                        toast("No Twinkles left today. One a day, on purpose.", "info")
+                      }
+                      emptyState={
+                        <Panel
+                          title="That's everyone for now"
+                          body="You've seen every card on campus that's opted in. The deck refills as more people join — a swipe is final, so nobody you've already answered comes back around."
+                          action={
+                            <Button variant="outline" onClick={() => void deck.reload()}>
+                              Check again
+                            </Button>
+                          }
+                        />
+                      }
+                    />
+                  )}
 
                   <p className="mt-5 flex items-center justify-center gap-1.5 text-center text-xs text-faint">
                     <SparkleIcon size={12} className="text-gold" />
-                    {twinkles} {twinkles === 1 ? "Twinkle" : "Twinkles"} left today
+                    {deck.twinklesLeft} {deck.twinklesLeft === 1 ? "Twinkle" : "Twinkles"} left today
                   </p>
                 </>
               )}
@@ -221,7 +250,11 @@ export default function DatingPage() {
                 <>
                   <header className="mb-6">
                     <h2 className="display text-[2rem] text-text">
-                      {likes.length ? `${likes.length} people liked you` : "Likes you"}
+                      {likes.items.length === 0
+                        ? "Likes you"
+                        : likes.items.length === 1
+                          ? "One person liked you"
+                          : `${likes.items.length} people liked you`}
                     </h2>
                     <p className="mt-2 max-w-xl text-[0.875rem] leading-relaxed text-muted">
                       Everything visible, nothing blurred, nothing behind a paywall. Open one to read
@@ -229,16 +262,25 @@ export default function DatingPage() {
                     </p>
                   </header>
 
-                  <LikesYouGrid
-                    likes={likes}
-                    myPrompts={state.profile.prompts}
-                    onAnswer={(like, accept) => {
-                      const match = dating.answerLike(like, accept);
-                      if (match) setMatched(like.candidate);
-                      else toast(`${like.candidate.displayName} won't be told.`, "info");
-                      return match;
-                    }}
-                  />
+                  {likes.loading ? (
+                    <div className="grid auto-rows-[13rem] grid-cols-1 gap-3 md:auto-rows-[15rem] md:grid-cols-3">
+                      {[0, 1, 2, 3].map((i) => (
+                        <Skeleton key={i} className="h-full rounded-[var(--r-2xl)]" />
+                      ))}
+                    </div>
+                  ) : (
+                    <LikesYouGrid
+                      likes={likes.items}
+                      myPrompts={card.profile?.prompts ?? []}
+                      onAnswer={(like, accept) =>
+                        swipe({
+                          action: accept ? "LIKE" : "PASS",
+                          candidate: like.candidate,
+                          target: like.target,
+                        })
+                      }
+                    />
+                  )}
                 </>
               )}
 
@@ -251,17 +293,35 @@ export default function DatingPage() {
                     </p>
                   </header>
 
-                  <MatchesPanel
-                    matches={matches}
-                    onSayHi={(handle, text) => {
-                      dating.sayHi(handle, text);
-                      toast("Sent. It's a conversation now.", "success");
-                    }}
-                    onUnmatch={(handle) => {
-                      dating.unmatch(handle);
-                      toast("Unmatched. They aren't notified.", "info");
-                    }}
-                  />
+                  {matches.loading ? (
+                    <div className="space-y-3">
+                      {[0, 1].map((i) => (
+                        <Skeleton key={i} className="h-36 rounded-[var(--r-xl)]" />
+                      ))}
+                    </div>
+                  ) : (
+                    <MatchesPanel
+                      matches={matches.items}
+                      onSayHi={async (match, text) => {
+                        try {
+                          await dating.sayHi(match.threadId, text);
+                          toast("Sent. It's a conversation now.", "success");
+                          void matches.reload();
+                        } catch (err) {
+                          toast(errorMessage(err, "that didn't send"), "error");
+                        }
+                      }}
+                      onUnmatch={async (handle) => {
+                        try {
+                          await dating.unmatch(handle);
+                          toast("Unmatched. They aren't notified.", "info");
+                          void matches.reload();
+                        } catch (err) {
+                          toast(errorMessage(err, "could not unmatch"), "error");
+                        }
+                      }}
+                    />
+                  )}
                 </>
               )}
 
@@ -280,14 +340,22 @@ export default function DatingPage() {
                     </Button>
                   </header>
 
-                  <DatingProfileEditor
-                    user={me.user}
-                    profile={state.profile}
-                    onSave={(profile) => {
-                      dating.saveProfile(profile);
-                      toast("Your card is updated", "success");
-                    }}
-                  />
+                  {card.loading || !card.profile ? (
+                    <Skeleton className="h-96 rounded-[var(--r-xl)]" />
+                  ) : (
+                    <DatingProfileEditor
+                      user={me.user}
+                      profile={card.profile}
+                      onSave={async (profile) => {
+                        try {
+                          card.setProfile(await dating.saveProfile(profile));
+                          toast("Your card is updated", "success");
+                        } catch (err) {
+                          toast(errorMessage(err, "could not save your card"), "error");
+                        }
+                      }}
+                    />
+                  )}
                 </>
               )}
             </motion.div>
@@ -296,15 +364,21 @@ export default function DatingPage() {
       </PageBody>
 
       <MatchModal
-        candidate={matched}
+        match={matched}
         viewerAvatar={me.user.avatar}
         viewerName={me.user.displayName}
         onClose={() => setMatched(null)}
-        onSend={(text) => {
-          if (matched) dating.sayHi(matched.handle, text);
+        onSend={async (text) => {
+          if (!matched) return;
+          const match = matched;
           setMatched(null);
-          toast("Sent. It's a conversation now.", "success");
-          router.push("/chats");
+          try {
+            await dating.sayHi(match.threadId, text);
+            toast("Sent. It's a conversation now.", "success");
+            router.push(`/chats/${match.threadId}`);
+          } catch (err) {
+            toast(errorMessage(err, "that didn't send"), "error");
+          }
         }}
       />
     </div>

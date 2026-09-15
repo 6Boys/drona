@@ -32,6 +32,9 @@ const (
 	EventOwlCurfew      EventType = "owl.curfew"
 	EventOwlCocoon      EventType = "owl.cocoon"
 	EventPresence       EventType = "presence"
+	// Both sides of a Love Finder match hear about it: the one who swiped
+	// last sees it in the swipe response, the other needs telling (PRD 6.3).
+	EventMatchNew EventType = "match.new"
 	// Sent by the server in reply to a client frame it could not honour.
 	EventError EventType = "error"
 	// Keepalive, so an idle socket through a proxy is not reaped.

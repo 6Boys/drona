@@ -2,6 +2,7 @@ import Link from "next/link";
 import type { Metadata } from "next";
 import { AppPreview } from "@/components/marketing/AppPreview";
 import { ProfileCard } from "@/components/dating/ProfileCard";
+import type { DatingCandidate } from "@/lib/types";
 import { ButtonLink } from "@/components/ui/Button";
 import { Logo, LogoMark } from "@/components/ui/Logo";
 import { NavbarMenu } from "@/components/fx/NavbarMenu";
@@ -14,7 +15,6 @@ import { GeminiBeams } from "@/components/fx/GeminiBeams";
 import { CometCard, DirectionAwareHover, TiltCard, TiltLayer, WobbleCard } from "@/components/fx/Cards";
 import { Glow } from "@/components/fx/Glow";
 import { FlipWords, LayoutTextFlip, TextGenerate } from "@/components/fx/Text";
-import { MOCK_DECK } from "@/lib/mock-dating";
 import {
   ArrowRightIcon,
   BookIcon,
@@ -168,7 +168,48 @@ const SAFETY: [string, string][] = [
   ],
 ];
 
-const FEATURED = MOCK_DECK[0]!;
+// The landing page is public, so it cannot fetch a real card from the deck —
+// and it should not: showing a stranger's actual profile to the open internet
+// would be the opposite of what campus-only means. This is an illustration,
+// written for the page, rendered through the real ProfileCard so what a
+// visitor sees is the component they would actually get.
+const FEATURED: DatingCandidate = {
+  id: "sample",
+  campusId: "sample",
+  handle: "meher",
+  displayName: "Meher",
+  avatar: { hat: "flower", eyes: "wink", colour: "peach", accessory: "none" },
+  branch: "ECE",
+  year: 2,
+  batch: "2024-28",
+  role: "STUDENT",
+  status: "ACTIVE",
+  isPrivate: false,
+  onboardingStep: "DONE",
+  followerCount: 0,
+  followingCount: 0,
+  stardust: 0,
+  owlRank: "NIGHT_OWL",
+  owlRankLabel: "Night Owl",
+  loveFinderEnabled: true,
+  photoVerified: true,
+  createdAt: "2026-01-01T00:00:00.000Z",
+  viewerFollows: false,
+  followsViewer: false,
+  isBuddy: false,
+  vibe: "sings in the stairwell, unbothered",
+  interests: ["stairwell singing", "thrifting", "bad horror films"],
+  prompts: [
+    {
+      question: "The way to win me over is",
+      answer: "argue with me about a song for forty minutes and then send it to me anyway.",
+    },
+    {
+      question: "A shower thought I recently had",
+      answer: "the ECE building echoes like a concert hall and I will not be taking questions.",
+    },
+  ],
+};
 
 export default function LandingPage() {
   const surfaceCards: LayoutGridCard[] = SURFACES.map((surface) => ({

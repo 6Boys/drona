@@ -29,13 +29,14 @@ type Deps struct {
 	Issuer  *auth.TokenIssuer
 	Limiter httpx.Limiter
 
-	Auth  *service.AuthService
-	Users *service.UserService
-	Feed  *service.FeedService
-	Chat  *service.ChatService
-	Owl   *service.OwlService
-	Notes *service.NoteService
-	Media *media.Store
+	Auth   *service.AuthService
+	Users  *service.UserService
+	Feed   *service.FeedService
+	Chat   *service.ChatService
+	Owl    *service.OwlService
+	Notes  *service.NoteService
+	Dating *service.DatingService
+	Media  *media.Store
 
 	Gateway *realtime.Gateway
 
@@ -168,6 +169,15 @@ func (s *Server) routes() {
 			app.Method(http.MethodPost, "/owl/cocoon", httpx.Handler(s.handleCocoon))
 			app.Method(http.MethodPost, "/owl/burrow", httpx.Handler(s.handleBurrow))
 
+			// love finder (PRD 6.3) — every one of these re-checks the gate
+			// in the service, so reaching the route is not reaching the deck.
+			app.Method(http.MethodGet, "/dating/profile", httpx.Handler(s.handleDatingProfile))
+			app.Method(http.MethodPut, "/dating/profile", httpx.Handler(s.handleSaveDatingProfile))
+			app.Method(http.MethodGet, "/dating/deck", httpx.Handler(s.handleDeck))
+			app.Method(http.MethodGet, "/dating/likes", httpx.Handler(s.handleDatingLikes))
+			app.Method(http.MethodGet, "/dating/matches", httpx.Handler(s.handleDatingMatches))
+			app.Method(http.MethodDelete, "/dating/matches/{handle}", httpx.Handler(s.handleUnmatch))
+
 			// note locker
 			app.Method(http.MethodGet, "/notes", httpx.Handler(s.handleNotes))
 			app.Method(http.MethodGet, "/notes/subjects", httpx.Handler(s.handleNoteSubjects))
@@ -191,6 +201,8 @@ func (s *Server) routes() {
 			write.Method(http.MethodPost, "/posts/{id}/comments", httpx.Handler(s.handleCreateComment))
 			write.Method(http.MethodPost, "/threads/{id}/messages", httpx.Handler(s.handleSendMessage))
 			write.Method(http.MethodPost, "/notes", httpx.Handler(s.handleUploadNote))
+			// A swipe is permanent and can open a chat — budgeted like a write.
+			write.Method(http.MethodPost, "/dating/swipe", httpx.Handler(s.handleSwipe))
 			// A disk write worth its own stricter budget too, same as every
 			// other route in this group — doubly so on a storage-constrained box.
 			write.Method(http.MethodPost, "/media/upload", httpx.Handler(s.handleUploadMedia))

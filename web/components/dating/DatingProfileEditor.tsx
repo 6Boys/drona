@@ -6,7 +6,7 @@ import { ProfileCard } from "./ProfileCard";
 import { Button } from "@/components/ui/Button";
 import { PlusIcon, XIcon, CheckIcon } from "@/components/ui/Icons";
 import { INTEREST_LIBRARY, PROMPT_LIBRARY } from "@/lib/mock-dating";
-import type { DatingCandidate, DatingPrompt, MyDatingProfile, User } from "@/lib/types";
+import type { DatingCandidate, DatingPrompt, DatingProfile, User } from "@/lib/types";
 import { cn } from "@/lib/cn";
 
 /* -----------------------------------------------------------------------------
@@ -79,8 +79,8 @@ export function DatingProfileEditor({
   onSave,
 }: {
   user: User;
-  profile: MyDatingProfile;
-  onSave: (profile: MyDatingProfile) => void;
+  profile: DatingProfile;
+  onSave: (profile: DatingProfile) => void;
 }) {
   const [vibe, setVibe] = useState(profile.vibe);
   const [interests, setInterests] = useState<string[]>(profile.interests);
@@ -118,18 +118,13 @@ export function DatingProfileEditor({
   // the deck uses — no second implementation to drift out of sync.
   const preview: DatingCandidate = useMemo(
     () => ({
-      id: "preview",
-      handle: user.handle,
-      displayName: user.displayName,
-      year: user.year ?? 1,
-      branch: user.branch ?? "Your branch",
-      batch: user.batch ?? "",
-      avatar: user.avatar,
+      ...user,
+      branch: user.branch || "Your branch",
       vibe,
-      verified: true,
       interests,
+      // A half-written block is not on your card yet, so it is not in the
+      // preview either — the preview is what the deck would show right now.
       prompts: prompts.filter((p) => p.answer.trim()),
-      distanceNote: "Same campus",
     }),
     [user, vibe, interests, prompts],
   );

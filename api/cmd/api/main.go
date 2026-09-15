@@ -123,6 +123,7 @@ func run() error {
 	feedSvc := service.NewFeedService(cfg, db, bus, owlSvc, logger, utcNow)
 	chatSvc := service.NewChatService(cfg, db, redisClient, bus, owlSvc, logger, utcNow)
 	noteSvc := service.NewNoteService(cfg, db, logger, utcNow)
+	datingSvc := service.NewDatingService(cfg, db, userSvc, bus, logger, utcNow)
 
 	mediaStore, err := media.New(cfg.MediaDir)
 	if err != nil {
@@ -143,6 +144,7 @@ func run() error {
 		Chat:    chatSvc,
 		Owl:     owlSvc,
 		Notes:   noteSvc,
+		Dating:  datingSvc,
 		Media:   mediaStore,
 		Gateway: gateway,
 		Health: func(r *http.Request) map[string]string {

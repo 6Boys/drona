@@ -87,6 +87,13 @@ enum SwipeAction {
   TWINKLE
 }
 
+// What a LIKE/TWINKLE was actually about — Hinge's signature move: you like
+// the picture or one specific answer, never just "the person." Null on PASS.
+enum SwipeTargetKind {
+  PHOTO
+  PROMPT
+}
+
 enum MatchStatus {
   ACTIVE
   WILTED
@@ -151,15 +158,15 @@ enum ReactionTargetType {
 // -------------------------------------------------------------- identity -----
 
 model Campus {
-  id          String   @id @default(uuid()) @db.Uuid
-  name        String
-  slug        String   @unique
-  emailDomain String   @unique
-  city        String?
+  id                String    @id @default(uuid()) @db.Uuid
+  name              String
+  slug              String    @unique
+  emailDomain       String    @unique
+  city              String?
   // 6.3 — Love Finder unlocks only above N verified users on the campus.
-  verifiedUserCount Int      @default(0)
+  verifiedUserCount Int       @default(0)
   datingUnlockedAt  DateTime?
-  createdAt   DateTime @default(now())
+  createdAt         DateTime  @default(now())
 
   users  User[]
   spaces Space[]
@@ -193,9 +200,9 @@ model User {
   emailVerifiedAt    DateTime?
   idCardUrl          String?
 
-  isPrivate     Boolean @default(false)
+  isPrivate      Boolean @default(false)
   // 6.1 — onboarding is not complete until follows >= ONBOARDING_MIN_FOLLOWS.
-  onboardingStep String @default("HANDLE")
+  onboardingStep String  @default("HANDLE")
 
   // 6.3 — dating is opt-in and off by default.
   loveFinderEnabled Boolean   @default(false)
@@ -204,10 +211,10 @@ model User {
   typingIndicatorsOn Boolean @default(true)
   readReceiptsOn     Boolean @default(true)
 
-  followerCount Int @default(0)
-  followingCount Int @default(0)
-  stardust      Int @default(0)
-  owlRank       OwlRank @default(SLEEPY_SPARROW)
+  followerCount  Int     @default(0)
+  followingCount Int     @default(0)
+  stardust       Int     @default(0)
+  owlRank        OwlRank @default(SLEEPY_SPARROW)
 
   lastSeenAt DateTime?
   createdAt  DateTime  @default(now())
@@ -215,44 +222,45 @@ model User {
 
   campus Campus @relation(fields: [campusId], references: [id], onDelete: Cascade)
 
-  refreshTokens   RefreshToken[]
-  devices         Device[]
-  following       Follow[]           @relation("follower")
-  followers       Follow[]           @relation("followee")
-  posts           Post[]
-  comments        Comment[]
-  postVotes       PostVote[]
-  commentVotes    CommentVote[]
-  reactions       Reaction[]
-  pollVotes       PollVote[]
-  createdSpaces   Space[]            @relation("spaceCreator")
-  spaceMods       SpaceModerator[]
-  threadMembers   ThreadMember[]
-  messages        Message[]
+  refreshTokens    RefreshToken[]
+  devices          Device[]
+  following        Follow[]          @relation("follower")
+  followers        Follow[]          @relation("followee")
+  posts            Post[]
+  comments         Comment[]
+  postVotes        PostVote[]
+  commentVotes     CommentVote[]
+  reactions        Reaction[]
+  pollVotes        PollVote[]
+  createdSpaces    Space[]           @relation("spaceCreator")
+  spaceMods        SpaceModerator[]
+  threadMembers    ThreadMember[]
+  messages         Message[]
   messageReactions MessageReaction[]
-  nightSessions   NightSession[]
-  owlScores       OwlScore[]
-  cocoonClaims    CocoonClaim[]
-  burrowSessions  BurrowSession[]
-  stardustLedger  StardustLedger[]
-  notes           NoteLockerItem[]
-  noteVotes       NoteVote[]
-  swipesMade      Swipe[]            @relation("swiper")
-  swipesReceived  Swipe[]            @relation("swipee")
-  matchesA        Match[]            @relation("matchA")
-  matchesB        Match[]            @relation("matchB")
-  crushesMade     CrushJarEntry[]    @relation("crusher")
-  crushesOn       CrushJarEntry[]    @relation("crushee")
-  whispers        Whisper[]
-  reportsMade     Report[]           @relation("reporter")
-  reportsResolved Report[]           @relation("resolver")
-  blocksMade      Block[]            @relation("blocker")
-  blocksReceived  Block[]            @relation("blocked")
-  vibeChecks      VibeCheck[]
-  astroProfile    AstroProfile?
-  pushTokens      PushToken[]
-  notifications   Notification[]
-  badges          UserBadge[]
+  nightSessions    NightSession[]
+  owlScores        OwlScore[]
+  cocoonClaims     CocoonClaim[]
+  burrowSessions   BurrowSession[]
+  stardustLedger   StardustLedger[]
+  notes            NoteLockerItem[]
+  noteVotes        NoteVote[]
+  swipesMade       Swipe[]           @relation("swiper")
+  swipesReceived   Swipe[]           @relation("swipee")
+  matchesA         Match[]           @relation("matchA")
+  matchesB         Match[]           @relation("matchB")
+  datingProfile    DatingProfile?
+  crushesMade      CrushJarEntry[]   @relation("crusher")
+  crushesOn        CrushJarEntry[]   @relation("crushee")
+  whispers         Whisper[]
+  reportsMade      Report[]          @relation("reporter")
+  reportsResolved  Report[]          @relation("resolver")
+  blocksMade       Block[]           @relation("blocker")
+  blocksReceived   Block[]           @relation("blocked")
+  vibeChecks       VibeCheck[]
+  astroProfile     AstroProfile?
+  pushTokens       PushToken[]
+  notifications    Notification[]
+  badges           UserBadge[]
 
   @@index([campusId, status])
   @@index([handle])
@@ -260,28 +268,28 @@ model User {
 }
 
 model EmailOtp {
-  id        String     @id @default(uuid()) @db.Uuid
-  email     String
-  codeHash  String
-  purpose   OtpPurpose @default(SIGNUP)
-  attempts  Int        @default(0)
-  expiresAt DateTime
+  id         String     @id @default(uuid()) @db.Uuid
+  email      String
+  codeHash   String
+  purpose    OtpPurpose @default(SIGNUP)
+  attempts   Int        @default(0)
+  expiresAt  DateTime
   consumedAt DateTime?
-  createdAt DateTime   @default(now())
+  createdAt  DateTime   @default(now())
 
   @@index([email, purpose, createdAt])
   @@map("email_otps")
 }
 
 model RefreshToken {
-  id        String   @id @default(uuid()) @db.Uuid
-  userId    String   @db.Uuid
-  tokenHash String   @unique
+  id        String    @id @default(uuid()) @db.Uuid
+  userId    String    @db.Uuid
+  tokenHash String    @unique
   userAgent String?
   ip        String?
   expiresAt DateTime
   revokedAt DateTime?
-  createdAt DateTime @default(now())
+  createdAt DateTime  @default(now())
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
@@ -337,14 +345,14 @@ model Block {
 // -------------------------------------------------------------- the nest -----
 
 model Space {
-  id          String  @id @default(uuid()) @db.Uuid
-  campusId    String? @db.Uuid
+  id          String   @id @default(uuid()) @db.Uuid
+  campusId    String?  @db.Uuid
   slug        String
   name        String
   description String?
   icon        String?
-  isDefault   Boolean @default(false)
-  createdById String? @db.Uuid
+  isDefault   Boolean  @default(false)
+  createdById String?  @db.Uuid
   createdAt   DateTime @default(now())
 
   campus    Campus? @relation(fields: [campusId], references: [id], onDelete: Cascade)
@@ -386,9 +394,9 @@ model Post {
   // 6.5 — hot = upvotes with time decay, recomputed on vote.
   hotRank      Float @default(0)
 
-  isPinned  Boolean @default(false)
-  isLocked  Boolean @default(false)
-  isRemoved Boolean @default(false)
+  isPinned      Boolean @default(false)
+  isLocked      Boolean @default(false)
+  isRemoved     Boolean @default(false)
   removedReason String?
 
   createdAt DateTime @default(now())
@@ -397,9 +405,9 @@ model Post {
   space  Space @relation(fields: [spaceId], references: [id], onDelete: Cascade)
   author User  @relation(fields: [authorId], references: [id], onDelete: Cascade)
 
-  comments  Comment[]
-  votes     PostVote[]
-  poll      Poll?
+  comments Comment[]
+  votes    PostVote[]
+  poll     Poll?
 
   @@index([spaceId, hotRank(sort: Desc)])
   @@index([authorId, createdAt(sort: Desc)])
@@ -408,11 +416,11 @@ model Post {
 }
 
 model PostVote {
-  id     String @id @default(uuid()) @db.Uuid
-  postId String @db.Uuid
-  userId String @db.Uuid
+  id        String   @id @default(uuid()) @db.Uuid
+  postId    String   @db.Uuid
+  userId    String   @db.Uuid
   // +1 or -1
-  value  Int
+  value     Int
   createdAt DateTime @default(now())
 
   post Post @relation(fields: [postId], references: [id], onDelete: Cascade)
@@ -423,21 +431,21 @@ model PostVote {
 }
 
 model Comment {
-  id       String  @id @default(uuid()) @db.Uuid
-  postId   String  @db.Uuid
-  authorId String  @db.Uuid
-  parentId String? @db.Uuid
-  body     String
-  depth    Int     @default(0)
-  score    Int     @default(0)
-  isRemoved Boolean @default(false)
+  id        String   @id @default(uuid()) @db.Uuid
+  postId    String   @db.Uuid
+  authorId  String   @db.Uuid
+  parentId  String?  @db.Uuid
+  body      String
+  depth     Int      @default(0)
+  score     Int      @default(0)
+  isRemoved Boolean  @default(false)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  post     Post      @relation(fields: [postId], references: [id], onDelete: Cascade)
-  author   User      @relation(fields: [authorId], references: [id], onDelete: Cascade)
-  parent   Comment?  @relation("commentTree", fields: [parentId], references: [id], onDelete: Cascade)
-  children Comment[] @relation("commentTree")
+  post     Post          @relation(fields: [postId], references: [id], onDelete: Cascade)
+  author   User          @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  parent   Comment?      @relation("commentTree", fields: [parentId], references: [id], onDelete: Cascade)
+  children Comment[]     @relation("commentTree")
   votes    CommentVote[]
 
   @@index([postId, createdAt])
@@ -445,9 +453,9 @@ model Comment {
 }
 
 model CommentVote {
-  id        String @id @default(uuid()) @db.Uuid
-  commentId String @db.Uuid
-  userId    String @db.Uuid
+  id        String   @id @default(uuid()) @db.Uuid
+  commentId String   @db.Uuid
+  userId    String   @db.Uuid
   value     Int
   createdAt DateTime @default(now())
 
@@ -476,11 +484,11 @@ model Reaction {
 }
 
 model Poll {
-  id        String   @id @default(uuid()) @db.Uuid
-  postId    String   @unique @db.Uuid
+  id        String    @id @default(uuid()) @db.Uuid
+  postId    String    @unique @db.Uuid
   question  String
   closesAt  DateTime?
-  createdAt DateTime @default(now())
+  createdAt DateTime  @default(now())
 
   post    Post         @relation(fields: [postId], references: [id], onDelete: Cascade)
   options PollOption[]
@@ -503,10 +511,10 @@ model PollOption {
 }
 
 model PollVote {
-  id       String @id @default(uuid()) @db.Uuid
-  optionId String @db.Uuid
-  pollId   String @db.Uuid
-  userId   String @db.Uuid
+  id        String   @id @default(uuid()) @db.Uuid
+  optionId  String   @db.Uuid
+  pollId    String   @db.Uuid
+  userId    String   @db.Uuid
   createdAt DateTime @default(now())
 
   option PollOption @relation(fields: [optionId], references: [id], onDelete: Cascade)
@@ -519,16 +527,16 @@ model PollVote {
 // ---------------------------------------------------- chats, dens, signals ---
 
 model Thread {
-  id          String     @id @default(uuid()) @db.Uuid
-  type        ThreadType
-  title       String?
-  icon        String?
-  createdById String?    @db.Uuid
+  id              String     @id @default(uuid()) @db.Uuid
+  type            ThreadType
+  title           String?
+  icon            String?
+  createdById     String?    @db.Uuid
   // 6.6 — Signals: comments optional, subscriber-only.
-  commentsEnabled Boolean @default(true)
+  commentsEnabled Boolean    @default(true)
   // 6.6 — Dens cap at 256 members.
-  memberLimit Int        @default(256)
-  inviteCode  String?    @unique
+  memberLimit     Int        @default(256)
+  inviteCode      String?    @unique
 
   lastMessageAt DateTime?
   createdAt     DateTime  @default(now())
@@ -542,15 +550,15 @@ model Thread {
 }
 
 model ThreadMember {
-  id       String            @id @default(uuid()) @db.Uuid
-  threadId String            @db.Uuid
-  userId   String            @db.Uuid
-  role     ThreadMemberRole  @default(MEMBER)
-  state    ThreadMemberState @default(ACTIVE)
-  muted    Boolean           @default(false)
-  lastReadMessageId String?  @db.Uuid
-  lastReadAt DateTime?
-  joinedAt DateTime          @default(now())
+  id                String            @id @default(uuid()) @db.Uuid
+  threadId          String            @db.Uuid
+  userId            String            @db.Uuid
+  role              ThreadMemberRole  @default(MEMBER)
+  state             ThreadMemberState @default(ACTIVE)
+  muted             Boolean           @default(false)
+  lastReadMessageId String?           @db.Uuid
+  lastReadAt        DateTime?
+  joinedAt          DateTime          @default(now())
 
   thread Thread @relation(fields: [threadId], references: [id], onDelete: Cascade)
   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -562,25 +570,25 @@ model ThreadMember {
 
 // 12 — append-only, cursor paginated, never offset paged.
 model Message {
-  id        String      @id @default(uuid()) @db.Uuid
-  threadId  String      @db.Uuid
-  senderId  String      @db.Uuid
-  kind      MessageKind @default(TEXT)
-  body      String?
-  mediaUrl  String?
+  id             String      @id @default(uuid()) @db.Uuid
+  threadId       String      @db.Uuid
+  senderId       String      @db.Uuid
+  kind           MessageKind @default(TEXT)
+  body           String?
+  mediaUrl       String?
   // media expires from hot storage after 90 days (6.6)
   mediaExpiresAt DateTime?
-  replyToId String?     @db.Uuid
+  replyToId      String?     @db.Uuid
   // client-generated id, makes send idempotent across reconnects
-  clientId  String?
-  editedAt  DateTime?
-  deletedAt DateTime?
-  createdAt DateTime    @default(now())
+  clientId       String?
+  editedAt       DateTime?
+  deletedAt      DateTime?
+  createdAt      DateTime    @default(now())
 
-  thread  Thread    @relation(fields: [threadId], references: [id], onDelete: Cascade)
-  sender  User      @relation(fields: [senderId], references: [id], onDelete: Cascade)
-  replyTo Message?  @relation("messageReplies", fields: [replyToId], references: [id], onDelete: SetNull)
-  replies Message[] @relation("messageReplies")
+  thread    Thread            @relation(fields: [threadId], references: [id], onDelete: Cascade)
+  sender    User              @relation(fields: [senderId], references: [id], onDelete: Cascade)
+  replyTo   Message?          @relation("messageReplies", fields: [replyToId], references: [id], onDelete: SetNull)
+  replies   Message[]         @relation("messageReplies")
   reactions MessageReaction[]
 
   @@unique([threadId, clientId])
@@ -607,15 +615,15 @@ model MessageReaction {
 // 6.2 — server-side heartbeats. Points come from distinct actions inside the
 // night window, never from idle app-open time.
 model NightSession {
-  id          String   @id @default(uuid()) @db.Uuid
-  userId      String   @db.Uuid
-  deviceId    String?  @db.Uuid
+  id          String    @id @default(uuid()) @db.Uuid
+  userId      String    @db.Uuid
+  deviceId    String?   @db.Uuid
   nightKey    String // YYYY-MM-DD of the night's 10PM, so 2AM belongs to the night before
-  startedAt   DateTime @default(now())
-  lastBeatAt  DateTime @default(now())
+  startedAt   DateTime  @default(now())
+  lastBeatAt  DateTime  @default(now())
   endedAt     DateTime?
-  actionCount Int      @default(0)
-  points      Int      @default(0)
+  actionCount Int       @default(0)
+  points      Int       @default(0)
   curfewHitAt DateTime?
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -627,13 +635,13 @@ model NightSession {
 
 // Nightly snapshot of the Redis sorted sets, so history survives the weekly reset.
 model OwlScore {
-  id       String @id @default(uuid()) @db.Uuid
-  userId   String @db.Uuid
-  campusId String @db.Uuid
-  weekKey  String // ISO year-week, e.g. 2026-W37
-  points   Int    @default(0)
-  rank     Int?
-  owlRank  OwlRank @default(SLEEPY_SPARROW)
+  id         String   @id @default(uuid()) @db.Uuid
+  userId     String   @db.Uuid
+  campusId   String   @db.Uuid
+  weekKey    String // ISO year-week, e.g. 2026-W37
+  points     Int      @default(0)
+  rank       Int?
+  owlRank    OwlRank  @default(SLEEPY_SPARROW)
   snapshotAt DateTime @default(now())
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -659,8 +667,8 @@ model CocoonClaim {
 }
 
 model Badge {
-  id          String @id @default(uuid()) @db.Uuid
-  code        String @unique
+  id          String  @id @default(uuid()) @db.Uuid
+  code        String  @unique
   name        String
   description String
   emoji       String
@@ -687,13 +695,13 @@ model UserBadge {
 // -------------------------------------------------------- study burrows ------
 
 model StudyBurrow {
-  id          String  @id @default(uuid()) @db.Uuid
-  campusId    String? @db.Uuid
-  name        String
-  subject     String?
-  focusMinutes Int    @default(25)
-  breakMinutes Int    @default(5)
-  createdAt   DateTime @default(now())
+  id           String   @id @default(uuid()) @db.Uuid
+  campusId     String?  @db.Uuid
+  name         String
+  subject      String?
+  focusMinutes Int      @default(25)
+  breakMinutes Int      @default(5)
+  createdAt    DateTime @default(now())
 
   sessions BurrowSession[]
 
@@ -701,12 +709,12 @@ model StudyBurrow {
 }
 
 model BurrowSession {
-  id        String   @id @default(uuid()) @db.Uuid
-  burrowId  String   @db.Uuid
-  userId    String   @db.Uuid
-  startedAt DateTime @default(now())
-  endedAt   DateTime?
-  focusedMinutes Int @default(0)
+  id             String    @id @default(uuid()) @db.Uuid
+  burrowId       String    @db.Uuid
+  userId         String    @db.Uuid
+  startedAt      DateTime  @default(now())
+  endedAt        DateTime?
+  focusedMinutes Int       @default(0)
 
   burrow StudyBurrow @relation(fields: [burrowId], references: [id], onDelete: Cascade)
   user   User        @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -718,18 +726,18 @@ model BurrowSession {
 // --------------------------------------------------------- note locker -------
 
 model NoteLockerItem {
-  id         String @id @default(uuid()) @db.Uuid
-  uploaderId String @db.Uuid
+  id         String   @id @default(uuid()) @db.Uuid
+  uploaderId String   @db.Uuid
   subject    String
   semester   Int
   branch     String?
   title      String
-  kind       String @default("NOTES") // NOTES | PYQ | LAB
+  kind       String   @default("NOTES") // NOTES | PYQ | LAB
   fileUrl    String
   fileSize   Int?
-  score      Int    @default(0)
-  downloads  Int    @default(0)
-  isRemoved  Boolean @default(false)
+  score      Int      @default(0)
+  downloads  Int      @default(0)
+  isRemoved  Boolean  @default(false)
   createdAt  DateTime @default(now())
 
   uploader User       @relation(fields: [uploaderId], references: [id], onDelete: Cascade)
@@ -741,10 +749,10 @@ model NoteLockerItem {
 }
 
 model NoteVote {
-  id     String @id @default(uuid()) @db.Uuid
-  noteId String @db.Uuid
-  userId String @db.Uuid
-  value  Int
+  id        String   @id @default(uuid()) @db.Uuid
+  noteId    String   @db.Uuid
+  userId    String   @db.Uuid
+  value     Int
   createdAt DateTime @default(now())
 
   note NoteLockerItem @relation(fields: [noteId], references: [id], onDelete: Cascade)
@@ -757,11 +765,19 @@ model NoteVote {
 // -------------------------------------------------------- love finder --------
 
 model Swipe {
-  id       String      @id @default(uuid()) @db.Uuid
-  actorId  String      @db.Uuid
-  targetId String      @db.Uuid
-  action   SwipeAction
-  createdAt DateTime   @default(now())
+  id                String           @id @default(uuid()) @db.Uuid
+  actorId           String           @db.Uuid
+  targetId          String           @db.Uuid
+  action            SwipeAction
+  // Null on PASS. Set together on LIKE/TWINKLE: which thing was liked, and —
+  // only for PROMPT — which of the target's prompts (position in their
+  // DatingProfile.prompts array).
+  targetKind        SwipeTargetKind?
+  targetPromptIndex Int?
+  // The optional comment sent with a LIKE/TWINKLE (Hinge's "like with a
+  // comment"). Never set on PASS.
+  note              String?
+  createdAt         DateTime         @default(now())
 
   actor  User @relation("swiper", fields: [actorId], references: [id], onDelete: Cascade)
   target User @relation("swipee", fields: [targetId], references: [id], onDelete: Cascade)
@@ -793,13 +809,37 @@ model Match {
   @@map("matches")
 }
 
+// The Love Finder card itself — separate from User because it is optional,
+// dating-specific content nobody outside the deck ever sees, not a general
+// profile field (User.bio already covers that).
+model DatingProfile {
+  id     String @id @default(uuid()) @db.Uuid
+  userId String @unique @db.Uuid
+
+  // One line under the name, Hinge-style.
+  vibe      String   @default("")
+  // Chips, e.g. "chai at 3am". Capped client- and server-side, not here.
+  interests String[] @default([])
+  // Stacked Q&A blocks: [{question, answer}, ...]. A JSON array rather than a
+  // child table — same call as User.avatar, and nothing ever queries into a
+  // single prompt from SQL; it is always read and written as a whole card.
+  prompts   Json     @default("[]")
+
+  updatedAt DateTime @updatedAt
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("dating_profiles")
+}
+
 // 7.2 — nothing is ever revealed unless it is mutual. No hints, no teasers.
 model CrushJarEntry {
-  id       String @id @default(uuid()) @db.Uuid
-  ownerId  String @db.Uuid
-  crushId  String @db.Uuid
+  id         String    @id @default(uuid()) @db.Uuid
+  ownerId    String    @db.Uuid
+  crushId    String    @db.Uuid
   revealedAt DateTime?
-  createdAt DateTime @default(now())
+  createdAt  DateTime  @default(now())
 
   owner User @relation("crusher", fields: [ownerId], references: [id], onDelete: Cascade)
   crush User @relation("crushee", fields: [crushId], references: [id], onDelete: Cascade)
@@ -810,15 +850,15 @@ model CrushJarEntry {
 
 // 6.4 — entertainment only. Never an input to matching or ranking.
 model AstroProfile {
-  id       String    @id @default(uuid()) @db.Uuid
-  userId   String    @unique @db.Uuid
-  birthDate DateTime @db.Date
-  birthTime String?
+  id         String   @id @default(uuid()) @db.Uuid
+  userId     String   @unique @db.Uuid
+  birthDate  DateTime @db.Date
+  birthTime  String?
   birthPlace String?
-  sunSign  String
-  moonSign String?
-  optedIn  Boolean   @default(false)
-  createdAt DateTime @default(now())
+  sunSign    String
+  moonSign   String?
+  optedIn    Boolean  @default(false)
+  createdAt  DateTime @default(now())
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
@@ -829,15 +869,15 @@ model AstroProfile {
 
 // 7.1 — identity stored server-side for abuse investigations, never surfaced.
 model Whisper {
-  id        String        @id @default(uuid()) @db.Uuid
-  authorId  String        @db.Uuid
-  body      String
-  status    WhisperStatus @default(PENDING_REVIEW)
-  filterHits String[]     @default([])
-  reviewedById String?    @db.Uuid
-  reviewedAt DateTime?
-  score     Int           @default(0)
-  createdAt DateTime      @default(now())
+  id           String        @id @default(uuid()) @db.Uuid
+  authorId     String        @db.Uuid
+  body         String
+  status       WhisperStatus @default(PENDING_REVIEW)
+  filterHits   String[]      @default([])
+  reviewedById String?       @db.Uuid
+  reviewedAt   DateTime?
+  score        Int           @default(0)
+  createdAt    DateTime      @default(now())
 
   author User @relation(fields: [authorId], references: [id], onDelete: Cascade)
 
@@ -860,16 +900,16 @@ model VibeCheck {
 }
 
 model Report {
-  id         String           @id @default(uuid()) @db.Uuid
-  reporterId String           @db.Uuid
-  targetType ReportTargetType
-  targetId   String           @db.Uuid
-  reason     String
-  details    String?
-  status     ReportStatus     @default(OPEN)
-  resolvedById String?        @db.Uuid
-  resolvedAt DateTime?
-  createdAt  DateTime         @default(now())
+  id           String           @id @default(uuid()) @db.Uuid
+  reporterId   String           @db.Uuid
+  targetType   ReportTargetType
+  targetId     String           @db.Uuid
+  reason       String
+  details      String?
+  status       ReportStatus     @default(OPEN)
+  resolvedById String?          @db.Uuid
+  resolvedAt   DateTime?
+  createdAt    DateTime         @default(now())
 
   reporter User  @relation("reporter", fields: [reporterId], references: [id], onDelete: Cascade)
   resolver User? @relation("resolver", fields: [resolvedById], references: [id], onDelete: SetNull)
@@ -880,13 +920,13 @@ model Report {
 
 // 10 — crisis routing. A hit surfaces a support card AND queues a human review.
 model CrisisFlag {
-  id         String   @id @default(uuid()) @db.Uuid
-  userId     String   @db.Uuid
+  id         String    @id @default(uuid()) @db.Uuid
+  userId     String    @db.Uuid
   surface    String // POST | COMMENT | MESSAGE | WHISPER
-  refId      String   @db.Uuid
+  refId      String    @db.Uuid
   pattern    String
   reviewedAt DateTime?
-  createdAt  DateTime @default(now())
+  createdAt  DateTime  @default(now())
 
   @@index([reviewedAt, createdAt])
   @@map("crisis_flags")
@@ -895,13 +935,13 @@ model CrisisFlag {
 // ------------------------------------------------------ stardust & misc ------
 
 model StardustLedger {
-  id     String         @id @default(uuid()) @db.Uuid
-  userId String         @db.Uuid
-  delta  Int
-  reason StardustReason
-  refId  String?
+  id           String         @id @default(uuid()) @db.Uuid
+  userId       String         @db.Uuid
+  delta        Int
+  reason       StardustReason
+  refId        String?
   balanceAfter Int
-  createdAt DateTime    @default(now())
+  createdAt    DateTime       @default(now())
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
@@ -922,14 +962,14 @@ model PushToken {
 }
 
 model Notification {
-  id     String   @id @default(uuid()) @db.Uuid
-  userId String   @db.Uuid
-  kind   String
-  title  String
-  body   String
-  data   Json     @default("{}")
-  readAt DateTime?
-  createdAt DateTime @default(now())
+  id        String    @id @default(uuid()) @db.Uuid
+  userId    String    @db.Uuid
+  kind      String
+  title     String
+  body      String
+  data      Json      @default("{}")
+  readAt    DateTime?
+  createdAt DateTime  @default(now())
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 

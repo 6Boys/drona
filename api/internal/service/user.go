@@ -119,6 +119,33 @@ func (s *UserService) loveFinderGate(u *domain.UserPrivate, campusVerified int, 
 	return u.CanUseDating(now)
 }
 
+// EnsureCanUseDating is loveFinderGate for callers outside this service (the
+// Love Finder surfaces in DatingService), so every dating entry point asks
+// the same question of the same implementation rather than re-deriving who
+// is allowed in. It returns the loaded account so callers that need the
+// campus id or DOB do not have to fetch it twice.
+func (s *UserService) EnsureCanUseDating(ctx context.Context, userID string) (*domain.UserPrivate, error) {
+	u, err := s.db.UserByID(ctx, userID)
+	if err != nil {
+		return nil, notFoundOr(err, "we could not find your account")
+	}
+	campusCount, err := s.db.CampusVerifiedCount(ctx, u.CampusID)
+	if err != nil {
+		return nil, httpx.Internal("could not check your campus").WithCause(err)
+	}
+	if err := s.loveFinderGate(u, campusCount, s.now()); err != nil {
+		// Plain copy on age; a locked feature is not the same as a blocked one.
+		if !u.IsAdultAt(s.now()) {
+			return nil, httpx.AgeRestricted(err.Error())
+		}
+		return nil, httpx.FeatureLocked(err.Error())
+	}
+	if !u.LoveFinderEnabled {
+		return nil, httpx.FeatureLocked("Love Finder is off for your account — turn it on to use the deck.")
+	}
+	return u, nil
+}
+
 // Profile returns another student's profile from the viewer's perspective.
 func (s *UserService) Profile(ctx context.Context, viewerID, handle string) (domain.User, error) {
 	u, err := s.db.UserByHandle(ctx, handle)

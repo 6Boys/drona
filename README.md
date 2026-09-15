@@ -76,10 +76,19 @@
 
 ### 4. Love Finder & Crush Jar
 - **Campus Unlock Threshold**: Love Finder stays locked across the entire college until the campus registers at least 400 verified users.
-- **Opt-In & Photo Verified**: Dating is disabled by default and strictly opt-in, requiring 18+ age verification and a photo-verified profile.
-- **Match Wilting**: Matches with no messages exchanged wilt quietly after 7 days, with an automated friendly nudge delivered on day 5.
-- **Crush Jar**: Secret crush list—identities are revealed **only when the interest is 100% mutual**. No hints, teasers, or paywalls.
-- **Campus Astrology**: Fun, optional Astro Profile (Sun/Moon signs) strictly for entertainment; never used by matchmaking algorithms.
+- **Opt-In & Photo Verified**: Dating is disabled by default and strictly opt-in, requiring 18+ age verification and a photo on file (`POST /v1/me/verify-photo`, submitted through the app's own media store).
+- **Your Card**: A dating profile separate from your public one — one line, up to six interests, up to three Hinge-style prompt answers (`dating_profiles`). A card with nothing written on it never enters anyone's deck.
+- **Like the Sentence, Not the Face**: A swipe records *what* was liked — the picture or one specific answer — plus an optional comment, so the other person receives "someone liked this sentence I wrote" rather than "someone liked you".
+- **Likes You, Unblurred**: Everyone who liked you is visible in full, for free. Answering a like *is* swiping on them, so the list clears itself — there is no separate state to get out of sync.
+- **Matching**: A mutual LIKE/TWINKLE opens a **Nest** thread (`ThreadType.NEST`) that behaves like any other chat. Swipes are permanent: one decision per pair, forever.
+- **Twinkles**: One a day, counted server-side from the `swipes` table against the campus's own timezone — clearing local storage cannot buy a second one.
+- **Match Wilting**: Matches with no messages exchanged wilt quietly after 7 days. Speaking stops the clock; a wilted match simply stops being returned.
+- **Crush Jar**: Secret crush list—identities are revealed **only when the interest is 100% mutual**. No hints, teasers, or paywalls. *(Schema present; not yet wired.)*
+- **Campus Astrology**: Fun, optional Astro Profile (Sun/Moon signs) strictly for entertainment; never used by matchmaking algorithms. *(Schema present; not yet wired.)*
+
+> Every Love Finder route re-checks the full gate (18+, photo on file, campus
+> size, opted in) in `service.DatingService` — reaching the endpoint is not the
+> same as reaching the deck.
 
 ### 5. Realtime Chats, Dens & Signals
 - **1:1 Direct Messages**: Mutual follows can message directly. Messages from non-mutual users land in a dedicated **Request Inbox**.
@@ -397,6 +406,10 @@ docker compose build web && docker compose up -d web   # after changing a NEXT_P
 - Love Finder also requires an 18+ date of birth and a photo on file per
   account. The photo step is self-attested, not moderated — see
   `UserService.VerifyPhoto`.
+- Someone only enters the deck once they have written at least one prompt
+  answer on their card, so a new instance's deck stays empty until people fill
+  theirs in. That is deliberate, not a bug: a deck of blank gradients is worse
+  than an empty one.
 
 ### Keeping it light
 

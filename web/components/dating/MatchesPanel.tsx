@@ -25,8 +25,10 @@ import { cn } from "@/lib/cn";
 
 function Countdown({ match }: { match: DatingMatch }) {
   const hours = hoursLeft(match);
-  if (match.opener) {
-    return <span className="text-positive">Live — you opened it</span>;
+  // The server drops wiltsAt the moment a thread has a message: a match
+  // somebody spoke to does not wilt, so there is no clock left to show.
+  if (hours === null) {
+    return <span className="text-positive">Live — someone opened it</span>;
   }
   if (hours <= 24) {
     return <span className="text-warning">Wilts in {hours}h unless someone speaks</span>;
@@ -84,7 +86,10 @@ function MatchRow({
               {candidate.displayName}
             </Link>
             <span className="text-[0.75rem] text-faint">
-              {candidate.branch} · Year {candidate.year} · matched {timeAgo(match.at)}
+              {[candidate.branch, candidate.year ? `Year ${candidate.year}` : null]
+                .filter(Boolean)
+                .join(" · ")}{" "}
+              · matched {timeAgo(match.createdAt)}
             </span>
           </div>
 
@@ -114,7 +119,7 @@ function MatchRow({
 
           <div className="mt-3 flex items-center gap-4 text-[0.75rem]">
             <Link
-              href="/chats"
+              href={match.threadId ? `/chats/${match.threadId}` : "/chats"}
               className="flex items-center gap-1.5 text-muted transition-colors hover:text-text"
             >
               <MessageIcon size={13} />
@@ -140,7 +145,7 @@ export function MatchesPanel({
   className,
 }: {
   matches: DatingMatch[];
-  onSayHi: (handle: string, text: string) => void;
+  onSayHi: (match: DatingMatch, text: string) => void;
   onUnmatch: (handle: string) => void;
   className?: string;
 }) {
@@ -160,7 +165,7 @@ export function MatchesPanel({
           <MatchRow
             key={match.handle}
             match={match}
-            onSayHi={(text) => onSayHi(match.handle, text)}
+            onSayHi={(text) => onSayHi(match, text)}
             onUnmatch={() => onUnmatch(match.handle)}
           />
         ))}

@@ -880,6 +880,297 @@ route("POST", "/v1/me/verify-photo", (ctx) => {
 // See the "media" helpers above (sniffImageType, parseMultipartFile) for what
 // this mirrors from api/internal/media, and why it returns a data: URL
 // instead of writing to disk.
+// --------------------------------------------------------- love finder -----
+// Mirrors api/internal/service/dating.go closely enough that the web client
+// cannot tell which backend it is talking to: same routes, same shapes, same
+// rules about what matches and what a swipe costs. In memory, like the rest
+// of this file — it dies with the process.
+
+const datingProfiles = new Map(); // userId -> {vibe, interests, prompts}
+const swipes = new Map(); // `${actorId}>${targetId}` -> {action, target, note, at}
+const datingMatches = []; // {id, a, b, threadId, createdAt, wiltsAt}
+
+const DAILY_TWINKLES = 1;
+const MATCH_WILT_DAYS = 7;
+
+const profileFor = (userId) =>
+  datingProfiles.get(userId) ?? { vibe: "", interests: [], prompts: [] };
+
+const candidateOf = (user, viewerId) => ({ ...publicUser(user, viewerId), ...profileFor(user.id) });
+
+const twinklesUsedToday = (userId) => {
+  const midnight = new Date();
+  midnight.setHours(0, 0, 0, 0);
+  let used = 0;
+  for (const [key, swipe] of swipes) {
+    if (!key.startsWith(`${userId}>`)) continue;
+    if (swipe.action === "TWINKLE" && new Date(swipe.at) >= midnight) used += 1;
+  }
+  return used;
+};
+
+const twinklesLeft = (userId) => Math.max(0, DAILY_TWINKLES - twinklesUsedToday(userId));
+
+// Cards for the seeded students, so the demo deck reads like the real thing
+// rather than a row of blank gradients. Written the way second-years write.
+const DEMO_CARDS = {
+  meher: {
+    vibe: "sings in the stairwell, unbothered",
+    interests: ["stairwell singing", "thrifting", "bad horror films"],
+    prompts: [
+      {
+        question: "The way to win me over is",
+        answer: "argue with me about a song for forty minutes and then send it to me anyway.",
+      },
+      {
+        question: "A shower thought I recently had",
+        answer: "the ECE building echoes like a concert hall and I will not be taking questions.",
+      },
+    ],
+  },
+  zoya: {
+    vibe: "note hoarder, chronically caffeinated",
+    interests: ["note hoarding", "kdramas", "chai at 3am"],
+    prompts: [
+      {
+        question: "Two truths and a lie",
+        answer: "I have every PYQ since 2019. I've never been to the canteen. I own four identical hoodies.",
+      },
+      { question: "I'll fall for you if", answer: "you actually return the notes you borrow." },
+    ],
+  },
+  kabir: {
+    vibe: "workshop till 2am, chai after",
+    interests: ["cycling", "filter coffee", "repair café"],
+    prompts: [
+      {
+        question: "My most useless skill",
+        answer: "I can identify any lathe by sound. This has helped me zero times socially.",
+      },
+      {
+        question: "First date, my choice",
+        answer: "the canteen at 11pm when it's empty and the chai guy knows both our orders.",
+      },
+    ],
+  },
+  ira: {
+    vibe: "eight hours of sleep, non-negotiable",
+    interests: ["crosswords", "long walks", "gym at 6am"],
+    prompts: [
+      {
+        question: "An unpopular opinion I hold",
+        answer: "the Owl Board is a trap and the Cocoon Bonus is the only correct strategy.",
+      },
+    ],
+  },
+  devansh: {
+    vibe: "robotics club, roof access",
+    interests: ["film photography", "biryani rankings", "robotics club"],
+    prompts: [
+      {
+        question: "Best campus discovery",
+        answer: "the roof of the ECE block at 6am. don't tell the guard I told you.",
+      },
+    ],
+  },
+};
+
+/** Seeded so the demo has a deck to swipe and likes to answer on first load. */
+function seedDatingDemo() {
+  const viewer = byHandle("aniket");
+  if (!viewer) return;
+
+  for (const [handle, card] of Object.entries(DEMO_CARDS)) {
+    const person = byHandle(handle);
+    if (!person) continue;
+    // Everyone with a card is in the deck: opted in and photo-verified, the
+    // two things the real API filters candidates on.
+    person.loveFinderEnabled = true;
+    person.photoVerified = true;
+    datingProfiles.set(person.id, card);
+  }
+
+  for (const handle of ["meher", "zoya"]) {
+    const admirer = byHandle(handle);
+    if (!admirer) continue;
+    swipes.set(`${admirer.id}>${viewer.id}`, {
+      action: handle === "meher" ? "TWINKLE" : "LIKE",
+      target: { kind: "PROMPT", promptIndex: 0 },
+      note: handle === "meher" ? "the ranked list better be defensible." : "",
+      at: hoursAgo(handle === "meher" ? 6 : 30),
+    });
+  }
+}
+seedDatingDemo();
+
+route("GET", "/v1/dating/profile", (ctx) => send(ctx.res, 200, profileFor(ctx.user.id)));
+
+route("PUT", "/v1/dating/profile", (ctx) => {
+  const profile = {
+    vibe: String(ctx.body.vibe ?? "").trim().slice(0, 60),
+    interests: (ctx.body.interests ?? []).slice(0, 6).map((i) => String(i).trim()).filter(Boolean),
+    prompts: (ctx.body.prompts ?? [])
+      .slice(0, 3)
+      .map((p) => ({ question: String(p.question ?? "").trim(), answer: String(p.answer ?? "").trim() }))
+      .filter((p) => p.question && p.answer),
+  };
+  datingProfiles.set(ctx.user.id, profile);
+  send(ctx.res, 200, profile);
+});
+
+route("GET", "/v1/dating/deck", (ctx) => {
+  const items = [...users.values()]
+    .filter(
+      (u) =>
+        u.id !== ctx.user.id &&
+        u.campusId === ctx.user.campusId &&
+        u.onboardingStep === "DONE" &&
+        u.loveFinderEnabled &&
+        u.photoVerified &&
+        // Same rule the real deck applies: nothing written, not in the deck.
+        (profileFor(u.id).prompts ?? []).length > 0 &&
+        !swipes.has(`${ctx.user.id}>${u.id}`),
+    )
+    .slice(0, Number(ctx.query.limit ?? 20))
+    .map((u) => candidateOf(u, ctx.user.id));
+
+  send(ctx.res, 200, { items, twinklesLeft: twinklesLeft(ctx.user.id) });
+});
+
+route("POST", "/v1/dating/swipe", (ctx) => {
+  const action = String(ctx.body.action ?? "");
+  if (!["PASS", "LIKE", "TWINKLE"].includes(action)) {
+    return fail(ctx.res, 422, "VALIDATION", "must be PASS, LIKE or TWINKLE");
+  }
+  const target = byHandle(String(ctx.body.handle ?? ""));
+  if (!target) return fail(ctx.res, 404, "NOT_FOUND", "no account with that handle");
+  if (target.id === ctx.user.id) return fail(ctx.res, 400, "BAD_REQUEST", "you cannot swipe on yourself");
+
+  const key = `${ctx.user.id}>${target.id}`;
+  if (swipes.has(key)) {
+    return fail(ctx.res, 409, "CONFLICT", "you already decided on this person", "you've already seen this one");
+  }
+  if (action === "TWINKLE" && twinklesLeft(ctx.user.id) <= 0) {
+    return fail(ctx.res, 429, "RATE_LIMITED", "no Twinkles left today", "that's today's Twinkle spent ✨");
+  }
+
+  swipes.set(key, {
+    action,
+    target: action === "PASS" ? null : (ctx.body.target ?? { kind: "PHOTO" }),
+    note: action === "PASS" ? "" : String(ctx.body.note ?? "").trim(),
+    at: iso(),
+  });
+
+  const reverse = swipes.get(`${target.id}>${ctx.user.id}`);
+  const mutual = action !== "PASS" && reverse && reverse.action !== "PASS";
+
+  let match;
+  const alreadyMatched = datingMatches.some(
+    (m) =>
+      (m.a === ctx.user.id && m.b === target.id) || (m.b === ctx.user.id && m.a === target.id),
+  );
+  if (mutual && !alreadyMatched) {
+    // A match opens a NEST thread — same shape every other thread here has,
+    // so it lists, reads and sends through the existing chat routes.
+    const tid = id("thr", ++threadSeq);
+    const thread = {
+      id: tid,
+      type: "NEST",
+      memberIds: [ctx.user.id, target.id],
+      createdById: ctx.user.id,
+      createdAt: iso(),
+      reads: new Map(),
+      requested: new Set(),
+    };
+    threads.set(tid, thread);
+    messages.set(tid, []);
+
+    match = {
+      id: id("mat", datingMatches.length + 1),
+      a: ctx.user.id,
+      b: target.id,
+      threadId: tid,
+      createdAt: iso(),
+      wiltsAt: new Date(Date.now() + MATCH_WILT_DAYS * 86400_000).toISOString(),
+    };
+    datingMatches.push(match);
+  }
+
+  send(ctx.res, 200, {
+    matched: !!match,
+    twinklesLeft: twinklesLeft(ctx.user.id),
+    ...(match
+      ? {
+          match: {
+            handle: target.handle,
+            candidate: candidateOf(target, ctx.user.id),
+            threadId: match.threadId,
+            createdAt: match.createdAt,
+            wiltsAt: match.wiltsAt,
+          },
+        }
+      : {}),
+  });
+});
+
+route("GET", "/v1/dating/likes", (ctx) => {
+  const items = [];
+  for (const [key, swipe] of swipes) {
+    const [actorId, targetId] = key.split(">");
+    if (targetId !== ctx.user.id) continue;
+    if (swipe.action === "PASS") continue;
+    if (swipes.has(`${ctx.user.id}>${actorId}`)) continue; // already answered
+    const actor = users.get(actorId);
+    if (!actor) continue;
+    items.push({
+      id: key,
+      candidate: candidateOf(actor, ctx.user.id),
+      action: swipe.action,
+      target: swipe.target ?? { kind: "PHOTO" },
+      note: swipe.note || undefined,
+      createdAt: swipe.at,
+    });
+  }
+  items.sort((x, y) => y.createdAt.localeCompare(x.createdAt));
+  send(ctx.res, 200, { items });
+});
+
+route("GET", "/v1/dating/matches", (ctx) => {
+  const now = Date.now();
+  const items = datingMatches
+    .filter((m) => m.a === ctx.user.id || m.b === ctx.user.id)
+    .map((m) => {
+      const otherId = m.a === ctx.user.id ? m.b : m.a;
+      const other = users.get(otherId);
+      if (!other) return null;
+      const said = messages.get(m.threadId) ?? [];
+      const opener = said.length ? said[0].body : undefined;
+      if (!said.length && new Date(m.wiltsAt).getTime() < now) return null; // wilted
+      return {
+        handle: other.handle,
+        candidate: candidateOf(other, ctx.user.id),
+        threadId: m.threadId,
+        createdAt: m.createdAt,
+        ...(said.length ? {} : { wiltsAt: m.wiltsAt }),
+        ...(opener ? { opener } : {}),
+      };
+    })
+    .filter(Boolean);
+  send(ctx.res, 200, { items });
+});
+
+route("DELETE", "/v1/dating/matches/:handle", (ctx) => {
+  const other = byHandle(ctx.params.handle);
+  if (!other) return fail(ctx.res, 404, "NOT_FOUND", "no account with that handle");
+  const i = datingMatches.findIndex(
+    (m) =>
+      (m.a === ctx.user.id && m.b === other.id) || (m.b === ctx.user.id && m.a === other.id),
+  );
+  if (i === -1) return fail(ctx.res, 404, "NOT_FOUND", "you are not matched with them");
+  datingMatches.splice(i, 1);
+  send(ctx.res, 204);
+});
+
 route("POST", "/v1/media/upload", (ctx) => {
   const raw = ctx.body.__multipart;
   const contentType = ctx.body.__contentType ?? "";

@@ -41,9 +41,9 @@ const DIRECTIONS: Record<SwipeAction, Direction> = {
 export interface SwipeDecision {
   action: SwipeAction;
   candidate: DatingCandidate;
-  target: LikeTarget;
+  /** What was liked. Absent on a pass. */
+  target?: LikeTarget;
   note?: string;
-  twinkle?: boolean;
 }
 
 /** A quiet verdict chip that fades in as you drag, instead of a stamp. */
@@ -145,12 +145,11 @@ export function SwipeDeck({
     async (
       action: SwipeAction,
       velocity: Direction = { x: 0, y: 0 },
-      detail?: { target?: LikeTarget; note?: string; twinkle?: boolean },
+      detail?: { target?: LikeTarget; note?: string },
     ) => {
       if (!top || busyRef.current) return;
 
-      const spendsTwinkle = action === "TWINKLE" || detail?.twinkle;
-      if (spendsTwinkle && twinklesLeft <= 0) {
+      if (action === "TWINKLE" && twinklesLeft <= 0) {
         onTwinkleBlocked();
         return;
       }
@@ -169,9 +168,10 @@ export function SwipeDeck({
       onDecide({
         action,
         candidate: top,
-        target: detail?.target ?? { kind: "photo" },
+        // A drag with no explicit target is a like on the picture, which is
+        // what the gesture means.
+        ...(action === "PASS" ? {} : { target: detail?.target ?? { kind: "PHOTO" as const } }),
         ...(detail?.note ? { note: detail.note } : {}),
-        ...(spendsTwinkle ? { twinkle: true } : {}),
       });
 
       setDeck((prev) => prev.slice(1));
@@ -202,7 +202,7 @@ export function SwipeDeck({
 
   return (
     <div className="flex flex-col items-center">
-      <div className="relative h-[34rem] w-full max-w-[25rem] sm:h-[38rem]">
+      <div className="relative h-[clamp(24rem,calc(100dvh-22rem),38rem)] w-full max-w-[25rem]">
         {behind
           .slice()
           .reverse()
@@ -273,9 +273,9 @@ export function SwipeDeck({
         twinklesLeft={twinklesLeft}
         onClose={() => setPending(null)}
         onSend={(note, twinkle) => {
-          const target = pending ?? { kind: "photo" as const };
+          const target = pending ?? { kind: "PHOTO" as const };
           setPending(null);
-          void commit(twinkle ? "TWINKLE" : "LIKE", { x: 0, y: 0 }, { target, note, twinkle });
+          void commit(twinkle ? "TWINKLE" : "LIKE", { x: 0, y: 0 }, { target, note });
         }}
       />
     </div>

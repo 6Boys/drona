@@ -299,6 +299,46 @@ func (db *DB) GetOrCreateDM(ctx context.Context, a, b string, mutual bool) (thre
 	return threadID, created, err
 }
 
+// GetOrCreateNestThread opens the conversation a Love Finder match unlocks —
+// same shape as a DM (one thread, two members), but tagged NEST rather than
+// DM so a chat list can tell the two apart, and both members land ACTIVE
+// immediately: unlike a DM, there is no non-mutual case here — a Match row
+// only exists once both sides have already liked each other.
+func (db *DB) GetOrCreateNestThread(ctx context.Context, a, b string) (threadID string, err error) {
+	err = db.InTx(ctx, func(tx pgx.Tx) error {
+		err := tx.QueryRow(ctx, `
+			SELECT t."id"
+			FROM "threads" t
+			JOIN "thread_members" m1 ON m1."threadId" = t."id" AND m1."userId" = $1
+			JOIN "thread_members" m2 ON m2."threadId" = t."id" AND m2."userId" = $2
+			WHERE t."type" = 'NEST'
+			LIMIT 1`, a, b).Scan(&threadID)
+		if err == nil {
+			return nil
+		}
+		if mapErr(err) != ErrNotFound {
+			return mapErr(err)
+		}
+
+		if err := tx.QueryRow(ctx, `
+			INSERT INTO "threads" ("id", "type", "createdById", "createdAt")
+			VALUES (gen_random_uuid(), 'NEST', $1, now())
+			RETURNING "id"`, a).Scan(&threadID); err != nil {
+			return mapErr(err)
+		}
+
+		if _, err := tx.Exec(ctx, `
+			INSERT INTO "thread_members" ("id", "threadId", "userId", "role", "state", "joinedAt")
+			VALUES (gen_random_uuid(), $1, $2, 'OWNER', 'ACTIVE', now()),
+			       (gen_random_uuid(), $1, $3, 'MEMBER', 'ACTIVE', now())`,
+			threadID, a, b); err != nil {
+			return mapErr(err)
+		}
+		return nil
+	})
+	return threadID, err
+}
+
 // CreateDen opens a group chat (PRD 6.6, 256 member cap).
 func (db *DB) CreateDen(ctx context.Context, ownerID, title, icon string, memberIDs []string) (string, error) {
 	var threadID string

@@ -468,3 +468,93 @@ func NewPage[T any](items []T, limit int, cursorOf func(T) Cursor) Page[T] {
 	}
 	return page
 }
+
+// ------------------------------------------------------------- love finder ---
+// PRD 6.3. A Swipe records one decision; a mutual LIKE/TWINKLE in both
+// directions between the same pair becomes a Match, which opens a NEST thread.
+
+type SwipeAction string
+
+const (
+	SwipePass    SwipeAction = "PASS"
+	SwipeLike    SwipeAction = "LIKE"
+	SwipeTwinkle SwipeAction = "TWINKLE"
+)
+
+// ValidSwipeAction guards the action column.
+func ValidSwipeAction(a SwipeAction) bool {
+	switch a {
+	case SwipePass, SwipeLike, SwipeTwinkle:
+		return true
+	}
+	return false
+}
+
+// SwipeTargetKind is what a LIKE/TWINKLE was actually about — Hinge's
+// signature move: you like the picture or one specific answer, never just
+// "the person." Unset (both nil) on PASS.
+type SwipeTargetKind string
+
+const (
+	TargetPhoto  SwipeTargetKind = "PHOTO"
+	TargetPrompt SwipeTargetKind = "PROMPT"
+)
+
+// SwipeTarget names the thing a like was attached to.
+type SwipeTarget struct {
+	Kind SwipeTargetKind `json:"kind"`
+	// Only set when Kind is TargetPrompt: which of the target's
+	// DatingProfile.Prompts, by position.
+	PromptIndex *int `json:"promptIndex,omitempty"`
+}
+
+// DatingPrompt is one Hinge-style stacked Q&A block.
+type DatingPrompt struct {
+	Question string `json:"question"`
+	Answer   string `json:"answer"`
+}
+
+// DatingProfile is the Love Finder card's own content — separate from User
+// because it is optional, dating-specific, and nobody outside the deck ever
+// sees it.
+type DatingProfile struct {
+	Vibe      string         `json:"vibe"`
+	Interests []string       `json:"interests"`
+	Prompts   []DatingPrompt `json:"prompts"`
+}
+
+// DatingCandidate is one deck entry, or the other side of a like or match: a
+// user plus whatever they've written on their Love Finder card. A candidate
+// with no DatingProfile saved yet still has a (zero-value, empty) one — the
+// deck never has to special-case "hasn't filled it in."
+type DatingCandidate struct {
+	User
+	DatingProfile
+}
+
+// DatingLike is one incoming swipe, as shown in "likes you" — deliberately
+// carrying what was liked and what was said about it, not just who liked you.
+type DatingLike struct {
+	ID        string          `json:"id"`
+	Candidate DatingCandidate `json:"candidate"`
+	Action    SwipeAction     `json:"action"`
+	Target    SwipeTarget     `json:"target"`
+	Note      string          `json:"note,omitempty"`
+	CreatedAt time.Time       `json:"createdAt"`
+}
+
+// DatingMatch is a mutual like: two people, the NEST thread it opened, and
+// the wilt clock ticking until someone speaks (PRD 6.3).
+type DatingMatch struct {
+	// Handle identifies the *other* person — the API is always answering "my
+	// matches," so there is no ambiguity about which side is the viewer.
+	Handle    string          `json:"handle"`
+	Candidate DatingCandidate `json:"candidate"`
+	ThreadID  string          `json:"threadId"`
+	CreatedAt time.Time       `json:"createdAt"`
+	// Nil once the thread has a message — a spoken-to match does not wilt.
+	WiltsAt *time.Time `json:"wiltsAt,omitempty"`
+	// The first message in the thread, if any — lets the client show "you
+	// said hi" without a second round trip.
+	Opener string `json:"opener,omitempty"`
+}

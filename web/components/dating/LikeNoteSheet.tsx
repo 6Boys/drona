@@ -49,7 +49,10 @@ export function LikeNoteSheet({
 
   if (!candidate || !target) return null;
 
-  const prompt = target.kind === "prompt" ? candidate.prompts[target.index] : undefined;
+  const prompt =
+    target.kind === "PROMPT" && target.promptIndex !== undefined
+      ? candidate.prompts[target.promptIndex]
+      : undefined;
   const left = LIMIT - note.length;
 
   const send = () => {
@@ -77,7 +80,7 @@ export function LikeNoteSheet({
     >
       {/* ------------------------------------------------ what's being liked -- */}
       <div className="card overflow-hidden">
-        {target.kind === "photo" ? (
+        {target.kind === "PHOTO" ? (
           <div
             className="flex h-28 items-center justify-center"
             style={{ background: avatarBackground(candidate.avatar) }}
@@ -107,7 +110,7 @@ export function LikeNoteSheet({
             if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) send();
           }}
           placeholder={
-            target.kind === "photo"
+            target.kind === "PHOTO"
               ? "Say something that isn't 'hey'."
               : "Answer them back, argue with them, or say nothing at all."
           }
