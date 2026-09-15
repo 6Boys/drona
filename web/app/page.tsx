@@ -487,15 +487,24 @@ export default function LandingPage() {
           <ul className="space-y-2.5">
             {SAFETY.map(([title, body]) => (
               <li key={title}>
+                {/* The overlay is a wash sweeping in from whichever edge the
+                    pointer crossed — deliberately no text. It used to repeat
+                    the body copy over the copy already sitting there, which
+                    drew both at once through a near-transparent background.
+                    Putting the text *only* in the overlay would fix that too,
+                    but hover does not exist on a phone, and safety copy is the
+                    last thing to hide behind an effect. So the words stay put
+                    and the flourish stays decorative. */}
                 <DirectionAwareHover
                   className="glass glass-card"
                   overlay={
-                    <div className="flex h-full items-center bg-[color-mix(in_oklab,var(--accent)_10%,transparent)] px-4">
-                      <p className="text-[0.8125rem] leading-relaxed text-text">{body}</p>
-                    </div>
+                    <div
+                      aria-hidden
+                      className="h-full w-full bg-[color-mix(in_oklab,var(--accent)_12%,transparent)]"
+                    />
                   }
                 >
-                  <div className="p-4">
+                  <div className="relative z-10 p-4">
                     <p className="text-[0.875rem] font-medium">{title}</p>
                     <p className="mt-1 text-[0.8125rem] leading-relaxed text-muted">{body}</p>
                   </div>

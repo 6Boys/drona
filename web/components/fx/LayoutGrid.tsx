@@ -74,13 +74,20 @@ export function LayoutGrid({
               }}
               aria-expanded={open}
               className={cn(
-                "squircle group block cursor-pointer overflow-hidden border border-border bg-surface text-left",
+                "squircle group cursor-pointer overflow-hidden border border-border bg-surface text-left",
+                // Open, the card is a column: face on top, content beneath it.
+                // Stacking the content over the face instead means a face that
+                // puts anything at its own bottom edge — a title, a caption —
+                // ends up underneath the panel's text, showing through it.
                 open
-                  ? "fixed inset-0 z-50 m-auto h-[min(32rem,82vh)] w-[min(46rem,92vw)] shadow-[var(--sh-pop)]"
-                  : "relative h-full w-full shadow-[var(--sh-card)] transition-shadow duration-300 hover:shadow-[var(--sh-pop)]",
+                  ? "fixed inset-0 z-50 m-auto flex h-[min(32rem,82vh)] w-[min(46rem,92vw)] flex-col shadow-[var(--sh-pop)]"
+                  : "relative block h-full w-full shadow-[var(--sh-card)] transition-shadow duration-300 hover:shadow-[var(--sh-pop)]",
               )}
             >
-              <motion.div layoutId={`face-${card.id}`} className="absolute inset-0">
+              <motion.div
+                layoutId={`face-${card.id}`}
+                className={open ? "relative min-h-0 flex-1 overflow-hidden" : "absolute inset-0"}
+              >
                 {typeof card.thumbnail === "function" ? card.thumbnail(open) : card.thumbnail}
               </motion.div>
 
@@ -91,7 +98,7 @@ export function LayoutGrid({
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0, y: 10 }}
                     transition={{ duration: 0.3, delay: 0.08 }}
-                    className="absolute inset-x-0 bottom-0 z-10 p-6"
+                    className="relative z-10 shrink-0 overflow-y-auto p-5"
                   >
                     {card.content}
                   </motion.div>
