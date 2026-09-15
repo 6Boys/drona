@@ -338,12 +338,29 @@ pictures and all. Nothing is stored with a third party.
 | Owl Board live counters, rate limits, socket fanout | Redis → `dronasphere_redisdata` volume | Optional — rebuilt from Postgres snapshots |
 
 ```bash
-# Back up both halves of "the data"
-docker run --rm -v dronasphere_pgdata:/src -v "$PWD":/out alpine \
-  tar czf /out/pgdata-$(date +%F).tgz -C /src .
-docker run --rm -v dronasphere_media:/src -v "$PWD":/out alpine \
-  tar czf /out/media-$(date +%F).tgz -C /src .
+# Back up both halves of "the data" — a real pg_dump (not a raw pgdata tar,
+# which isn't safe to snapshot on a live database) plus the media volume.
+./scripts/backup.sh
+# Writes to ./backups/, timestamped, pruned after 14 days
+# (set BACKUP_RETAIN_DAYS in .env to change that).
+
+# Restore from a pair of backup files (asks for confirmation — overwrites
+# the running database and, if you pass the media tarball, the whole media
+# volume):
+./scripts/restore.sh backups/postgres-<stamp>.dump backups/media-<stamp>.tar.gz
 ```
+
+Run `scripts/backup.sh` on a schedule from cron on the host (not inside a
+container — it drives `docker exec`/`docker run` against the compose stack):
+
+```cron
+0 3 * * * cd /path/to/dronasphere && ./scripts/backup.sh >> /var/log/dronasphere-backup.log 2>&1
+```
+
+Whatever it writes to `./backups/` is real student data — copy it somewhere
+off this box (another disk, a remote host over `rsync`/`scp`) rather than
+treating a local backup directory on the same disk as the database as
+disaster recovery.
 
 ### Pictures: 5 MB, images and GIFs, no video
 
@@ -410,6 +427,17 @@ docker compose build web && docker compose up -d web   # after changing a NEXT_P
   answer on their card, so a new instance's deck stays empty until people fill
   theirs in. That is deliberate, not a bug: a deck of blank gradients is worse
   than an empty one.
+
+### Knowing when it's down
+
+`GET /healthz` (liveness) and `GET /readyz` (checks Postgres/Redis, see
+`Deps.Health` in `api/internal/api/router.go`) are already there — Docker's
+own `healthcheck:` blocks use them to restart a wedged container automatically,
+but nothing pages *you* when the box itself is unreachable. Point a free
+external check at it (e.g. [UptimeRobot](https://uptimerobot.com) or a
+self-hosted [Uptime Kuma](https://github.com/louislam/uptime-kuma) on a
+*different* machine) at `http://<your-box>:8080/healthz` — a monitor running
+on the same box it's watching can't tell you the box itself went down.
 
 ### Keeping it light
 

@@ -28,7 +28,7 @@ export function AuthLayout({
         </Link>
       </header>
 
-      <main className="relative z-10 flex flex-1 items-center justify-center px-4 py-8">
+      <main id="main-content" className="relative z-10 flex flex-1 items-center justify-center px-4 py-8">
         <div className="w-full max-w-[26rem]">
           {children}
           {aside && <div className="mt-5">{aside}</div>}

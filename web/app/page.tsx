@@ -15,6 +15,9 @@ import { GeminiBeams } from "@/components/fx/GeminiBeams";
 import { CometCard, DirectionAwareHover, TiltCard, TiltLayer, WobbleCard } from "@/components/fx/Cards";
 import { Glow } from "@/components/fx/Glow";
 import { FlipWords, LayoutTextFlip, TextGenerate } from "@/components/fx/Text";
+import { BackToTop, ScrollProgressBar } from "@/components/ui/ScrollTools";
+import { Accordion } from "@/components/ui/Accordion";
+import { UtmCapture } from "@/components/analytics/UtmCapture";
 import {
   ArrowRightIcon,
   BookIcon,
@@ -28,6 +31,18 @@ import {
 
 export const metadata: Metadata = {
   title: "DronaSphere — your whole campus, in one place",
+  description:
+    "One feed, real chats, a night-owl leaderboard, a note locker, and a campus-verified dating deck — for one college at a time.",
+  alternates: { canonical: "/" },
+};
+
+const JSON_LD = {
+  "@context": "https://schema.org",
+  "@type": "WebSite",
+  name: "DronaSphere",
+  description:
+    "A campus-verified social platform for one college at a time: feed, chat, note locker, night-owl leaderboard, and a verified dating deck.",
+  url: process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000",
 };
 
 const NAV = [
@@ -149,6 +164,42 @@ const TIMELINE: TimelineEntry[] = [
   },
 ];
 
+const FAQ = [
+  {
+    question: "Is this free?",
+    answer: "Yes, for every verified student at a launched campus. No ads, no paid tiers, nothing to upgrade to.",
+  },
+  {
+    question: "Can I sign up without a college email?",
+    answer:
+      "You can submit an ID card for manual review instead. Either way, it's one verified account per person — that's enforced in the API, not just the signup form.",
+  },
+  {
+    question: "Is my college on DronaSphere?",
+    answer:
+      "Dronacharya College of Engineering first, then the rest of NCR, one genuinely-alive campus at a time — see the section below.",
+  },
+  {
+    question: "Do I have to use Love Finder?",
+    answer:
+      "No — it's off by default for every account. Turning it on puts your card in the deck; turning it off pulls it out immediately, with nothing announced to anyone.",
+  },
+  {
+    question: "Can I delete my account and my data?",
+    answer: "Yes, from Settings, and it works from day one — both export and full deletion.",
+  },
+];
+
+const FAQ_JSON_LD = {
+  "@context": "https://schema.org",
+  "@type": "FAQPage",
+  mainEntity: FAQ.map((item) => ({
+    "@type": "Question",
+    name: item.question,
+    acceptedAnswer: { "@type": "Answer", text: item.answer },
+  })),
+};
+
 const SAFETY: [string, string][] = [
   [
     "Chat is not end-to-end encrypted.",
@@ -245,6 +296,19 @@ export default function LandingPage() {
 
   return (
     <div className="min-h-dvh overflow-x-clip bg-bg text-text">
+      {/* Static, hand-written JSON, never user input — dangerouslySetInnerHTML
+          is safe here the way it isn't for anything derived from a request. */}
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(JSON_LD) }}
+      />
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(FAQ_JSON_LD) }}
+      />
+      <UtmCapture />
+      <ScrollProgressBar />
+      <BackToTop />
       <NavbarMenu
         items={NAV}
         brand={
@@ -265,7 +329,7 @@ export default function LandingPage() {
       />
 
       {/* --------------------------------------------------------- hero ---- */}
-      <section className="grain relative overflow-hidden pt-36 pb-10 md:pt-44">
+      <section id="main-content" className="grain relative overflow-hidden pt-36 pb-10 md:pt-44">
         <Atmosphere tone="brand" />
         <GridBackdrop size={56} />
 
@@ -466,6 +530,17 @@ export default function LandingPage() {
           </h2>
 
           <Timeline entries={TIMELINE} className="mt-6" />
+        </div>
+      </section>
+
+      {/* ----------------------------------------------------------- faq --- */}
+      <section className="mx-auto max-w-3xl px-5 py-20 md:py-28">
+        <p className="mono-label text-center">questions</p>
+        <h2 className="display mt-3 text-center text-[clamp(1.75rem,4vw,2.75rem)]">
+          Answered before you ask.
+        </h2>
+        <div className="mt-8">
+          <Accordion items={FAQ} />
         </div>
       </section>
 

@@ -7,6 +7,7 @@ import { avatarBackground, avatarColours, initialsFor } from "@/components/ui/Gr
 import { CanvasReveal } from "@/components/fx/CanvasReveal";
 import { Glow } from "@/components/fx/Glow";
 import { Button } from "@/components/ui/Button";
+import { Dialog } from "@/components/ui/Dialog";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { SendIcon, MessageIcon } from "@/components/ui/Icons";
 import { hoursLeft } from "@/lib/dating-store";
@@ -47,6 +48,7 @@ function MatchRow({
 }) {
   const [draft, setDraft] = useState("");
   const [hot, setHot] = useState(false);
+  const [confirming, setConfirming] = useState(false);
   const { candidate } = match;
 
   const send = () => {
@@ -126,7 +128,7 @@ function MatchRow({
               Open the chat
             </Link>
             <button
-              onClick={onUnmatch}
+              onClick={() => setConfirming(true)}
               className="cursor-pointer text-faint transition-colors hover:text-danger"
             >
               Unmatch
@@ -134,6 +136,29 @@ function MatchRow({
           </div>
         </div>
       </div>
+
+      <Dialog
+        open={confirming}
+        onClose={() => setConfirming(false)}
+        title={`Unmatch ${candidate.displayName}?`}
+        description="This closes the chat for both of you and can't be undone. They won't be notified."
+        footer={
+          <>
+            <Button variant="ghost" onClick={() => setConfirming(false)}>
+              Cancel
+            </Button>
+            <Button
+              variant="danger"
+              onClick={() => {
+                setConfirming(false);
+                onUnmatch();
+              }}
+            >
+              Unmatch
+            </Button>
+          </>
+        }
+      />
     </motion.article>
   );
 }

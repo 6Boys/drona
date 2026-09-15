@@ -12,6 +12,7 @@ import { OwlRankBadge } from "@/components/ui/OwlRankBadge";
 import { Segmented } from "@/components/ui/Segmented";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { CoinIcon, LockIcon, MessageIcon } from "@/components/ui/Icons";
+import { CopyButton } from "@/components/ui/CopyButton";
 import { useToast } from "@/components/ui/Toast";
 import { api, errorMessage } from "@/lib/api";
 import { useApi } from "@/lib/use-api";
@@ -106,7 +107,12 @@ export default function ProfilePage() {
 
   return (
     <>
-      <TopBar title={user?.displayName ?? `@${handle}`} subtitle={user ? `@${user.handle}` : undefined} back />
+      <TopBar
+        title={user?.displayName ?? `@${handle}`}
+        subtitle={user ? `@${user.handle}` : undefined}
+        back
+        titleIsHeading={false}
+      />
 
       <PageBody width="sm">
         {profile.loading ? (
@@ -134,7 +140,13 @@ export default function ProfilePage() {
                     )}
                   </div>
 
-                  <p className="mt-0.5 font-mono text-xs text-faint">@{user.handle}</p>
+                  <div className="mt-0.5 flex items-center gap-2">
+                    <p className="font-mono text-xs text-faint">@{user.handle}</p>
+                    <CopyButton
+                      text={typeof window !== "undefined" ? `${window.location.origin}/profile/${user.handle}` : ""}
+                      label="Copy profile link"
+                    />
+                  </div>
 
                   {user.bio && <p className="mt-2 text-sm text-muted">{user.bio}</p>}
 

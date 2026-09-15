@@ -161,14 +161,33 @@
     --grain: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
   }
 
-  /* Kept so existing markup that asks for paper explicitly still gets it. */
+  /* Kept so existing markup that asks for paper explicitly still gets it —
+     including a `.surface-light` panel nested inside a dark-mode `<html>`. */
   .surface-light {
     color-scheme: light;
   }
 
-  /* The few surfaces that stay dark: the marketing product shot, and any panel
-     that wants to read as a screen rather than a page. */
-  .surface-dark {
+  @media print {
+    /* A print of a chat app or a feed is a print of chrome nobody asked for —
+       keep only the one thing worth putting on paper: whatever text content
+       is on the page. */
+    body {
+      background: #fff;
+      color: #000;
+    }
+    nav,
+    header,
+    footer,
+    .no-print {
+      display: none !important;
+    }
+  }
+
+  /* The few surfaces that stay dark (the marketing product shot, any panel
+     that wants to read as a screen rather than a page) — and, via `:root.dark`
+     (toggled in Settings, see lib/theme.ts), the whole app: every component
+     reads only tier-2 tokens, so redeclaring them at the root is enough. */
+  :is(.surface-dark, :root.dark) {
     color-scheme: dark;
     --bg: var(--night-950);
     --panel: var(--night-900);

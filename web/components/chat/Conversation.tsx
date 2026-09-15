@@ -10,7 +10,7 @@ import { Skeleton } from "@/components/ui/Skeleton";
 import { SupportCard } from "@/components/ui/SupportCard";
 import { ChevronLeftIcon, SendIcon } from "@/components/ui/Icons";
 import { useToast } from "@/components/ui/Toast";
-import { api, errorMessage } from "@/lib/api";
+import { api, errorMessage, randomId } from "@/lib/api";
 import { useApi } from "@/lib/use-api";
 import { usePaged } from "@/lib/use-paged";
 import { useAuth } from "@/lib/auth-context";
@@ -133,7 +133,9 @@ export function Conversation({ threadId }: { threadId: string }) {
     const body = draft.trim();
     if (!body || sending) return;
 
-    const clientId = crypto.randomUUID();
+    // crypto.randomUUID() throws outside a secure context (plain http://,
+    // which a homelab reached over Tailscale/LAN usually is) — see lib/api.ts.
+    const clientId = randomId();
     const optimistic: Message = {
       id: `pending-${clientId}`,
       threadId,

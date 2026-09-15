@@ -94,6 +94,13 @@ export const ArrowUpIcon = (p: IconProps) => (
   </svg>
 );
 
+export const CopyIcon = (p: IconProps) => (
+  <svg {...base(p)}>
+    <rect x="9" y="9" width="11" height="11" rx="2" />
+    <path d="M5 15V6a2 2 0 0 1 2-2h9" />
+  </svg>
+);
+
 export const ArrowDownIcon = (p: IconProps) => (
   <svg {...base(p)}>
     <path d="M12 4.5v14" />

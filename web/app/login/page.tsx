@@ -11,6 +11,7 @@ import { Glow } from "@/components/fx/Glow";
 import { ShieldIcon } from "@/components/ui/Icons";
 import { api, errorMessage } from "@/lib/api";
 import { routeForStep, useAuth } from "@/lib/auth-context";
+import { captureUtm } from "@/lib/utm";
 import type { OtpRequestResult, SessionResponse } from "@/lib/types";
 
 function Card({ children }: { children: React.ReactNode }) {
@@ -46,6 +47,12 @@ function LoginFlow() {
   useEffect(() => {
     if (!loading && me) router.replace(next || routeForStep(me.onboardingStep));
   }, [loading, me, router, next]);
+
+  // Covers a shared/paid link landing straight on /login rather than on "/"
+  // — app/page.tsx's UtmCapture doesn't run in that path.
+  useEffect(() => {
+    captureUtm(window.location.search);
+  }, []);
 
   useEffect(() => {
     if (cooldown <= 0) return;

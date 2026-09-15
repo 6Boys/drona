@@ -74,6 +74,10 @@ func (s *Server) routes() {
 	r.Use(httpx.Logger(log))
 	r.Use(httpx.CORS(s.deps.Config.AllowedOrigins))
 	r.Use(middleware.Timeout(30 * time.Second))
+	// Compresses JSON/text responses (its default type list excludes images,
+	// so the already-compressed media served below is left alone). A
+	// homelab's uplink is the more likely bottleneck than its CPU here.
+	r.Use(middleware.Compress(5))
 
 	// --- probes: no auth, no rate limit, cheap ---
 	r.Get("/healthz", func(w http.ResponseWriter, _ *http.Request) {

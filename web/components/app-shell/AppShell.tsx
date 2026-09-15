@@ -40,7 +40,9 @@ export function AppShell({ children }: { children: ReactNode }) {
     <NightProvider>
       <div className="flex min-h-dvh">
         <Sidebar />
-        <div className="flex min-w-0 flex-1 flex-col">{children}</div>
+        <main id="main-content" className="flex min-w-0 flex-1 flex-col">
+          {children}
+        </main>
         <MobileNav />
         <CommandPalette />
       </div>

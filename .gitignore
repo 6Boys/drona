@@ -26,6 +26,9 @@ api/coverage.out
 api/data/
 data/
 
+# scripts/backup.sh output — real student data, never commit it
+backups/
+
 # prisma
 prisma/generated/
 prisma/.env

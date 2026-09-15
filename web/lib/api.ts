@@ -54,6 +54,27 @@ export function clearSession() {
   window.localStorage.removeItem(REFRESH_KEY);
 }
 
+// crypto.randomUUID() only exists in a secure context (HTTPS, or localhost) —
+// on a homelab reached over plain http://, including over Tailscale, calling
+// it throws "crypto.randomUUID is not a function" and takes the whole request
+// down with it, since every call in this file routes through here. getRandomValues
+// has no such restriction, so a hand-rolled RFC 4122 v4 string still gets
+// real cryptographic randomness on http://; only the convenience wrapper is
+// gated, not the underlying API.
+export function randomId(): string {
+  if (typeof crypto !== "undefined" && crypto.randomUUID) return crypto.randomUUID();
+  if (typeof crypto !== "undefined" && crypto.getRandomValues) {
+    const bytes = crypto.getRandomValues(new Uint8Array(16));
+    bytes[6] = (bytes[6]! & 0x0f) | 0x40; // version 4
+    bytes[8] = (bytes[8]! & 0x3f) | 0x80; // variant 10
+    const hex = Array.from(bytes, (b) => b.toString(16).padStart(2, "0")).join("");
+    return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
+  }
+  // Only reachable with no Web Crypto at all — not cryptographically random,
+  // but this id is a dedupe key, never a secret.
+  return `${Date.now().toString(16)}-${Math.random().toString(16).slice(2)}`;
+}
+
 // deviceFingerprint is a stable, non-identifying per-browser id used only for
 // the Owl Board's per-device dedupe and abuse detection (PRD 6.2, 10) — never
 // for anything resembling authentication.
@@ -62,7 +83,7 @@ function deviceFingerprint(): string {
   const KEY = "drona.device";
   let id = window.localStorage.getItem(KEY);
   if (!id) {
-    id = crypto.randomUUID();
+    id = randomId();
     window.localStorage.setItem(KEY, id);
   }
   return id;
@@ -121,6 +142,12 @@ function buildUrl(path: string, query?: RequestOptions["query"]): string {
   return url.toString();
 }
 
+// A homelab reachable only over Tailscale/LAN can go dark (host asleep, wifi
+// drop, the box itself unreachable) in a way a normal fetch() never resolves
+// from — no error, just a spinner that never stops. This bounds every call to
+// a failure a caller's existing try/catch + toast can actually show.
+const REQUEST_TIMEOUT_MS = 20_000;
+
 async function request<T>(path: string, opts: RequestOptions = {}): Promise<T> {
   const doFetch = async (): Promise<Response> => {
     const headers: Record<string, string> = {};
@@ -130,11 +157,18 @@ async function request<T>(path: string, opts: RequestOptions = {}): Promise<T> {
     const fp = deviceFingerprint();
     if (fp) headers["X-Device-Fingerprint"] = fp;
 
-    return fetch(buildUrl(path, opts.query), {
-      method: opts.method ?? "GET",
-      headers,
-      body: opts.body !== undefined ? JSON.stringify(opts.body) : undefined,
-    });
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+    try {
+      return await fetch(buildUrl(path, opts.query), {
+        method: opts.method ?? "GET",
+        headers,
+        body: opts.body !== undefined ? JSON.stringify(opts.body) : undefined,
+        signal: controller.signal,
+      });
+    } finally {
+      clearTimeout(timeout);
+    }
   };
 
   let res = await doFetch();
@@ -194,7 +228,16 @@ export async function uploadMedia(file: File): Promise<MediaUploadResult> {
   const body = new FormData();
   body.append("file", file);
 
-  const res = await fetch(buildUrl("/v1/media/upload"), { method: "POST", headers, body });
+  // Longer budget than a JSON request: this is up to 5 MB going out, not a
+  // few hundred bytes.
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 60_000);
+  let res: Response;
+  try {
+    res = await fetch(buildUrl("/v1/media/upload"), { method: "POST", headers, body, signal: controller.signal });
+  } finally {
+    clearTimeout(timeout);
+  }
 
   const text = await res.text();
   const data = text ? JSON.parse(text) : undefined;
@@ -208,6 +251,9 @@ export { BASE_URL as API_BASE_URL, WS_URL as API_WS_URL };
  * never invents one on top of it. */
 export function errorMessage(err: unknown, fallback = "something went wrong"): string {
   if (err instanceof ApiError) return err.friendly || err.message || fallback;
+  if (err instanceof DOMException && err.name === "AbortError") {
+    return "that took too long — check your connection and try again";
+  }
   if (err instanceof Error && err.message) return err.message;
   return fallback;
 }

@@ -17,6 +17,10 @@ export function TopBar({
   back,
   tabs,
   sticky = true,
+  /** False when the page body already renders its own <h1> for `title`
+   * (post/profile pages) — this bar's copy is then chrome, not content, so it
+   * must not add a second page-level heading. */
+  titleIsHeading = true,
 }: {
   title: ReactNode;
   subtitle?: ReactNode;
@@ -25,6 +29,7 @@ export function TopBar({
   back?: boolean | string;
   tabs?: ReactNode;
   sticky?: boolean;
+  titleIsHeading?: boolean;
 }) {
   const router = useRouter();
 
@@ -64,7 +69,11 @@ export function TopBar({
         )}
 
         <div className="min-w-0 flex-1">
-          <h1 className="truncate text-[0.9375rem] font-medium text-text">{title}</h1>
+          {titleIsHeading ? (
+            <h1 className="truncate text-[0.9375rem] font-medium text-text">{title}</h1>
+          ) : (
+            <p className="truncate text-[0.9375rem] font-medium text-text">{title}</p>
+          )}
           {subtitle && <div className="truncate text-xs text-muted">{subtitle}</div>}
         </div>
 

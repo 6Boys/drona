@@ -9,6 +9,7 @@ import { Badge } from "@/components/ui/Badge";
 import { useToast } from "@/components/ui/Toast";
 import { api, errorMessage } from "@/lib/api";
 import { useAuth } from "@/lib/auth-context";
+import { useTheme } from "@/lib/theme";
 import type { Avatar as AvatarShape, MeResponse } from "@/lib/types";
 
 const BRANCHES = ["CSE", "IT", "ECE", "EEE", "ME", "CE", "MBA", "MCA", "Other"];
@@ -36,6 +37,7 @@ function Section({
 export default function SettingsPage() {
   const { me, apply, logout } = useAuth();
   const toast = useToast();
+  const { theme, setTheme } = useTheme();
 
   const [profile, setProfile] = useState({
     displayName: me?.user.displayName ?? "",
@@ -146,6 +148,15 @@ export default function SettingsPage() {
           >
             Save identity
           </Button>
+        </Section>
+
+        <Section title="Appearance">
+          <Toggle
+            label="Dark mode"
+            description="Switches the whole app, not just this page."
+            checked={theme === "dark"}
+            onChange={(next) => setTheme(next ? "dark" : "light")}
+          />
         </Section>
 
         <Section title="Privacy" description="Who can see and reach you.">

@@ -23,7 +23,12 @@ export default function PostPage() {
 
   return (
     <>
-      <TopBar title="Post" back subtitle={post.data ? `in ${post.data.space.name}` : undefined} />
+      <TopBar
+        title="Post"
+        back
+        subtitle={post.data ? `in ${post.data.space.name}` : undefined}
+        titleIsHeading={false}
+      />
 
       <PageBody width="sm">
         {post.loading ? (
