@@ -31,7 +31,7 @@ export function Segmented<T extends string>({
   return (
     <div
       role="tablist"
-      className={cn("glass glass-pill inline-flex items-center gap-0.5 p-1", className)}
+      className={cn("glass glass-pill inline-flex items-center gap-0.5 overflow-hidden p-1", className)}
     >
       {options.map((option) => {
         const active = option.value === value;

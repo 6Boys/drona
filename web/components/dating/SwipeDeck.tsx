@@ -212,7 +212,13 @@ export function SwipeDeck({
 
   return (
     <div className="flex flex-col items-center">
-      <div className="relative h-[clamp(24rem,calc(100dvh-22rem),38rem)] w-full max-w-[25rem]">
+      {/* overflow-hidden: the fanned peek below rotates+translates the behind
+          cards slightly past this box's own edges, and unlike TempCandidate
+          Widget's own internal scroller, absolutely-positioned children with
+          no overflow clamp on their containing block DO leak into the page's
+          real scrollWidth — this is what was forcing a few extra pixels of
+          horizontal scroll on the whole dating page. */}
+      <div className="relative h-[clamp(24rem,calc(100dvh-22rem),38rem)] w-full max-w-[25rem] overflow-hidden">
         {behind
           .slice()
           .reverse()

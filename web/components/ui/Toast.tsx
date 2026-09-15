@@ -38,7 +38,12 @@ export function ToastProvider({ children }: { children: ReactNode }) {
           <div
             key={t.id}
             className={cn(
-              "glass glass-strong pop pointer-events-auto flex max-w-sm items-start gap-2.5 rounded-[var(--r-md)] px-3.5 py-2.5 text-sm text-text",
+              // w-full on mobile: the container is already correctly bounded
+              // (inset-x-3, ~351px safe on a 375px screen), but max-w-sm
+              // alone (384px) ignores that and can push a longer message
+              // past the viewport edge. sm: reverts to the original
+              // auto-width-up-to-384px for the right-aligned desktop layout.
+              "glass glass-strong pop pointer-events-auto flex w-full items-start gap-2.5 rounded-[var(--r-md)] px-3.5 py-2.5 text-sm text-text sm:w-auto sm:max-w-sm",
               t.tone === "error" &&
                 "border-[color-mix(in_oklab,var(--danger)_40%,transparent)] bg-[color-mix(in_oklab,var(--danger)_12%,var(--surface))]",
               t.tone === "success" &&

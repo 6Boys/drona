@@ -264,11 +264,21 @@
     -webkit-text-size-adjust: 100%;
     scrollbar-color: var(--border-strong) transparent;
     scrollbar-width: thin;
+    /* Belt-and-suspenders against horizontal scroll: a transient overflow
+       anywhere on the page (an animating card, a mount transition, a rotated
+       tile) widens the browser's own layout viewport to fit it — and every
+       `position: fixed` or 100%-wide element on the page (the mobile nav,
+       toasts, ...) then resizes to match THAT wider viewport, not the
+       visible one, amplifying a few stray pixels into a visible page-wide
+       shift. Clipping here breaks that cascade at the root instead of
+       chasing every component that could transiently overflow by a pixel. */
+    overflow-x: clip;
   }
 
   body {
     margin: 0;
     min-height: 100dvh;
+    overflow-x: clip;
     background: var(--bg);
     color: var(--text);
     font-family: var(--font-sans);
