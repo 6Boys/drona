@@ -146,9 +146,7 @@ export default function DatingPage() {
   const off = !me.user.loveFinderEnabled;
 
   return (
-    <div data-theme="dating" className="relative">
-      {tab === "deck" && !gated && !off && <DatingBgWidgets candidate={front} />}
-
+    <div data-theme="dating">
       <TopBar
         title="Love Finder"
         subtitle="Campus-only, opt-in, 18+. Matches wilt quietly if nobody says anything."
@@ -175,7 +173,7 @@ export default function DatingPage() {
         }
       />
 
-      <PageBody width={tab === "you" || tab === "likes" ? "lg" : "md"} className="relative z-10">
+      <PageBody width={tab === "you" || tab === "likes" ? "lg" : "md"}>
         {gated && me.user.isAdult !== false && !me.user.photoVerified ? (
           // The one real gate left once age is cleared: api/internal/domain's
           // CanUseDating requires a photo on file, and nothing else in this
@@ -248,6 +246,8 @@ export default function DatingPage() {
                     <SparkleIcon size={12} className="text-gold" />
                     {deck.twinklesLeft} {deck.twinklesLeft === 1 ? "Twinkle" : "Twinkles"} left today
                   </p>
+
+                  <DatingBgWidgets candidate={front} />
                 </>
               )}
 

@@ -1,110 +1,131 @@
 "use client";
 
+import { useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { avatarBackground, initialsFor } from "@/components/ui/GradientAvatar";
+import { Dialog } from "@/components/ui/Dialog";
+import { ProfileCard } from "./ProfileCard";
 import type { DatingCandidate } from "@/lib/types";
 import { cn } from "@/lib/cn";
 
 /* -----------------------------------------------------------------------------
-   datingbg_widgets — what used to be a flat solid-colour page background
-   behind the deck. Three photo tiles and two prompt notes from whoever is
-   currently the front card, scattered across the page at a level behind
-   every card in the stack — never blocking them, never asking to be read
-   closely. The instant that front card is swiped, this crossfades to the
-   next person's — it mirrors the deck, it doesn't lead it.
+   datingbg_widgets — a real, visible piece of the front card's own profile,
+   not background decoration. Three photo tiles and up to two prompts from
+   whoever is currently on top of the deck, laid out as ordinary page content
+   below the deck (so it's never hidden behind the card, on a phone screen or
+   anywhere else) and fully clickable — tap any piece and the whole profile
+   pops up, the same ProfileCard the deck itself uses.
 
-   Absolutely positioned within the dating page's own relative wrapper, not
-   position: fixed to the viewport — fixed would measure from the browser
-   edge and collide with the sidebar on desktop; absolute-inside-relative
-   stays put just the same without knowing anything about the app shell
-   around it.
+   Swapping to the next person is a crossfade keyed on candidate.id, so it
+   reads as "this strip belongs to whoever you're looking at" rather than a
+   static header.
    -------------------------------------------------------------------------- */
 
-interface Placement {
-  top: string;
-  left?: string;
-  right?: string;
-  width: string;
-  height: string;
+function Tile({
+  onClick,
+  rotate,
+  className,
+  children,
+  label,
+}: {
+  onClick: () => void;
   rotate: number;
+  className?: string;
+  children: React.ReactNode;
+  label: string;
+}) {
+  return (
+    <motion.button
+      type="button"
+      onClick={onClick}
+      aria-label={label}
+      initial={{ rotate }}
+      whileHover={{ rotate: 0, scale: 1.04, zIndex: 10 }}
+      whileTap={{ scale: 0.97 }}
+      transition={{ type: "spring", stiffness: 320, damping: 22 }}
+      className={cn(
+        "relative shrink-0 cursor-pointer overflow-hidden rounded-[var(--r-lg)] border border-border text-left shadow-[var(--sh-card)]",
+        className,
+      )}
+    >
+      {children}
+    </motion.button>
+  );
 }
 
-const PHOTO_SPOTS: Placement[] = [
-  { top: "4%", left: "-6%", width: "17rem", height: "21rem", rotate: -9 },
-  { top: "54%", right: "-8%", width: "19rem", height: "23rem", rotate: 7 },
-  { top: "68%", left: "2%", width: "13rem", height: "16rem", rotate: 5 },
-];
-
-const PROMPT_SPOTS: Placement[] = [
-  { top: "16%", right: "1%", width: "15rem", height: "auto", rotate: 4 },
-  { top: "78%", right: "16%", width: "14rem", height: "auto", rotate: -5 },
-];
-
 export function DatingBgWidgets({ candidate }: { candidate?: DatingCandidate }) {
-  const prompts = candidate?.prompts.slice(0, 2) ?? [];
+  const [open, setOpen] = useState(false);
+
+  if (!candidate) return null;
+
+  const prompts = candidate.prompts.slice(0, 2);
+  const rotations = [-4, 3, -2, 5, -5];
 
   return (
-    <div aria-hidden className="pointer-events-none absolute inset-0 z-0 overflow-hidden">
-      <AnimatePresence mode="wait">
-        {candidate && (
+    <>
+      <div className="mt-8">
+        <p className="mono-label mb-3 text-center">a closer look at {candidate.displayName.split(" ")[0]}</p>
+
+        <AnimatePresence mode="wait">
           <motion.div
             key={candidate.id}
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.5, ease: "easeInOut" }}
-            className="absolute inset-0"
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -8 }}
+            transition={{ duration: 0.3 }}
+            className="no-scrollbar flex items-start justify-center gap-3 overflow-x-auto px-4 py-2"
           >
-            {PHOTO_SPOTS.map((spot, i) => (
-              <div
-                key={i}
-                className="absolute overflow-hidden rounded-[var(--r-2xl)]"
-                style={{
-                  top: spot.top,
-                  left: spot.left,
-                  right: spot.right,
-                  width: spot.width,
-                  height: spot.height,
-                  transform: `rotate(${spot.rotate}deg)`,
-                  background: avatarBackground(candidate.avatar),
-                  opacity: 0.22,
-                  filter: "blur(2px)",
-                }}
+            {[0, 1, 2].map((i) => (
+              <Tile
+                key={`photo-${i}`}
+                onClick={() => setOpen(true)}
+                rotate={rotations[i]!}
+                label={`Open ${candidate.displayName}'s profile`}
+                className="h-24 w-24"
               >
-                {i === 0 && (
-                  <span className="display absolute inset-0 flex items-center justify-center text-[4rem] text-white/70">
-                    {initialsFor(candidate.displayName)}
-                  </span>
-                )}
-              </div>
+                <div className="relative h-full w-full" style={{ background: avatarBackground(candidate.avatar) }}>
+                  <span
+                    aria-hidden
+                    className="absolute inset-0"
+                    style={{
+                      background:
+                        "linear-gradient(180deg, rgba(255,255,255,0.28) 0%, transparent 50%, rgba(22,21,15,0.3) 100%)",
+                    }}
+                  />
+                  {i === 0 && (
+                    <span className="display absolute inset-0 flex items-center justify-center text-[1.75rem] text-white/90">
+                      {initialsFor(candidate.displayName)}
+                    </span>
+                  )}
+                </div>
+              </Tile>
             ))}
 
-            {prompts.map((prompt, i) => {
-              const spot = PROMPT_SPOTS[i];
-              if (!spot) return null;
-              return (
-                <div
-                  key={prompt.question}
-                  className={cn("glass absolute rounded-[var(--r-lg)] p-4")}
-                  style={{
-                    top: spot.top,
-                    left: spot.left,
-                    right: spot.right,
-                    width: spot.width,
-                    transform: `rotate(${spot.rotate}deg)`,
-                    opacity: 0.3,
-                  }}
-                >
-                  <p className="mono-label text-[0.5625rem]">{prompt.question}</p>
-                  <p className="serif mt-2 line-clamp-2 text-[0.9375rem] leading-snug text-text">
-                    {prompt.answer}
-                  </p>
-                </div>
-              );
-            })}
+            {prompts.map((prompt, i) => (
+              <Tile
+                key={prompt.question}
+                onClick={() => setOpen(true)}
+                rotate={rotations[i + 3]!}
+                label={`Open ${candidate.displayName}'s profile`}
+                className="h-24 w-36 bg-surface p-3"
+              >
+                <p className="mono-label line-clamp-1 text-[0.5625rem]">{prompt.question}</p>
+                <p className="serif mt-1.5 line-clamp-2 text-[0.8125rem] leading-snug text-text">
+                  {prompt.answer}
+                </p>
+              </Tile>
+            ))}
           </motion.div>
-        )}
-      </AnimatePresence>
-    </div>
+        </AnimatePresence>
+
+        <p className="mt-2 text-center text-[0.6875rem] text-faint">tap any of these to open the full profile</p>
+      </div>
+
+      <Dialog open={open} onClose={() => setOpen(false)} title={candidate.displayName} width="sm">
+        <div className="h-[65dvh] max-h-[32rem]">
+          <ProfileCard candidate={candidate} />
+        </div>
+      </Dialog>
+    </>
   );
 }
