@@ -238,9 +238,7 @@ export default function LandingPage() {
     ),
     content: (
       <div className="glass glass-strong glass-panel p-5">
-        <p className="mono-label">{surface.name}</p>
-        <p className="serif mt-2 text-[1.375rem] leading-snug text-text">{surface.line}</p>
-        <p className="mt-3 text-[0.875rem] leading-relaxed text-muted">{surface.body}</p>
+        <p className="text-[0.875rem] leading-relaxed text-muted">{surface.body}</p>
       </div>
     ),
   }));

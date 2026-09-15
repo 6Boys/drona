@@ -92,22 +92,33 @@ export function ContainerTextFlip({
         slabClassName,
       )}
     >
-      <motion.span layout className={cn("inline-block whitespace-nowrap", className)}>
-        <AnimatePresence mode="popLayout">
+      {/* The whole word swaps as one unit — `mode="wait"` means the old one
+          has left before the new one mounts. Per-letter AnimatePresence looks
+          identical when it works, but on a word change every letter exits at
+          once, and popLayout pulls those exiting letters out of the flow, so
+          they stack up behind the incoming word. That reads as garbled text
+          rather than a transition. Only the entrance is staggered now;
+          leaving is a single motion. */}
+      <AnimatePresence mode="wait" initial={false}>
+        <motion.span
+          key={word}
+          exit={{ opacity: 0, filter: "blur(8px)", y: -10 }}
+          transition={{ duration: 0.2 }}
+          className={cn("inline-block whitespace-nowrap", className)}
+        >
           {word.split("").map((letter, i) => (
             <motion.span
-              key={`${word}-${i}`}
+              key={i}
               initial={{ opacity: 0, filter: "blur(8px)", y: 10 }}
               animate={{ opacity: 1, filter: "blur(0px)", y: 0 }}
-              exit={{ opacity: 0, filter: "blur(8px)", y: -10 }}
               transition={{ delay: i * 0.02, duration: 0.26 }}
               className="inline-block"
             >
               {letter === " " ? " " : letter}
             </motion.span>
           ))}
-        </AnimatePresence>
-      </motion.span>
+        </motion.span>
+      </AnimatePresence>
     </motion.span>
   );
 }
