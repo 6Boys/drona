@@ -17,6 +17,7 @@ import { Glow } from "@/components/fx/Glow";
 import { FlipWords, LayoutTextFlip, TextGenerate } from "@/components/fx/Text";
 import { BackToTop, ScrollProgressBar } from "@/components/ui/ScrollTools";
 import { Accordion } from "@/components/ui/Accordion";
+import { ThemeToggleButton } from "@/components/ui/ThemeToggleButton";
 import { UtmCapture } from "@/components/analytics/UtmCapture";
 import {
   ArrowRightIcon,
@@ -318,6 +319,7 @@ export default function LandingPage() {
         }
         actions={
           <>
+            <ThemeToggleButton />
             <ButtonLink href="/login" variant="ghost" size="sm">
               Log in
             </ButtonLink>

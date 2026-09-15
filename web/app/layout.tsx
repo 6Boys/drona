@@ -55,7 +55,9 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: "#faf9f6",
+  // Matches --night-950 (app/globals.css) — dark is the default theme now,
+  // so this is what most first loads should show in the browser chrome.
+  themeColor: "#100f14",
   width: "device-width",
   initialScale: 1,
 };
@@ -72,11 +74,13 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       suppressHydrationWarning
     >
       <body>
-        {/* Runs before hydration so a stored/system dark preference applies to
-            the first paint — without this, the page would flash light and
-            then snap to dark a beat later. No user input reaches this string. */}
+        {/* Dark is the default look (see lib/theme.ts) — this only needs to
+            check for an explicit opt-out into light, stored by the toggle.
+            Runs before hydration so that applies to the first paint too;
+            without this, the page would flash light and then snap to dark a
+            beat later. No user input reaches this string. */}
         <Script id="theme-init" strategy="beforeInteractive">
-          {`(function(){try{var t=localStorage.getItem("drona.theme");if(t!=="dark"&&t!=="light"){t=matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light";}if(t==="dark"){document.documentElement.classList.add("dark");document.documentElement.style.colorScheme="dark";}}catch(e){}})();`}
+          {`(function(){try{if(localStorage.getItem("drona.theme")!=="light"){document.documentElement.classList.add("dark");document.documentElement.style.colorScheme="dark";}}catch(e){}})();`}
         </Script>
         <a
           href="#main-content"

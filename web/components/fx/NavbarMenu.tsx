@@ -47,13 +47,26 @@ export function NavbarMenu({
         transition={{ type: "spring", stiffness: 240, damping: 26 }}
         onMouseLeave={() => setOpen(null)}
         className={cn(
-          "glass glass-pill pointer-events-auto relative flex max-w-[min(64rem,calc(100vw-1.5rem))] items-center gap-1 px-2 py-2",
+          "glass glass-pill pointer-events-auto relative flex items-center gap-1 px-2 py-2",
+          "max-w-[min(64rem,calc(100vw-1.5rem))]",
+          // A real 3-column grid, not eyeballed absolute centering: the outer
+          // two columns are equal width (1fr each), so whatever they hold,
+          // the middle (auto-width) column sits exactly in the bar's center
+          // with no risk of the two sides colliding into it. Needs an actual
+          // width to distribute — max-w above only caps a flex item's
+          // shrink-to-fit size, so this also switches to a real `w-` at the
+          // same breakpoint the grid kicks in.
+          "lg:grid lg:w-[min(64rem,calc(100vw-1.5rem))] lg:grid-cols-[1fr_auto_1fr]",
           scrolled && "glass-strong",
         )}
       >
-        {brand && <div className="px-3">{brand}</div>}
+        {/* order-2 puts brand in the middle column regardless of DOM order —
+            it stays first in the DOM (unchanged tab order / mobile layout;
+            below lg this is a plain flex row, where order has no column to
+            place into and brand just renders where it sits, i.e. first). */}
+        {brand && <div className="px-3 lg:order-2 lg:justify-self-center">{brand}</div>}
 
-        <nav className="hidden items-center md:flex">
+        <nav className="hidden items-center lg:order-1 lg:flex lg:justify-self-start">
           {items.map((item) => (
             <div key={item.href} className="relative" onMouseEnter={() => setOpen(item.label)}>
               <a
@@ -87,7 +100,11 @@ export function NavbarMenu({
           ))}
         </nav>
 
-        {actions && <div className="ml-auto flex items-center gap-2 pl-2">{actions}</div>}
+        {actions && (
+          <div className="ml-auto flex items-center gap-2 pl-2 lg:order-3 lg:ml-0 lg:justify-self-end">
+            {actions}
+          </div>
+        )}
       </motion.div>
     </div>
   );

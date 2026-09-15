@@ -58,6 +58,13 @@ export const MoonIcon = (p: IconProps) => (
   </svg>
 );
 
+export const SunIcon = (p: IconProps) => (
+  <svg {...base(p)}>
+    <circle cx="12" cy="12" r="4.5" />
+    <path d="M12 3v2.2M12 18.8V21M4.4 4.4l1.55 1.55M18.05 18.05 19.6 19.6M3 12h2.2M18.8 12H21M4.4 19.6l1.55-1.55M18.05 5.95 19.6 4.4" />
+  </svg>
+);
+
 export const BookIcon = (p: IconProps) => (
   <svg {...base(p)}>
     <path d="M4 5.2A2.2 2.2 0 0 1 6.2 3H20v15.2H6.2A2.2 2.2 0 0 0 4 20.4z" />
