@@ -18,6 +18,13 @@ import { FlipWords, LayoutTextFlip, TextGenerate } from "@/components/fx/Text";
 import { BackToTop, ScrollProgressBar } from "@/components/ui/ScrollTools";
 import { Accordion } from "@/components/ui/Accordion";
 import { ThemeToggleButton } from "@/components/ui/ThemeToggleButton";
+import {
+  ChatScreenPreview,
+  FeedScreenPreview,
+  OwlScreenPreview,
+  ScrollShowcase,
+  type ShowcaseStep,
+} from "@/components/fx/ScrollShowcase";
 import { UtmCapture } from "@/components/analytics/UtmCapture";
 import {
   ArrowRightIcon,
@@ -81,6 +88,45 @@ const NAV = [
   },
   { label: "The night", href: "#night" },
   { label: "Safety", href: "#safety" },
+];
+
+const SHOWCASE_STEPS: ShowcaseStep[] = [
+  {
+    eyebrow: "the nest",
+    title: (
+      <>
+        Post once.
+        <br />
+        It&apos;s already everywhere your batch is.
+      </>
+    ),
+    body: "One feed, campus-scoped by default. No separate group for every hostel block and every semester.",
+    screen: <FeedScreenPreview />,
+  },
+  {
+    eyebrow: "chats, dens & signals",
+    title: (
+      <>
+        Say it in the Den,
+        <br />
+        not in five WhatsApp groups.
+      </>
+    ),
+    body: "One thread your whole batch is already in, instead of the same notice pasted into five chats by five different people.",
+    screen: <ChatScreenPreview />,
+  },
+  {
+    eyebrow: "owl board",
+    title: (
+      <>
+        The night has a curfew,
+        <br />
+        and a leaderboard that respects it.
+      </>
+    ),
+    body: "Scored on what you actually do between 10pm and 3am, then it stops. Nobody wins by never sleeping.",
+    screen: <OwlScreenPreview />,
+  },
 ];
 
 const SURFACES = [
@@ -376,6 +422,9 @@ export default function LandingPage() {
           </p>
         </div>
       </section>
+
+      {/* ------------------------------------------------- pinned showcase -- */}
+      <ScrollShowcase steps={SHOWCASE_STEPS} />
 
       {/* ----------------------------------------- the product, tipped in -- */}
       <section className="relative h-[150vh]">

@@ -35,6 +35,7 @@
   - [Option C: Instant Frontend Preview (Zero-Docker Mock API)](#option-c-instant-frontend-preview-zero-docker-mock-api)
 - [Environment Variables (.env)](#-environment-variables-env)
 - [Self-Hosting on a Homelab](#-self-hosting-on-a-homelab)
+- [Mobile: iOS & Android](#-mobile-ios--android)
 - [Database Management & Prisma](#-database-management--prisma)
 - [Testing & Code Quality](#-testing--code-quality)
 - [License](#-license)
@@ -456,6 +457,32 @@ services:
 Redis is optional — the API logs a warning and degrades to in-process rate
 limiting and fanout if it is unreachable. On a single-instance homelab that
 costs you very little.
+
+---
+
+## 📱 Mobile: iOS & Android
+
+There is no separate mobile codebase — both platforms reuse the same
+`web/` app, on purpose. The product is real-time (websockets, live chat,
+auth-gated everything); a bundled static snapshot on a phone would be stale
+the moment it shipped.
+
+**iOS** gets a real installable PWA instead of a native app. Apple doesn't
+allow installing an app outside the App Store/TestFlight without a
+developer account — "Add to Home Screen" from Safari is the actual
+sideload-free path, and it now behaves like one: standalone window (no
+Safari chrome), a proper icon and name, and a real offline page instead of
+Safari's own error screen when there's no connection. That's
+`web/app/manifest.ts`, `web/app/apple-icon.tsx`, and `web/app/sw.js/route.ts`
+— no `public/` directory needed, consistent with how this app already
+generates its favicon and OG image.
+
+**Android** gets an actual installable APK: a [Capacitor](https://capacitorjs.com)
+project at [`mobile/`](mobile/) whose WebView points at wherever `web/` is
+deployed — same idea as the PWA, just packaged as a real app with its own
+icon, splash screen, and launcher entry. See [`mobile/README.md`](mobile/README.md)
+for how to build it (needs Android Studio; this repo doesn't ship a
+pre-built APK since it depends on knowing where *your* instance is running).
 
 ---
 

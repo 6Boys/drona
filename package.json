@@ -4,7 +4,8 @@
   "private": true,
   "description": "DronaSphere — campus-verified social app. Go API + Next.js web + Prisma/Postgres + Redis.",
   "workspaces": [
-    "web"
+    "web",
+    "mobile"
   ],
   "scripts": {
     "infra:up": "docker compose up -d postgres redis",
@@ -27,7 +28,9 @@
     "test:web": "npm --workspace web run test",
     "lint:web": "npm --workspace web run lint",
     "build:web": "npm --workspace web run build",
-    "build:api": "cd api && go build -o bin/api ./cmd/api"
+    "build:api": "cd api && go build -o bin/api ./cmd/api",
+    "mobile:sync": "npm --workspace mobile run sync",
+    "mobile:open": "npm --workspace mobile run open:android"
   },
   "devDependencies": {
     "@types/node": "^24.7.0",

@@ -3,6 +3,7 @@ import Script from "next/script";
 import { Inter, Instrument_Serif, JetBrains_Mono } from "next/font/google";
 import { AuthProvider } from "@/lib/auth-context";
 import { ToastProvider } from "@/components/ui/Toast";
+import { ServiceWorkerRegister } from "@/components/pwa/ServiceWorkerRegister";
 import "./globals.css";
 
 const inter = Inter({
@@ -52,6 +53,14 @@ export const metadata: Metadata = {
     title: "DronaSphere — your campus, in one place",
     description: DESCRIPTION,
   },
+  // iOS ignores the web manifest for "Add to Home Screen" polish — this is
+  // the actual mechanism that gets a standalone (no Safari chrome) window,
+  // the right title under the icon, and a sane status bar over a dark app.
+  appleWebApp: {
+    capable: true,
+    title: "DronaSphere",
+    statusBarStyle: "black-translucent",
+  },
 };
 
 export const viewport: Viewport = {
@@ -60,6 +69,9 @@ export const viewport: Viewport = {
   themeColor: "#100f14",
   width: "device-width",
   initialScale: 1,
+  // Lets content extend under the notch/home-indicator on iPhones when
+  // installed as a standalone PWA, instead of a dead black bar there.
+  viewportFit: "cover",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
@@ -88,6 +100,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         >
           Skip to content
         </a>
+        <ServiceWorkerRegister />
         <AuthProvider>
           <ToastProvider>{children}</ToastProvider>
         </AuthProvider>

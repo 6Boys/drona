@@ -1,0 +1,19 @@
+{
+  "name": "dronasphere-mobile",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Android app shell for DronaSphere — a Capacitor WebView pointed at the real deployed site. See README.md in this directory before building.",
+  "scripts": {
+    "sync": "cap sync android",
+    "open:android": "cap open android",
+    "build:android:debug": "cd android && ./gradlew assembleDebug",
+    "build:android:release": "cd android && ./gradlew bundleRelease"
+  },
+  "dependencies": {
+    "@capacitor/android": "^8.5.2",
+    "@capacitor/core": "^8.5.2"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "^8.5.2"
+  }
+}

@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Same values as --plum-700 / --plum-900 / --plum-400 in
+         web/app/globals.css — the native chrome (status bar tint, any
+         AppCompat-styled system UI) matches the web app's own palette
+         instead of drifting from it. -->
+    <color name="colorPrimary">#4f1f4a</color>
+    <color name="colorPrimaryDark">#2e1230</color>
+    <color name="colorAccent">#9a5c90</color>
+</resources>
