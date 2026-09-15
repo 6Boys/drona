@@ -6,6 +6,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { PageBody, TopBar } from "@/components/app-shell/TopBar";
 import { MatchModal } from "@/components/dating/MatchModal";
 import { SwipeDeck, type SwipeDecision } from "@/components/dating/SwipeDeck";
+import { DatingBgWidgets } from "@/components/dating/DatingBgWidgets";
 import { LikesYouGrid } from "@/components/dating/LikesYouGrid";
 import { MatchesPanel } from "@/components/dating/MatchesPanel";
 import { DatingProfileEditor } from "@/components/dating/DatingProfileEditor";
@@ -22,7 +23,7 @@ import { useToast } from "@/components/ui/Toast";
 import { api, errorMessage } from "@/lib/api";
 import { useAuth } from "@/lib/auth-context";
 import { dating, useDatingProfile, useDeck, useLikes, useMatches } from "@/lib/dating-store";
-import type { DatingMatch, MeResponse } from "@/lib/types";
+import type { DatingCandidate, DatingMatch, MeResponse } from "@/lib/types";
 
 type Tab = "deck" | "likes" | "matches" | "you";
 
@@ -87,6 +88,7 @@ export default function DatingPage() {
   const [tab, setTab] = useState<Tab>("deck");
   const [busy, setBusy] = useState(false);
   const [matched, setMatched] = useState<DatingMatch | null>(null);
+  const [front, setFront] = useState<DatingCandidate | undefined>();
 
   const deck = useDeck();
   const likes = useLikes();
@@ -144,7 +146,9 @@ export default function DatingPage() {
   const off = !me.user.loveFinderEnabled;
 
   return (
-    <div data-theme="dating">
+    <div data-theme="dating" className="relative">
+      {tab === "deck" && !gated && !off && <DatingBgWidgets candidate={front} />}
+
       <TopBar
         title="Love Finder"
         subtitle="Campus-only, opt-in, 18+. Matches wilt quietly if nobody says anything."
@@ -171,7 +175,7 @@ export default function DatingPage() {
         }
       />
 
-      <PageBody width={tab === "you" || tab === "likes" ? "lg" : "md"}>
+      <PageBody width={tab === "you" || tab === "likes" ? "lg" : "md"} className="relative z-10">
         {gated && me.user.isAdult !== false && !me.user.photoVerified ? (
           // The one real gate left once age is cleared: api/internal/domain's
           // CanUseDating requires a photo on file, and nothing else in this
@@ -222,6 +226,7 @@ export default function DatingPage() {
                       candidates={deck.items}
                       twinklesLeft={deck.twinklesLeft}
                       onDecide={swipe}
+                      onTopChange={setFront}
                       onTwinkleBlocked={() =>
                         toast("No Twinkles left today. One a day, on purpose.", "info")
                       }

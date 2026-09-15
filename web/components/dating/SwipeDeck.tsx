@@ -113,12 +113,17 @@ export function SwipeDeck({
   twinklesLeft,
   onDecide,
   onTwinkleBlocked,
+  onTopChange,
   emptyState,
 }: {
   candidates: DatingCandidate[];
   twinklesLeft: number;
   onDecide: (decision: SwipeDecision) => void;
   onTwinkleBlocked: () => void;
+  /** Fires whenever whoever is on top of the deck changes — including to
+   * undefined once the deck empties. Lets the page mirror the front card
+   * somewhere outside the deck itself (see DatingBgWidgets). */
+  onTopChange?: (candidate: DatingCandidate | undefined) => void;
   emptyState: React.ReactNode;
 }) {
   const [deck, setDeck] = useState(candidates);
@@ -141,6 +146,10 @@ export function SwipeDeck({
     x.set(0);
     y.set(0);
   }, [top?.id, x, y]);
+
+  useEffect(() => {
+    onTopChange?.(top);
+  }, [top, onTopChange]);
 
   const commit = useCallback(
     async (
