@@ -5,6 +5,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { CommandPalette } from "./CommandPalette";
 import { Sidebar } from "./Sidebar";
 import { MobileNav } from "./MobileNav";
+import { InstallPrompt } from "@/components/pwa/InstallPrompt";
 import { Logo } from "@/components/ui/Logo";
 import { SpinnerIcon } from "@/components/ui/Icons";
 import { useAuth } from "@/lib/auth-context";
@@ -45,6 +46,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         </main>
         <MobileNav />
         <CommandPalette />
+        <InstallPrompt />
       </div>
     </NightProvider>
   );
