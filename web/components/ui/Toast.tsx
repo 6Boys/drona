@@ -32,7 +32,13 @@ export function ToastProvider({ children }: { children: ReactNode }) {
       {children}
       <div
         aria-live="polite"
-        className="pointer-events-none fixed inset-x-3 bottom-3 z-[60] flex flex-col items-center gap-2 sm:inset-x-auto sm:right-5 sm:bottom-5 sm:items-end"
+        // bottom clears the floating MobileNav pill (~80px incl. its own
+        // safe-area padding) below the lg breakpoint where that nav is
+        // visible and centered the same way this toast stack is — otherwise
+        // a toast renders on top of it, half-hiding both. sm:bottom-5 reverts
+        // to the tight corner offset once the toast moves to the
+        // right-aligned desktop layout, which the centered nav never reaches.
+        className="pointer-events-none fixed inset-x-3 bottom-[calc(5.5rem+env(safe-area-inset-bottom))] z-[60] flex flex-col items-center gap-2 sm:inset-x-auto sm:right-5 sm:bottom-5 sm:items-end"
       >
         {toasts.map((t) => (
           <div
