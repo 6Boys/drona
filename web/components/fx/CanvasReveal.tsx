@@ -40,6 +40,12 @@ export function CanvasReveal({
   const ref = useRef<HTMLCanvasElement | null>(null);
   const activeRef = useRef(active);
   activeRef.current = active;
+  // Non-null while an rAF is actually scheduled; null while asleep. A second
+  // effect below reads this to know whether toggling `active` needs to wake
+  // the loop back up, or whether it's already running and will notice on its
+  // own next frame.
+  const frameRef = useRef<number | null>(null);
+  const wakeRef = useRef<(() => void) | null>(null);
 
   // Callers pass an array literal, so depend on its contents rather than its
   // identity — otherwise every parent render would re-seed the whole field.
@@ -59,7 +65,6 @@ export function CanvasReveal({
     let width = 0;
     let height = 0;
     let progress = 0;
-    let frame = 0;
 
     const seed = () => {
       const cols = Math.ceil(width / step);
@@ -91,41 +96,60 @@ export function CanvasReveal({
       seed();
     };
 
-    const draw = (time: number) => {
+    // Every mounted card that has ever been hovered once kept requesting a
+    // frame forever after, even fully faded out and drawing nothing — a
+    // canvas per profile card, all spinning rAF at 60fps for the rest of the
+    // session. This sleeps once progress has actually settled at rest, and
+    // only schedules another frame while there's real motion left to paint.
+    const loop = (time: number) => {
       const target = activeRef.current ? 1 : 0;
       progress += (target - progress) * (reduced ? 1 : 0.07 * speed);
 
       ctx.clearRect(0, 0, width, height);
-      if (progress < 0.004) return;
-
-      for (const dot of dots) {
-        // Each dot only starts once the wave has passed its own delay.
-        const local = (progress - dot.delay) / (1 - dot.delay);
-        if (local <= 0) continue;
-        const flicker = reduced ? 1 : 0.72 + Math.sin(time * 0.0022 + dot.phase) * 0.28;
-        ctx.globalAlpha = Math.min(local, 1) * dot.alpha * flicker;
-        ctx.fillStyle = dot.colour;
-        ctx.fillRect(dot.x, dot.y, dotSize, dotSize);
+      if (progress >= 0.004) {
+        for (const dot of dots) {
+          // Each dot only starts once the wave has passed its own delay.
+          const local = (progress - dot.delay) / (1 - dot.delay);
+          if (local <= 0) continue;
+          const flicker = reduced ? 1 : 0.72 + Math.sin(time * 0.0022 + dot.phase) * 0.28;
+          ctx.globalAlpha = Math.min(local, 1) * dot.alpha * flicker;
+          ctx.fillStyle = dot.colour;
+          ctx.fillRect(dot.x, dot.y, dotSize, dotSize);
+        }
+        ctx.globalAlpha = 1;
       }
-      ctx.globalAlpha = 1;
+
+      const settled = Math.abs(target - progress) < 0.001;
+      if (settled) {
+        frameRef.current = null;
+        return;
+      }
+      frameRef.current = requestAnimationFrame(loop);
     };
 
-    const loop = (time: number) => {
-      draw(time);
-      frame = requestAnimationFrame(loop);
+    wakeRef.current = () => {
+      if (frameRef.current === null) frameRef.current = requestAnimationFrame(loop);
     };
 
     resize();
-    frame = requestAnimationFrame(loop);
+    frameRef.current = requestAnimationFrame(loop);
 
     const ro = new ResizeObserver(resize);
     ro.observe(canvas);
 
     return () => {
-      cancelAnimationFrame(frame);
+      if (frameRef.current !== null) cancelAnimationFrame(frameRef.current);
+      frameRef.current = null;
+      wakeRef.current = null;
       ro.disconnect();
     };
   }, [colourKey, dotSize, gap, speed]);
+
+  // Hovering back onto a card that had already faded out and gone to sleep
+  // needs something to restart its loop — the effect above only runs once.
+  useEffect(() => {
+    wakeRef.current?.();
+  }, [active]);
 
   return (
     <canvas
