@@ -1,5 +1,23 @@
 apply plugin: 'com.android.application'
 
+// The WebView loads whatever `npx cap sync` baked into capacitor.config.json.
+// When that address is plain http:// — a LAN box, a Tailscale IP, any homelab
+// deployment without TLS — Android blocks the load outright from targetSdk 28
+// onward and the app opens on a blank screen (ERR_CLEARTEXT_NOT_PERMITTED).
+// Capacitor's own `server.cleartext` flag does not set this; it is an Android
+// platform permission and has to be declared in the manifest.
+//
+// Read back the synced config rather than an env var, so this can never
+// disagree with the URL the app actually ships with: re-syncing against an
+// https:// deployment turns cleartext off again on the next build, with no
+// second switch to remember.
+def capacitorConfigFile = file('src/main/assets/capacitor.config.json')
+def capacitorServerUrl = capacitorConfigFile.exists()
+        ? (new groovy.json.JsonSlurper().parseText(capacitorConfigFile.text).server?.url ?: '')
+        : ''
+def allowCleartext = capacitorServerUrl.startsWith('http://')
+logger.lifecycle("DronaSphere: server.url=${capacitorServerUrl ?: '(none)'}, cleartext=${allowCleartext}")
+
 android {
     namespace = "com.dronasphere.app"
     compileSdk = rootProject.ext.compileSdkVersion
@@ -10,6 +28,7 @@ android {
         versionCode 1
         versionName "1.0"
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
+        manifestPlaceholders = [usesCleartextTraffic: allowCleartext.toString()]
         aaptOptions {
              // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.
              // Default: https://android.googlesource.com/platform/frameworks/base/+/282e181b58cf72b6ca770dc7ca5f91f135444502/tools/aapt/AaptAssets.cpp#61

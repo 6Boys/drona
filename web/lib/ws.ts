@@ -14,7 +14,11 @@ let socket: WebSocket | null = null;
 let connecting = false;
 let backoff = 1000;
 const handlers = new Set<Handler>();
-const channels = new Set<string>();
+// Channel -> how many mounted components asked for it. Sidebar, NotificationBell
+// and ThreadList all want the same `user:<id>` feed, so a plain set would let
+// whichever unmounts first unsubscribe the channel out from under the others —
+// and since the set is also what a reconnect replays, they'd never get it back.
+const channels = new Map<string, number>();
 
 function send(frame: Record<string, unknown>) {
   if (socket?.readyState === WebSocket.OPEN) socket.send(JSON.stringify(frame));
@@ -34,7 +38,7 @@ function connect() {
   ws.onopen = () => {
     connecting = false;
     backoff = 1000;
-    for (const channel of channels) send({ type: "subscribe", channel });
+    for (const channel of channels.keys()) send({ type: "subscribe", channel });
   };
 
   ws.onmessage = (raw) => {
@@ -82,14 +86,20 @@ export function useLive(channelList: string[], onEvent: Handler, enabled = true)
 
     const mine = key.split("|");
     for (const channel of mine) {
-      channels.add(channel);
-      send({ type: "subscribe", channel });
+      const next = (channels.get(channel) ?? 0) + 1;
+      channels.set(channel, next);
+      if (next === 1) send({ type: "subscribe", channel });
     }
     connect();
 
     return () => {
       handlers.delete(handler);
       for (const channel of mine) {
+        const next = (channels.get(channel) ?? 1) - 1;
+        if (next > 0) {
+          channels.set(channel, next);
+          continue;
+        }
         channels.delete(channel);
         send({ type: "unsubscribe", channel });
       }

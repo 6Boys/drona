@@ -79,6 +79,7 @@ export function Conversation({ threadId }: { threadId: string }) {
 
   const bottomRef = useRef<HTMLDivElement>(null);
   const typingSentAt = useRef(0);
+  const typingTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // The API returns newest-first (keyset cursor walks backwards); the UI reads
   // oldest-at-top, so flip it for display rather than for storage.
@@ -109,8 +110,15 @@ export function Conversation({ threadId }: { threadId: string }) {
       if (event.type === "typing") {
         const payload = event.payload as TypingPayload;
         if (payload.userId === viewerId) return;
+        // One timer, replaced on every keystroke they send. Left uncleared,
+        // the previous event's timer would blank "…is typing" four seconds
+        // after they started, while they were still typing.
+        if (typingTimer.current) clearTimeout(typingTimer.current);
+        typingTimer.current = null;
         setTypingBy(payload.typing ? payload.handle : null);
-        if (payload.typing) setTimeout(() => setTypingBy(null), 4000);
+        if (payload.typing) {
+          typingTimer.current = setTimeout(() => setTypingBy(null), 4000);
+        }
       }
     },
     [threadId, setItems, viewerId],
@@ -118,12 +126,21 @@ export function Conversation({ threadId }: { threadId: string }) {
 
   useLive([channelFor.thread(threadId)], onEvent);
 
+  const newestId = messages.at(-1)?.id;
+
+  useEffect(() => () => {
+    if (typingTimer.current) clearTimeout(typingTimer.current);
+  }, []);
+
+  // Keyed on the newest message, not on the count: "load earlier" prepends a
+  // page of history, which grows the count too, and scrolling to the bottom
+  // there threw the reader back to the newest message — the opposite of what
+  // they just asked for.
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ block: "end" });
-  }, [messages.length]);
+  }, [newestId]);
 
   // Mark read whenever the newest message changes while this thread is open.
-  const newestId = messages.at(-1)?.id;
   useEffect(() => {
     if (!newestId) return;
     api.post(`/v1/threads/${threadId}/read`, { messageId: newestId }).catch(() => {});

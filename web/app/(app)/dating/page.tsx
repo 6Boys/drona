@@ -225,6 +225,7 @@ export default function DatingPage() {
                       twinklesLeft={deck.twinklesLeft}
                       onDecide={swipe}
                       onTopChange={setFront}
+                      onRemove={(candidate) => advance(candidate.handle)}
                       onTwinkleBlocked={() =>
                         toast("No Twinkles left today. One a day, on purpose.", "info")
                       }
@@ -345,8 +346,18 @@ export default function DatingPage() {
                     </Button>
                   </header>
 
-                  {card.loading || !card.profile ? (
+                  {card.loading ? (
                     <Skeleton className="h-96 rounded-[var(--r-xl)]" />
+                  ) : !card.profile ? (
+                    <Panel
+                      title="Couldn't load your card"
+                      body={errorMessage(card.error, "Your card is saved — we just couldn't fetch it right now.")}
+                      action={
+                        <Button variant="outline" onClick={() => void card.reload()}>
+                          Try again
+                        </Button>
+                      }
+                    />
                   ) : (
                     <DatingProfileEditor
                       user={me.user}

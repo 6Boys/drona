@@ -1031,7 +1031,12 @@ route("GET", "/v1/dating/deck", (ctx) => {
         u.photoVerified &&
         // Same rule the real deck applies: nothing written, not in the deck.
         (profileFor(u.id).prompts ?? []).length > 0 &&
-        !swipes.has(`${ctx.user.id}>${u.id}`),
+        !swipes.has(`${ctx.user.id}>${u.id}`) &&
+        // A block hides the deck card in both directions — without this,
+        // blocking someone from the deck only removed them until the next
+        // reload handed them straight back.
+        !blocks.has(`${ctx.user.id}>${u.id}`) &&
+        !blocks.has(`${u.id}>${ctx.user.id}`),
     )
     .slice(0, Number(ctx.query.limit ?? 20))
     .map((u) => candidateOf(u, ctx.user.id));

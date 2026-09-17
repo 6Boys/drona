@@ -1,9 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- Same values as --plum-700 / --plum-900 / --plum-400 in
+    <!-- Same values as the plum-700 / plum-900 / plum-400 custom properties in
          web/app/globals.css — the native chrome (status bar tint, any
          AppCompat-styled system UI) matches the web app's own palette
-         instead of drifting from it. -->
+         instead of drifting from it. (Written without the CSS variable's
+         leading double dash: two hyphens in a row are not legal inside an XML
+         comment, and aapt rejects the whole resource file for it.) -->
     <color name="colorPrimary">#4f1f4a</color>
     <color name="colorPrimaryDark">#2e1230</color>
     <color name="colorAccent">#9a5c90</color>

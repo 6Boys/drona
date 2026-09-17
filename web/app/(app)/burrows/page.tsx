@@ -66,28 +66,58 @@ export default function BurrowsPage() {
   const creditRef = useRef(credit);
   creditRef.current = credit;
 
+  const leftRef = useRef(left);
+  leftRef.current = left;
+  const finishingRef = useRef(false);
+
+  // A deadline, not a tally of ticks. setInterval is throttled hard the moment
+  // this is backgrounded — and in the Android WebView it stops outright while
+  // the app is suspended — so counting one second per tick made a 25-minute
+  // block quietly take far longer than 25 minutes of real time. Reading the
+  // clock each tick means time that passed off-screen still counts, and the
+  // visibility listener re-reads it the instant the screen comes back rather
+  // than waiting for the next interval.
   useEffect(() => {
     if (!running) return;
-    const id = setInterval(() => {
-      setLeft((prev) => {
-        if (prev > 1) return prev - 1;
+    const deadline = Date.now() + leftRef.current * 1000;
 
-        // Block finished: credit focus time, then flip to the other phase.
-        setPhase((current) => {
-          if (current === "focus") {
-            creditRef.current(room.focus);
-            setCompleted((c) => c + 1);
-            setLeft(room.brk * 60);
-            return "break";
-          }
-          setLeft(room.focus * 60);
-          return "focus";
-        });
-        return 0;
-      });
-    }, 1000);
-    return () => clearInterval(id);
-  }, [running, room]);
+    const tick = () => setLeft(Math.max(0, Math.round((deadline - Date.now()) / 1000)));
+
+    const id = setInterval(tick, 500);
+    const onVisibility = () => {
+      if (document.visibilityState === "visible") tick();
+    };
+    document.addEventListener("visibilitychange", onVisibility);
+    return () => {
+      clearInterval(id);
+      document.removeEventListener("visibilitychange", onVisibility);
+    };
+  }, [running, phase, room]);
+
+  // The phase flip lives here rather than inside a setState updater. React is
+  // free to run an updater more than once for the same update — StrictMode
+  // does it deliberately — and the old version credited the server from inside
+  // one, so a finished block could POST /v1/owl/burrow twice and count itself
+  // twice. finishingRef makes the crossing idempotent no matter how often this
+  // effect is re-run for the same zero.
+  useEffect(() => {
+    if (!running || left > 0) {
+      finishingRef.current = false;
+      return;
+    }
+    if (finishingRef.current) return;
+    finishingRef.current = true;
+
+    if (phase === "focus") {
+      void creditRef.current(room.focus);
+      setCompleted((c) => c + 1);
+      setPhase("break");
+      setLeft(room.brk * 60);
+      return;
+    }
+    setPhase("focus");
+    setLeft(room.focus * 60);
+  }, [running, left, phase, room]);
 
   const selectRoom = (next: Room) => {
     setRoom(next);

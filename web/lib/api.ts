@@ -180,13 +180,50 @@ async function request<T>(path: string, opts: RequestOptions = {}): Promise<T> {
 
   if (res.status === 204) return undefined as T;
 
-  const text = await res.text();
-  const data = text ? JSON.parse(text) : undefined;
+  const { data, unparseable } = await readJson(res);
 
   if (!res.ok) {
-    throw new ApiError(res.status, data as ApiErrorBody);
+    throw toApiError(res.status, data);
+  }
+  if (unparseable) {
+    throw toApiError(res.status, undefined);
   }
   return data as T;
+}
+
+/* -----------------------------------------------------------------------------
+   Not every response that reaches here is JSON, even when the API only ever
+   speaks JSON: a gateway 502, a Next error page, or — the one that actually
+   bites on a phone — a captive-portal login page all answer with HTML. Parsing
+   that raw threw a SyntaxError straight past every caller's `catch (err)`, so
+   the user read "Unexpected token '<'". An error response with no body at all
+   was worse: `new ApiError(status, undefined)` dereferenced `body.error` and
+   threw a TypeError from inside the error path itself.
+   -------------------------------------------------------------------------- */
+
+async function readJson(res: Response): Promise<{ data: unknown; unparseable: boolean }> {
+  const text = await res.text();
+  if (!text) return { data: undefined, unparseable: false };
+  try {
+    return { data: JSON.parse(text), unparseable: false };
+  } catch {
+    return { data: undefined, unparseable: true };
+  }
+}
+
+function toApiError(status: number, data: unknown): ApiError {
+  const body = data as ApiErrorBody | undefined;
+  if (body?.error?.message) return new ApiError(status, body);
+  return new ApiError(status, {
+    error: {
+      code: "UNREADABLE_RESPONSE",
+      message: `the server answered ${status} with no readable body`,
+      friendly:
+        status >= 500
+          ? "the server is having a moment — try that again in a bit"
+          : "that didn't go through — check your connection and try again",
+    },
+  });
 }
 
 export const api = {
@@ -239,9 +276,9 @@ export async function uploadMedia(file: File): Promise<MediaUploadResult> {
     clearTimeout(timeout);
   }
 
-  const text = await res.text();
-  const data = text ? JSON.parse(text) : undefined;
-  if (!res.ok) throw new ApiError(res.status, data as ApiErrorBody);
+  const { data, unparseable } = await readJson(res);
+  if (!res.ok) throw toApiError(res.status, data);
+  if (unparseable) throw toApiError(res.status, undefined);
   return data as MediaUploadResult;
 }
 

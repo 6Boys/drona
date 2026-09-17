@@ -70,15 +70,24 @@ export function useDeck() {
   return { items, twinklesLeft, setTwinklesLeft, loading, error, reload: load, advance };
 }
 
+// try/finally with no catch was the shape here: the rejection escaped as an
+// unhandled promise rejection, and because `loading` still flipped to false the
+// screen settled into an empty list (or, for the card, a skeleton that never
+// resolves) with no error and no way to retry. Each of these now records the
+// failure so the caller can say so and offer a reload.
 export function useLikes() {
   const [items, setItems] = useState<DatingLike[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<unknown>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
+    setError(null);
     try {
       const res = await api.get<{ items: DatingLike[] }>("/v1/dating/likes", { limit: 30 });
       setItems(res.items ?? []);
+    } catch (err) {
+      setError(err);
     } finally {
       setLoading(false);
     }
@@ -88,18 +97,22 @@ export function useLikes() {
     void load();
   }, [load]);
 
-  return { items, loading, reload: load };
+  return { items, loading, error, reload: load };
 }
 
 export function useMatches() {
   const [items, setItems] = useState<DatingMatch[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<unknown>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
+    setError(null);
     try {
       const res = await api.get<{ items: DatingMatch[] }>("/v1/dating/matches");
       setItems(res.items ?? []);
+    } catch (err) {
+      setError(err);
     } finally {
       setLoading(false);
     }
@@ -109,29 +122,32 @@ export function useMatches() {
     void load();
   }, [load]);
 
-  return { items, loading, reload: load };
+  return { items, loading, error, reload: load };
 }
 
 export function useDatingProfile() {
   const [profile, setProfile] = useState<DatingProfile | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<unknown>(null);
 
-  useEffect(() => {
-    let alive = true;
-    void (async () => {
-      try {
-        const p = await api.get<DatingProfile>("/v1/dating/profile");
-        if (alive) setProfile(p);
-      } finally {
-        if (alive) setLoading(false);
-      }
-    })();
-    return () => {
-      alive = false;
-    };
+  const load = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const p = await api.get<DatingProfile>("/v1/dating/profile");
+      setProfile(p);
+    } catch (err) {
+      setError(err);
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
-  return { profile, setProfile, loading };
+  useEffect(() => {
+    void load();
+  }, [load]);
+
+  return { profile, setProfile, loading, error, reload: load };
 }
 
 /* ----------------------------------------------------------------- actions -- */

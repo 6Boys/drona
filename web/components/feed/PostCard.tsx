@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { Avatar } from "@/components/ui/Avatar";
 import { Glow } from "@/components/fx/Glow";
 import { Badge } from "@/components/ui/Badge";
@@ -34,17 +34,31 @@ export function PostCard({
 }) {
   const toast = useToast();
   const [reacting, setReacting] = useState(false);
+  const [bookmarking, setBookmarking] = useState(false);
+
+  // `post` is a prop, so the copy captured when a handler starts goes stale the
+  // moment anything else about the post lands mid-flight — a vote, someone
+  // else's reaction. Spreading that captured copy on the way back silently
+  // reverted whatever arrived in between; merge into the current one instead.
+  const postRef = useRef(post);
+  postRef.current = post;
 
   const toggleBookmark = async () => {
-    const optimistic = !post.viewerBookmarked;
-    onChange({ ...post, viewerBookmarked: optimistic });
+    // Bookmarking is a toggle, so a double-tap isn't idempotent the way a
+    // second vote would be: it saved and then immediately unsaved.
+    if (bookmarking) return;
+    setBookmarking(true);
+    const optimistic = !postRef.current.viewerBookmarked;
+    onChange({ ...postRef.current, viewerBookmarked: optimistic });
     try {
       const result = await api.post<BookmarkResult>(`/v1/posts/${post.id}/bookmark`);
-      onChange({ ...post, viewerBookmarked: result.bookmarked });
+      onChange({ ...postRef.current, viewerBookmarked: result.bookmarked });
       toast(result.bookmarked ? "Saved" : "Removed from saved", "success");
     } catch (err) {
-      onChange({ ...post, viewerBookmarked: !optimistic });
+      onChange({ ...postRef.current, viewerBookmarked: !optimistic });
       toast(errorMessage(err, "could not save that"), "error");
+    } finally {
+      setBookmarking(false);
     }
   };
 
@@ -53,7 +67,7 @@ export function PostCard({
     setReacting(true);
     try {
       const result = await api.post<ReactResult>(`/v1/posts/${post.id}/react`, { sticker });
-      onChange({ ...post, stickers: result.stickers });
+      onChange({ ...postRef.current, stickers: result.stickers });
     } catch (err) {
       toast(errorMessage(err, "reaction didn't stick"), "error");
     } finally {

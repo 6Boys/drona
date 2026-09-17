@@ -12,6 +12,7 @@ import {
 import { ProfileCard } from "./ProfileCard";
 import { TempCandidateWidget } from "./TempCandidateWidget";
 import { LikeNoteSheet } from "./LikeNoteSheet";
+import { Dialog } from "@/components/ui/Dialog";
 import { SparkleIcon, XIcon } from "@/components/ui/Icons";
 import type { DatingCandidate, LikeTarget, SwipeAction } from "@/lib/types";
 import { cn } from "@/lib/cn";
@@ -24,6 +25,10 @@ import { cn } from "@/lib/cn";
    block is the considered one, which opens the comment sheet and lets you say
    what you're actually reacting to. Both end in the same commit, so the card
    flies away exactly once either way.
+
+   A card holds more than fits on a phone, and a touch drag can't also be a
+   scroll (see the note on the draggable card), so reading the rest is its own
+   deliberate step: "Read all of it" opens the whole profile in a dialog.
    -------------------------------------------------------------------------- */
 
 const SWIPE_THRESHOLD = 120;
@@ -114,6 +119,7 @@ export function SwipeDeck({
   onDecide,
   onTwinkleBlocked,
   onTopChange,
+  onRemove,
   emptyState,
 }: {
   candidates: DatingCandidate[];
@@ -124,10 +130,16 @@ export function SwipeDeck({
    * undefined once the deck empties. Lets the page mirror the front card
    * somewhere outside the deck itself (see DatingBgWidgets). */
   onTopChange?: (candidate: DatingCandidate | undefined) => void;
+  /** Fires when a card is dropped for a reason that isn't a swipe — a report
+   * or a block. The parent has to forget them too: dropping it only from the
+   * local copy means the next `advance()` rebuilds `candidates` and hands the
+   * blocked person straight back to the top of the deck. */
+  onRemove?: (candidate: DatingCandidate) => void;
   emptyState: React.ReactNode;
 }) {
   const [deck, setDeck] = useState(candidates);
   const [pending, setPending] = useState<LikeTarget | null>(null);
+  const [reading, setReading] = useState(false);
   const busyRef = useRef(false);
 
   const x = useMotionValue(0);
@@ -243,9 +255,24 @@ export function SwipeDeck({
             );
           })}
 
+        {/* framer-motion writes touch-action inline from the `drag` prop, and
+            that inline style outranks any class here — an unconstrained drag
+            means touch-action:none. That is deliberate: it is the only setting
+            under which all three swipes survive on a touch screen. drag="x"
+            (touch-action:pan-y) looked like it would buy native scrolling
+            inside the card, but the WebView then claims the gesture and fires
+            pointercancel about ten pixels into a horizontal drag, which kills
+            like/pass outright — measured on-device, not assumed.
+
+            The cost is that touch can't scroll ProfileCard's own overflow-y,
+            and the card's content runs roughly twice its height, so the lower
+            prompts are off-screen on a phone. "Read all of it" below is the way
+            in: a wheel still scrolls the card on desktop (touch-action only
+            governs touch), and the dialog scrolls anywhere because nothing is
+            dragging it. */}
         <motion.div
           key={top.id}
-          className="absolute inset-0 z-20 cursor-grab touch-pan-y active:cursor-grabbing"
+          className="absolute inset-0 z-20 cursor-grab active:cursor-grabbing"
           style={{ x, y, rotate }}
           drag
           dragConstraints={{ left: 0, right: 0, top: 0, bottom: 0 }}
@@ -256,8 +283,19 @@ export function SwipeDeck({
             candidate={top}
             interactive
             onLike={(target) => setPending(target)}
-            onRemove={() => setDeck((prev) => prev.slice(1))}
+            onRemove={() => {
+              onRemove?.(top);
+              setDeck((prev) => prev.slice(1));
+            }}
           />
+
+          <button
+            type="button"
+            onClick={() => setReading(true)}
+            className="glass glass-pill absolute bottom-3 left-1/2 z-30 -translate-x-1/2 cursor-pointer px-3.5 py-1.5 text-[0.75rem] text-text"
+          >
+            Read all of it
+          </button>
 
           <Verdict label="Like" style={{ opacity: likeOpacity }} className="left-8 text-accent" />
           <Verdict label="Pass" style={{ opacity: nopeOpacity }} className="right-8 text-muted" />
@@ -290,6 +328,26 @@ export function SwipeDeck({
       <p className="mono-label mt-5">
         {deck.length} {deck.length === 1 ? "card" : "cards"} left · drag, or tap a heart to say why
       </p>
+
+      {/* Nothing is dragging this copy, so it keeps its own scrolling on every
+          device — including the phone, where the card in the deck cannot. */}
+      <Dialog open={reading} onClose={() => setReading(false)} title={top.displayName} width="sm">
+        <div className="h-[65dvh] max-h-[32rem]">
+          <ProfileCard
+            candidate={top}
+            interactive
+            onLike={(target) => {
+              setReading(false);
+              setPending(target);
+            }}
+            onRemove={() => {
+              setReading(false);
+              onRemove?.(top);
+              setDeck((prev) => prev.slice(1));
+            }}
+          />
+        </div>
+      </Dialog>
 
       <LikeNoteSheet
         candidate={pending ? top : null}

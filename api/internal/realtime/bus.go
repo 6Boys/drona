@@ -225,6 +225,7 @@ type memorySubscription struct {
 	channels  map[string]struct{}
 	out       chan Event
 	done      chan struct{}
+	closed    bool // guarded by mu; see deliver
 	closeOnce sync.Once
 }
 
@@ -235,9 +236,24 @@ func (s *memorySubscription) listening(channel string) bool {
 	return ok
 }
 
+// deliver runs on the publisher's goroutine, which is nobody's HTTP handler —
+// a panic here is not caught by the recover middleware and takes the process
+// down with it. That is exactly what the previous `select` did: every case of a
+// select is considered, and a send to a closed channel panics when chosen, so a
+// subscription closing (any WebSocket disconnect) while a publish to one of its
+// channels was in flight killed the server about half the time. Reading s.done
+// in the select did not help — a ready receive does not win the race, select
+// picks among ready cases at random.
+//
+// Holding the read lock across the send makes the send and Close's close()
+// mutually exclusive without serialising publishers against each other.
 func (s *memorySubscription) deliver(ev Event) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	if s.closed {
+		return
+	}
 	select {
-	case <-s.done:
 	case s.out <- ev:
 	default: // slow subscriber, drop rather than block the publisher
 	}
@@ -274,7 +290,12 @@ func (s *memorySubscription) Close() error {
 		s.bus.mu.Lock()
 		delete(s.bus.subs, s)
 		s.bus.mu.Unlock()
+		// Taking the write lock waits for any deliver already inside its send
+		// to finish, and stops later ones before they reach it.
+		s.mu.Lock()
+		s.closed = true
 		close(s.out)
+		s.mu.Unlock()
 	})
 	return nil
 }
