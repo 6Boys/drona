@@ -5,7 +5,6 @@ import {
   MoonIcon,
   BookIcon,
   HeartIcon,
-  TimerIcon,
   UserIcon,
   BookmarkIcon,
 } from "@/components/ui/Icons";
@@ -27,10 +26,7 @@ export const PRIMARY_NAV: NavItem[] = [
   { href: "/chats", label: "Chats", icon: MessageIcon },
 ];
 
-export const NIGHT_NAV: NavItem[] = [
-  { href: "/owl-board", label: "Owl Board", icon: MoonIcon },
-  { href: "/burrows", label: "Study Burrows", icon: TimerIcon },
-];
+export const NIGHT_NAV: NavItem[] = [{ href: "/owl-board", label: "Night Shift", icon: MoonIcon }];
 
 export const CAMPUS_NAV: NavItem[] = [
   { href: "/notes", label: "Note Locker", icon: BookIcon },

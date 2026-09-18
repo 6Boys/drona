@@ -160,7 +160,7 @@ export function NotificationBell() {
                 compact
                 icon={BellIcon}
                 title="Nothing new"
-                body="Follows, replies and Owl Board changes land here."
+                body="Follows, replies and Night Shift changes land here."
               />
             ) : (
               feed.data.items.map((item) => (

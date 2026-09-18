@@ -950,7 +950,7 @@ const datingMatches = []; // {id, a, b, threadId, createdAt, wiltsAt}
 const DAILY_TWINKLES = 1;
 const MATCH_WILT_DAYS = 7;
 const MIN_DATING_PHOTOS = 2;
-const MAX_DATING_PHOTOS = 4;
+const MAX_DATING_PHOTOS = 7;
 
 // Normalizes field-by-field, not just "missing entry -> whole default object":
 // DEMO_CARDS (seedDatingDemo, below) predates `photos` and stores profiles

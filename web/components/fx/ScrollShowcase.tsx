@@ -189,7 +189,7 @@ export function OwlScreenPreview() {
   return (
     <div className="flex h-full flex-col bg-bg pt-8">
       <div className="flex items-center gap-2 border-b border-border px-3 py-2.5">
-        <span className="text-[0.6875rem] font-medium text-text">Owl Board</span>
+        <span className="text-[0.6875rem] font-medium text-text">Night Shift</span>
         <span className="ml-auto rounded-full border border-[color-mix(in_oklab,var(--accent)_35%,transparent)] bg-accent-wash px-1.5 py-0.5 text-[0.5625rem] text-accent-hi">
           <MoonIcon size={9} className="inline" /> curfew 03:00
         </span>

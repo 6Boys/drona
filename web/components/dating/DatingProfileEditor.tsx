@@ -27,7 +27,7 @@ const MAX_INTERESTS = 6;
 const ANSWER_LIMIT = 160;
 const VIBE_LIMIT = 60;
 const MIN_PHOTOS = 2;
-const MAX_PHOTOS = 4;
+const MAX_PHOTOS = 7;
 
 function Chip({
   label,

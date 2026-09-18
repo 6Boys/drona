@@ -9,7 +9,7 @@ const BODY = `# DronaSphere
 DronaSphere bundles the things campus life is normally split across four
 separate apps for: a threaded feed (The Nest), direct/group/broadcast chat
 (Chats, Dens & Signals), a crowdsourced note archive (Note Locker), a
-night-activity leaderboard with a hard 3am curfew (Owl Board), and an opt-in,
+night-activity leaderboard with a hard 3am curfew (Night Shift), and an opt-in,
 photo-verified dating deck for the same campus (Love Finder).
 
 Every account is tied to a verified college email; one account per email is

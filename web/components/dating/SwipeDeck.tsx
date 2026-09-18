@@ -20,15 +20,19 @@ import { cn } from "@/lib/cn";
 /* -----------------------------------------------------------------------------
    The deck.
 
-   Two ways through it, on purpose. Dragging is the fast path — right to like
-   the picture, left to pass, up to spend the Twinkle — and the heart on any
-   block is the considered one, which opens the comment sheet and lets you say
-   what you're actually reacting to. Both end in the same commit, so the card
-   flies away exactly once either way.
+   Dragging is the fast path — right to like the picture, left to pass — and
+   the heart on any block is the considered one, which opens the comment
+   sheet and lets you say what you're actually reacting to. Both end in the
+   same commit, so the card flies away exactly once either way. Twinkle used
+   to live on the up-swipe too; it's the action-row button only now, since
+   spending a limited resource on a gesture most people reach for to read
+   more, rather than to commit to anything, was the kind of accidental cost
+   nobody asked for.
 
    A card holds more than fits on a phone, and a touch drag can't also be a
    scroll (see the note on the draggable card), so reading the rest is its own
-   deliberate step: "Read all of it" opens the whole profile in a dialog.
+   surface: tap the card, swipe it up, or tap "Read all of it" — all three
+   open the same full profile in a dialog.
    -------------------------------------------------------------------------- */
 
 const SWIPE_THRESHOLD = 120;
@@ -142,7 +146,7 @@ export function SwipeDeck({
   const rotate = useTransform(x, [-280, 280], [-9, 9]);
   const likeOpacity = useTransform(x, [30, 150], [0, 1]);
   const nopeOpacity = useTransform(x, [-150, -30], [1, 0]);
-  const twinkleOpacity = useTransform(y, [-150, -40], [1, 0]);
+  const readMoreOpacity = useTransform(y, [-150, -40], [1, 0]);
 
   const top = deck[0];
 
@@ -203,7 +207,16 @@ export function SwipeDeck({
       } else if (offset.x < -SWIPE_THRESHOLD || velocity.x < -VELOCITY_THRESHOLD) {
         void commit("PASS", { x: velocity.x, y: 0 });
       } else if (offset.y < -SWIPE_THRESHOLD || velocity.y < -VELOCITY_THRESHOLD) {
-        void commit("TWINKLE", { x: 0, y: velocity.y });
+        // Used to spend a Twinkle here. Swiping up is the instinctive "show me
+        // more" gesture — Tinder's own super-like aside, most people reaching
+        // for it want to read further, not commit a limited resource by
+        // accident. Opens the same reader "Read all of it" does; the Twinkle
+        // action row button is the only way left to actually spend one, on
+        // purpose, not as an accidental side effect of trying to scroll.
+        // dragConstraints is a single point (0,0 on every side), so releasing
+        // without a commit() already snaps the card back there on its own —
+        // nothing else to do to keep it in the deck.
+        setReading(true);
       }
     },
     [commit],
@@ -285,6 +298,13 @@ export function SwipeDeck({
           dragConstraints={{ left: 0, right: 0, top: 0, bottom: 0 }}
           dragElastic={0.9}
           onDragEnd={handleDragEnd}
+          // A real drag moves the pointer well past what a browser will still
+          // synthesize a click from, so this only ever fires for an actual
+          // tap — like/pass/up-swipe all still go through handleDragEnd
+          // above, untouched. LikeButton and ReportBlockMenu already stop
+          // propagation on their own clicks, so tapping either of those still
+          // does only what it says rather than also opening the reader.
+          onClick={() => setReading(true)}
         >
           {/* scrollable={false}: a mouse wheel could scroll this, but touch
               can't (see the touch-action note above) — a card that only
@@ -307,7 +327,10 @@ export function SwipeDeck({
 
           <button
             type="button"
-            onClick={() => setReading(true)}
+            onClick={(e) => {
+              e.stopPropagation();
+              setReading(true);
+            }}
             className="glass glass-pill absolute bottom-3 left-1/2 z-30 -translate-x-1/2 cursor-pointer px-3.5 py-1.5 text-[0.75rem] text-text"
           >
             Read all of it
@@ -315,10 +338,12 @@ export function SwipeDeck({
 
           <Verdict label="Like" style={{ opacity: likeOpacity }} className="left-8 text-accent" />
           <Verdict label="Pass" style={{ opacity: nopeOpacity }} className="right-8 text-muted" />
+          {/* Was "Twinkle" — an up-swipe no longer spends one, it opens the
+              reader, same as tapping the card or the button below. */}
           <Verdict
-            label="Twinkle"
-            style={{ opacity: twinkleOpacity }}
-            className="left-1/2 -translate-x-1/2 text-gold"
+            label="Read all of it"
+            style={{ opacity: readMoreOpacity }}
+            className="left-1/2 -translate-x-1/2 text-text"
           />
         </motion.div>
       </div>

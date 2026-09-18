@@ -13,7 +13,6 @@ import {
   PlusIcon,
   SearchIcon,
   SettingsIcon,
-  TimerIcon,
   UserIcon,
 } from "@/components/ui/Icons";
 import { useApi } from "@/lib/use-api";
@@ -83,8 +82,7 @@ export function CommandPalette() {
       { id: "feed", label: "The Nest", hint: "Campus feed", icon: HomeIcon, run: go("/feed"), group: "Go to" },
       { id: "spaces", label: "Spaces", hint: "Browse every space", icon: CompassIcon, run: go("/spaces"), group: "Go to" },
       { id: "chats", label: "Chats", hint: "DMs, Dens and Signals", icon: MessageIcon, run: go("/chats"), group: "Go to" },
-      { id: "owl", label: "Owl Board", hint: "Night leaderboard", icon: MoonIcon, run: go("/owl-board"), group: "Go to" },
-      { id: "burrows", label: "Study Burrows", hint: "Focus timer", icon: TimerIcon, run: go("/burrows"), group: "Go to" },
+      { id: "owl", label: "Night Shift", hint: "Night leaderboard", icon: MoonIcon, run: go("/owl-board"), group: "Go to" },
       { id: "notes", label: "Note Locker", hint: "PYQs and notes", icon: BookIcon, run: go("/notes"), group: "Go to" },
       { id: "saved", label: "Saved posts", hint: "Your bookmarks", icon: BookIcon, run: go("/saved"), group: "Go to" },
       { id: "dating", label: "Love Finder", hint: "Opt-in deck", icon: HeartIcon, run: go("/dating"), group: "Go to" },

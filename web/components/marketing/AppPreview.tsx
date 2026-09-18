@@ -7,7 +7,6 @@ import {
   HomeIcon,
   MessageIcon,
   MoonIcon,
-  TimerIcon,
 } from "@/components/ui/Icons";
 import type { Avatar } from "@/lib/types";
 
@@ -21,10 +20,7 @@ const NAV = [
   { label: "Chats", icon: MessageIcon, badge: "3" },
 ];
 
-const NIGHT = [
-  { label: "Owl Board", icon: MoonIcon },
-  { label: "Study Burrows", icon: TimerIcon },
-];
+const NIGHT = [{ label: "Night Shift", icon: MoonIcon }];
 
 const CAMPUS = [
   { label: "Note Locker", icon: BookIcon },
@@ -69,7 +65,7 @@ const POSTS: {
 const LOG = [
   ["02:03", "owl", "night window open · curfew 03:00"],
   ["02:04", "post", "@kabir posted in #night-shift"],
-  ["02:07", "burrow", "+25 min focus · The Quiet One"],
+  ["02:07", "post", "@zoya replied in #note-locker"],
   ["02:11", "owl", "+8 points · comment in #cse-sem3"],
   ["02:26", "owl", "rank 47 → 41 on campus"],
   ["02:58", "owl", "curfew in 2 minutes"],

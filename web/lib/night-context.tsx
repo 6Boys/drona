@@ -5,10 +5,10 @@ import { api } from "./api";
 import { useAuth } from "./auth-context";
 import type { HeartbeatStatus } from "./types";
 
-// The Owl Board scores server-side session heartbeats, not app-open time
+// Night Shift scores server-side session heartbeats, not app-open time
 // (PRD 6.2 anti-cheat). One heartbeat per minute from the shell is what the
 // endpoint is for, and its response doubles as the night status every surface
-// reads: the sidebar pill, the board, the burrow timer.
+// reads: the sidebar pill, the board.
 const INTERVAL_MS = 60_000;
 
 interface NightState {

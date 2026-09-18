@@ -243,7 +243,7 @@ export function Sidebar() {
           {status && (
             <Link
               href="/owl-board"
-              title={open ? undefined : "Owl Board"}
+              title={open ? undefined : "Night Shift"}
               className="mx-3 mb-2 flex items-center gap-3 rounded-[var(--r-md)] border border-border bg-surface/70 px-[0.7rem] py-2.5 transition-colors hover:border-border-strong"
             >
               <span className="relative shrink-0">

@@ -76,7 +76,7 @@ export function randomId(): string {
 }
 
 // deviceFingerprint is a stable, non-identifying per-browser id used only for
-// the Owl Board's per-device dedupe and abuse detection (PRD 6.2, 10) — never
+// Night Shift's per-device dedupe and abuse detection (PRD 6.2, 10) — never
 // for anything resembling authentication.
 function deviceFingerprint(): string {
   if (typeof window === "undefined") return "";

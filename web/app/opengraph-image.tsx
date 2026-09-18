@@ -48,7 +48,7 @@ export default function OpengraphImage() {
           in one place.
         </div>
         <div style={{ fontSize: 28, color: "#6b6459", marginTop: 28, display: "flex" }}>
-          Feed · Chat · Note Locker · Owl Board · Love Finder
+          Feed · Chat · Note Locker · Night Shift · Love Finder
         </div>
       </div>
     ),

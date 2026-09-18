@@ -8,6 +8,11 @@ export interface SegmentOption<T extends string> {
   value: T;
   label: string;
   count?: number;
+  /** Shows a plain dot instead of the number whenever count > 0, and nothing
+   * at all at zero — "something's new here," not "here's exactly how much."
+   * Every other caller of this component keeps the numeric badge; this is
+   * opt-in per option, not a global behavior change. */
+  dot?: boolean;
 }
 
 /** A glass track with one lit pill that slides between options. The pill is a
@@ -62,16 +67,26 @@ export function Segmented<T extends string>({
               />
             )}
             <span className="relative">{option.label}</span>
-            {option.count !== undefined && (
-              <span
-                className={cn(
-                  "tabnum relative ml-1.5",
-                  active && option.count > 0 ? "text-accent" : "text-faint",
+            {option.dot
+              ? (option.count ?? 0) > 0 && (
+                  <span
+                    aria-label={`${option.count} new`}
+                    className={cn(
+                      "relative ml-1.5 inline-block size-1.5 rounded-full align-middle",
+                      active ? "bg-accent" : "bg-accent-hi",
+                    )}
+                  />
+                )
+              : option.count !== undefined && (
+                  <span
+                    className={cn(
+                      "tabnum relative ml-1.5",
+                      active && option.count > 0 ? "text-accent" : "text-faint",
+                    )}
+                  >
+                    {option.count}
+                  </span>
                 )}
-              >
-                {option.count}
-              </span>
-            )}
           </button>
         );
       })}

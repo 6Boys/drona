@@ -202,13 +202,10 @@ export default function OwlBoardPage() {
         </section>
 
         <p className="mt-4 text-xs leading-relaxed text-faint">
-          Points come from posting, commenting, replying in Dens and time in{" "}
-          <Link href="/burrows" className="text-muted underline-offset-2 hover:underline">
-            Study Burrows
-          </Link>
-          {" "}— never from leaving the app open. At 3 AM everything stops and the app gets quieter,
-          however long you stay up. A board that scored sleep deprivation would be gameable by a
-          script and bad for you; this one isn&apos;t either.
+          Points come from posting, commenting and replying in Dens — never from leaving the app
+          open. At 3 AM everything stops and the app gets quieter, however long you stay up. A
+          board that scored sleep deprivation would be gameable by a script and bad for you; this
+          one isn&apos;t either.
         </p>
       </PageBody>
     </>

@@ -34,7 +34,6 @@ import {
   MessageIcon,
   MoonIcon,
   ShieldIcon,
-  TimerIcon,
   HomeIcon,
 } from "@/components/ui/Icons";
 
@@ -77,7 +76,7 @@ const NAV = [
           ["The Nest", "Threaded campus feed"],
           ["Chats & Signals", "DMs, Dens, club broadcasts"],
           ["Note Locker", "PYQs and notes by subject"],
-          ["Owl Board", "The night, scored honestly"],
+          ["Night Shift", "The night, scored honestly"],
         ].map(([name, line]) => (
           <div key={name}>
             <p className="text-[0.8125rem] font-medium text-text">{name}</p>
@@ -159,9 +158,9 @@ const SURFACES = [
   {
     id: "owl",
     icon: MoonIcon,
-    name: "Owl Board",
+    name: "Night Shift",
     line: "A leaderboard that tells you to sleep.",
-    body: "Scored on what you do between 10pm and 3am — posting, replying, minutes in a Study Burrow — then hard-stopped at the curfew. Go offline for seven hours and the Cocoon Bonus pays more than the whole night would have.",
+    body: "Scored on what you do between 10pm and 3am — posting, replying, showing up in Dens — then hard-stopped at the curfew, whatever else you were doing. A board that scored staying up would be gameable and bad for you.",
     ramp: "linear-gradient(140deg, #3b3660 0%, #6b6392 100%)",
     span: "md:col-span-2",
   },
@@ -527,8 +526,8 @@ export default function LandingPage() {
                 The app changes character after dark.
               </h2>
               <p className="mt-5 text-[0.9375rem] leading-relaxed text-muted">
-                The Owl Board scores what you <em>do</em> in the night window — posting, replying,
-                time in a Study Burrow — not how long you leave the app open. A script tapping the
+                Night Shift scores what you <em>do</em> in the night window — posting, replying,
+                showing up in Dens — not how long you leave the app open. A script tapping the
                 screen earns nothing.
               </p>
               <p className="mt-4 text-[0.9375rem] leading-relaxed text-muted">
@@ -549,14 +548,9 @@ export default function LandingPage() {
                   body: "Starter → Fledgling → Night Owl → Moon Moth → Comet. Season badges stay on your shelf forever.",
                 },
                 {
-                  icon: TimerIcon,
-                  title: "Study Burrows",
-                  body: "Timed focus blocks with a break cycle. Completed minutes are credited server-side — the one way to score without posting.",
-                },
-                {
                   icon: ShieldIcon,
-                  title: "Cocoon Bonus",
-                  body: "Seven hours offline, claimed once a day. If nobody ever claims it, the curfew design has failed and we'd rather know.",
+                  title: "Your last seven nights",
+                  body: "A real chart of what you actually earned each night — a quiet week shows up as a quiet week, not a number made up to look plausible.",
                 },
               ].map((item) => (
                 <TiltCard key={item.title} intensity={7}>

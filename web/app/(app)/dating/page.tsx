@@ -168,8 +168,8 @@ export default function DatingPage() {
               }}
               options={[
                 { value: "deck", label: "Discover", count: deck.items.length },
-                { value: "likes", label: "Likes you", count: likes.items.length },
-                { value: "matches", label: "Matches", count: matches.items.length },
+                { value: "likes", label: "Likes you", count: likes.items.length, dot: true },
+                { value: "matches", label: "Matches", count: matches.items.length, dot: true },
                 { value: "you", label: "Your card" },
               ]}
             />
