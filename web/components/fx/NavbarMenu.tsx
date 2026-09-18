@@ -41,7 +41,16 @@ export function NavbarMenu({
   }, []);
 
   return (
-    <div className={cn("pointer-events-none fixed inset-x-0 top-0 z-50 flex justify-center", className)}>
+    <div
+      // Landing page opened as an installed standalone app (someone's Home
+      // Screen icon happened to point here, not /feed — see
+      // NavAuthActions), this pill has no browser chrome above it either;
+      // the animated marginTop below stacks on top of this so the 10/18px
+      // "distance from the top" it was tuned for stays a distance from the
+      // safe area, not from the notch itself. A no-op anywhere without one.
+      style={{ paddingTop: "env(safe-area-inset-top)" }}
+      className={cn("pointer-events-none fixed inset-x-0 top-0 z-50 flex justify-center", className)}
+    >
       <motion.div
         animate={{ marginTop: scrolled ? 10 : 18, scale: scrolled ? 0.985 : 1 }}
         transition={{ type: "spring", stiffness: 240, damping: 26 }}

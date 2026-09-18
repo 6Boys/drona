@@ -70,7 +70,7 @@ export function MobileSidebarDrawer({ open, onClose }: { open: boolean; onClose:
             animate={{ x: 0 }}
             exit={{ x: "-100%" }}
             transition={{ type: "spring", stiffness: 380, damping: 38 }}
-            className="glass glass-strong relative flex h-dvh w-[17.5rem] max-w-[82vw] flex-col overflow-hidden border-y-0 border-l-0"
+            className="glass glass-strong relative flex h-dvh w-[17.5rem] max-w-[82vw] flex-col overflow-hidden border-y-0 border-l-0 pt-[env(safe-area-inset-top)]"
           >
             <div className="flex h-[3.75rem] shrink-0 items-center justify-between px-4">
               <Logo size={22} />

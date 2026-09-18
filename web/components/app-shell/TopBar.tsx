@@ -40,6 +40,15 @@ export function TopBar({
         // floating at the top of every page would read as a toolbar rather
         // than as the page's own header.
         "z-20 border-b border-border bg-[rgb(var(--glass-tint)/0.72)] backdrop-blur-xl backdrop-saturate-150",
+        // Installed standalone on iOS (Home Screen icon, not a Safari tab),
+        // there is no browser chrome reserving space for the status bar —
+        // viewport-fit=cover (app/layout.tsx) lets this header's own
+        // background paint all the way under it, which is what we want, but
+        // without this the title/actions row painted right along with it,
+        // landing directly behind the clock/battery icons instead of below
+        // them. env() resolves to 0 anywhere without a notch, so this is a
+        // no-op on desktop, Android, and a plain Safari tab.
+        "pt-[env(safe-area-inset-top)]",
         sticky && "sticky top-0",
       )}
     >

@@ -74,7 +74,11 @@ export function ScrollShowcase({ steps, className }: { steps: ShowcaseStep[]; cl
 
   return (
     <div ref={ref} className={cn("relative", className)} style={{ height: `${steps.length * 100}vh` }}>
-      <div className="sticky top-0 flex h-screen items-center overflow-hidden">
+      {/* dvh, not vh: iOS Safari's collapsing address bar means 100vh is
+          taller than what's actually on screen whenever the toolbar is
+          expanded, so a pinned h-screen section runs off the bottom edge on
+          a real phone even though it measures fine in a desktop viewport. */}
+      <div className="sticky top-0 flex h-dvh items-center overflow-hidden">
         <div className="mx-auto grid w-full max-w-6xl grid-cols-1 items-center gap-10 px-5 lg:grid-cols-[1fr_auto]">
           <div className="relative order-2 h-56 lg:order-1 lg:h-64">
             {steps.map((step, i) => (

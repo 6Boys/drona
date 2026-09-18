@@ -18,7 +18,7 @@ import { Glow } from "@/components/fx/Glow";
 import { FlipWords, LayoutTextFlip, TextGenerate } from "@/components/fx/Text";
 import { BackToTop, ScrollProgressBar } from "@/components/ui/ScrollTools";
 import { Accordion } from "@/components/ui/Accordion";
-import { ThemeToggleButton } from "@/components/ui/ThemeToggleButton";
+import { NavAuthActions } from "@/components/marketing/NavAuthActions";
 import {
   ChatScreenPreview,
   FeedScreenPreview,
@@ -375,17 +375,7 @@ export default function LandingPage() {
             <Logo size={22} />
           </Link>
         }
-        actions={
-          <>
-            <ThemeToggleButton />
-            <ButtonLink href="/login" variant="ghost" size="sm">
-              Log in
-            </ButtonLink>
-            <ButtonLink href="/login" size="sm">
-              Get started
-            </ButtonLink>
-          </>
-        }
+        actions={<NavAuthActions />}
       />
 
       {/* --------------------------------------------------------- hero ---- */}
