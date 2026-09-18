@@ -5,23 +5,43 @@ import { motion } from "framer-motion";
 import Image from "next/image";
 import { avatarBackground, avatarColours, initialsFor } from "@/components/ui/GradientAvatar";
 import { CanvasReveal } from "@/components/fx/CanvasReveal";
-import { Badge } from "@/components/ui/Badge";
 import { HeartIcon, CheckIcon, BookIcon, HomeIcon, SparkleIcon, LockIcon } from "@/components/ui/Icons";
 import { ReportBlockMenu } from "./ReportBlockMenu";
 import type { DatingCandidate, LikeTarget } from "@/lib/types";
 import { cn } from "@/lib/cn";
 
 /* -----------------------------------------------------------------------------
-   A profile the way Hinge builds one: a picture, a name in serif, and then the
-   person's own sentences in blocks you can like one at a time. No stat bars, no
-   badges competing for the corner, no chrome around the words — hairlines and
-   whitespace do the separating.
+   A full-bleed identity header — photo, name, and the essentials in one glance,
+   the way the photo itself is the thing being judged first — then the person's
+   own sentences underneath as distinct panels, not hairline-divided paragraphs.
 
-   The one liberty taken: nobody here uploads a photo, so the picture panel is
-   their gradient. Resting on hover it blooms into a dot field in their own two
-   colours, which gives the card something to do with a cursor without adding
-   anything a reader has to parse.
+   Nothing about the drag/pagination mechanics below changed for this pass: the
+   touch-action gating (`photoNav`), the z-index scale, and the tap zones are
+   exactly what real-device testing verified. Only the static markup — layout,
+   spacing, what sits on the photo versus below it — is new.
    -------------------------------------------------------------------------- */
+
+/** A chip meant to sit on a photo rather than the card's own surface — badge
+ * tones are themed for readability against `bg-surface`, which a photo of
+ * unpredictable brightness is not, so this is deliberately its own thing
+ * rather than a Badge tone. */
+function PhotoChip({ children, icon }: { children: ReactNode; icon?: ReactNode }) {
+  return (
+    <span className="glass glass-pill inline-flex items-center gap-1 px-2.5 py-1 text-[0.75rem] font-medium text-white">
+      {icon}
+      {children}
+    </span>
+  );
+}
+
+/** A distinct panel for one thing the person wrote — replaces the previous
+ * hairline-divided flat blocks with actual separated cards, closer to how the
+ * rest of this app already treats a piece of content (see PostCard, Field). */
+function Panel({ children, className }: { children: ReactNode; className?: string }) {
+  return (
+    <section className={cn("relative rounded-[var(--r-lg)] bg-surface-2/60 p-5", className)}>{children}</section>
+  );
+}
 
 /** The circular like control that floats over a photo or a prompt. */
 function LikeButton({
@@ -55,14 +75,6 @@ function LikeButton({
       <HeartIcon size={18} />
     </motion.button>
   );
-}
-
-function Block({ children, className }: { children: ReactNode; className?: string }) {
-  return <section className={cn("relative px-6", className)}>{children}</section>;
-}
-
-function Hairline() {
-  return <div className="mx-6 h-px bg-border" aria-hidden />;
 }
 
 export function ProfileCard({
@@ -120,8 +132,12 @@ export function ProfileCard({
       )}
     >
       {/* ---------------------------------------------------------- photo -- */}
-      <div className="relative z-10 shrink-0 basis-[max(11rem,44%)] px-3 pt-3">
-        <div className="relative flex h-full items-center justify-center overflow-hidden rounded-[var(--r-xl)]">
+      {/* Full-bleed now, not inset in padding — the outer article's own
+          overflow+radius clips this to the card shape, so nothing here needs
+          its own rounding. Taller too (58% vs the old 44%): the photo is the
+          first thing being judged, so it gets the room. */}
+      <div className="relative z-10 shrink-0 basis-[max(16rem,58%)]">
+        <div className="relative flex h-full items-center justify-center overflow-hidden">
           {photos.length > 0 ? (
             <>
               <Image
@@ -202,6 +218,28 @@ export function ProfileCard({
             </div>
           )}
 
+          {/* Identity overlay: name and the essentials directly on the photo,
+              not in separate white space below it — the scrim exists purely
+              to keep this legible over whatever the photo's own brightness
+              happens to be. */}
+          <div
+            aria-hidden
+            className="pointer-events-none absolute inset-x-0 bottom-0 z-[5] h-28"
+            style={{ background: "linear-gradient(180deg, transparent 0%, rgba(10,9,7,0.82) 100%)" }}
+          />
+          <div className="absolute inset-x-4 bottom-4 z-10">
+            <h2 className="display text-[1.875rem] leading-[1.05] text-white drop-shadow-sm">
+              {candidate.displayName}
+            </h2>
+            <div className="mt-2 flex flex-wrap items-center gap-1.5">
+              {candidate.branch && (
+                <PhotoChip icon={<BookIcon size={11} />}>{candidate.branch}</PhotoChip>
+              )}
+              {candidate.year && <PhotoChip>Year {candidate.year}</PhotoChip>}
+              <PhotoChip icon={<HomeIcon size={11} />}>Same campus</PhotoChip>
+            </div>
+          </div>
+
           {candidate.photoVerified && (
             <span
               className={cn(
@@ -221,103 +259,78 @@ export function ProfileCard({
               className={cn("absolute z-10", photos.length > 1 ? "top-7 right-3" : "top-3 right-3")}
             />
           )}
-        </div>
 
-        {interactive && (
-          <LikeButton
-            label={`Like ${candidate.displayName}'s picture`}
-            liked={liked("photo")}
-            onClick={onLike && (() => onLike({ kind: "PHOTO" }))}
-            className="absolute right-6 -bottom-5 z-20"
-          />
-        )}
+          {interactive && (
+            <LikeButton
+              label={`Like ${candidate.displayName}'s picture`}
+              liked={liked("photo")}
+              onClick={onLike && (() => onLike({ kind: "PHOTO" }))}
+              className="absolute right-4 bottom-4 z-20"
+            />
+          )}
+        </div>
       </div>
 
-      {/* ----------------------------------------------------------- name -- */}
-      <Block className="relative z-10 pt-7 pb-5">
-        <h2 className="display text-[2.5rem] text-text">{candidate.displayName}</h2>
-
-        <div className="mt-3 flex flex-wrap items-center gap-1.5">
-          {candidate.branch && (
-            <Badge tone="neutral">
-              <BookIcon size={11} />
-              {candidate.branch}
-            </Badge>
-          )}
-          {candidate.year && <Badge tone="neutral">Year {candidate.year}</Badge>}
-          <Badge tone="neutral">
-            <HomeIcon size={11} />
-            Same campus
-          </Badge>
-        </div>
-
+      {/* ------------------------------------------------- their own words -- */}
+      {/* One flow of spaced panels instead of hairline-divided paragraphs —
+          each thing they wrote reads as its own card, closer to how a chat
+          bubble or a PostCard already looks in this app than to a form. */}
+      <div className="relative z-10 flex flex-col gap-3 p-4">
         {candidate.vibe && (
-          <div className="relative mt-4 rounded-[var(--r-md)] border border-[color-mix(in_oklab,var(--accent)_22%,transparent)] bg-accent-wash py-3 pr-4 pl-9">
-            <SparkleIcon size={14} className="absolute top-3.5 left-3 text-accent-hi" />
-            <p className="serif text-[1.0625rem] leading-snug text-text">{candidate.vibe}</p>
-          </div>
+          <Panel className="bg-accent-wash">
+            <SparkleIcon size={14} className="text-accent-hi" />
+            <p className="serif mt-2 text-[1.0625rem] leading-snug text-text">{candidate.vibe}</p>
+          </Panel>
         )}
-      </Block>
 
-      {/* -------------------------------------------------------- prompt 1 -- */}
-      {first && (
-        <>
-          <Hairline />
-          <Block className="relative z-10 py-6">
+        {first && (
+          <Panel>
             <p className="mono-label">{first.question}</p>
-            <p className="serif mt-3 text-[1.5rem] leading-[1.3] text-text">{first.answer}</p>
+            <p className="serif mt-2.5 text-[1.375rem] leading-[1.3] text-text">{first.answer}</p>
             {interactive && (
               <LikeButton
                 label={`Like this answer from ${candidate.displayName}`}
                 liked={liked("prompt:0")}
                 onClick={onLike && (() => onLike({ kind: "PROMPT", promptIndex: 0 }))}
-                className="absolute right-6 -bottom-5 z-20"
+                className="absolute right-4 bottom-4 z-20"
               />
             )}
-          </Block>
-        </>
-      )}
+          </Panel>
+        )}
 
-      {/* ------------------------------------------------------- interests -- */}
-      {candidate.interests.length > 0 && (
-        <>
-          <Hairline />
-          <Block className="relative z-10 py-6">
+        {candidate.interests.length > 0 && (
+          <Panel>
             <p className="mono-label mb-3">Into</p>
             <div className="flex flex-wrap gap-2">
               {candidate.interests.map((interest) => (
                 <span
                   key={interest}
-                  className="rounded-full border border-border bg-surface/60 px-3 py-1.5 text-[0.8125rem] text-muted"
+                  className="rounded-full border border-border bg-surface px-3 py-1.5 text-[0.8125rem] text-muted"
                 >
                   {interest}
                 </span>
               ))}
             </div>
-          </Block>
-        </>
-      )}
+          </Panel>
+        )}
 
-      {/* --------------------------------------------------- more prompts -- */}
-      {rest.map((prompt, i) => (
-        <div key={prompt.question} className="relative z-10">
-          <Hairline />
-          <Block className="relative py-6">
+        {rest.map((prompt, i) => (
+          <Panel key={prompt.question}>
             <p className="mono-label">{prompt.question}</p>
-            <p className="serif mt-3 text-[1.5rem] leading-[1.3] text-text">{prompt.answer}</p>
+            <p className="serif mt-2.5 text-[1.375rem] leading-[1.3] text-text">{prompt.answer}</p>
             {interactive && (
               <LikeButton
                 label={`Like this answer from ${candidate.displayName}`}
                 liked={liked(`prompt:${i + 1}`)}
                 onClick={onLike && (() => onLike({ kind: "PROMPT", promptIndex: i + 1 }))}
-                className="absolute right-6 -bottom-5 z-20"
+                className="absolute right-4 bottom-4 z-20"
               />
             )}
-          </Block>
-        </div>
-      ))}
+          </Panel>
+        ))}
+      </div>
 
-      <div className="h-7 shrink-0" />
+      <div className="h-3 shrink-0" />
 
       {/* A card that can't be scrolled still has more below the fold — fade the
           cut instead of guillotining a sentence in half. */}

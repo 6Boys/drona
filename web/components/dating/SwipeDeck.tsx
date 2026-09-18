@@ -118,7 +118,6 @@ export function SwipeDeck({
   twinklesLeft,
   onDecide,
   onTwinkleBlocked,
-  onTopChange,
   onRemove,
   emptyState,
 }: {
@@ -126,10 +125,6 @@ export function SwipeDeck({
   twinklesLeft: number;
   onDecide: (decision: SwipeDecision) => void;
   onTwinkleBlocked: () => void;
-  /** Fires whenever whoever is on top of the deck changes — including to
-   * undefined once the deck empties. Lets the page mirror the front card
-   * somewhere outside the deck itself (see DatingBgWidgets). */
-  onTopChange?: (candidate: DatingCandidate | undefined) => void;
   /** Fires when a card is dropped for a reason that isn't a swipe — a report
    * or a block. The parent has to forget them too: dropping it only from the
    * local copy means the next `advance()` rebuilds `candidates` and hands the
@@ -158,10 +153,6 @@ export function SwipeDeck({
     x.set(0);
     y.set(0);
   }, [top?.id, x, y]);
-
-  useEffect(() => {
-    onTopChange?.(top);
-  }, [top, onTopChange]);
 
   const commit = useCallback(
     async (
@@ -230,7 +221,15 @@ export function SwipeDeck({
           no overflow clamp on their containing block DO leak into the page's
           real scrollWidth — this is what was forcing a few extra pixels of
           horizontal scroll on the whole dating page. */}
-      <div className="relative h-[clamp(24rem,calc(100dvh-22rem),38rem)] w-full max-w-[25rem] overflow-hidden">
+      {/* 100dvh minus a reserved amount for everything else on this tab: the
+          sticky header, the "Tonight you might meet" line, this box's own
+          mt-8 gap, the action-button row, and the floating MobileNav (fixed,
+          so it overlaps whatever document content ends up under it rather
+          than pushing it up). Tuned against the actual rendered layout at
+          375x812 (this app's narrowest realistic target) until the whole
+          Discover tab — card, buttons, the "N cards left" line — fit inside
+          one viewport with no page scroll at all, rather than guessed. */}
+      <div className="relative h-[clamp(24rem,calc(100dvh-27rem),38rem)] w-full max-w-[25rem] overflow-hidden">
         {behind
           .slice()
           .reverse()
@@ -287,10 +286,18 @@ export function SwipeDeck({
           dragElastic={0.9}
           onDragEnd={handleDragEnd}
         >
+          {/* scrollable={false}: a mouse wheel could scroll this, but touch
+              can't (see the touch-action note above) — a card that only
+              *some* input methods can scroll, sitting on a page that itself
+              also scrolls, is two competing scroll surfaces for one screen.
+              False makes it a fixed, fully-visible-or-cleanly-cut-off card on
+              every input; "Read all of it" is the one and only way into the
+              rest, on any device. */}
           <ProfileCard
             candidate={top}
             interactive
             photoNav={false}
+            scrollable={false}
             onLike={(target) => setPending(target)}
             onRemove={() => {
               onRemove?.(top);

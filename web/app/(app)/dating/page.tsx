@@ -6,7 +6,6 @@ import { motion, AnimatePresence } from "framer-motion";
 import { PageBody, TopBar } from "@/components/app-shell/TopBar";
 import { MatchModal } from "@/components/dating/MatchModal";
 import { SwipeDeck, type SwipeDecision } from "@/components/dating/SwipeDeck";
-import { DatingBgWidgets } from "@/components/dating/DatingBgWidgets";
 import { LikesYouGrid } from "@/components/dating/LikesYouGrid";
 import { MatchesPanel } from "@/components/dating/MatchesPanel";
 import { DatingProfileEditor } from "@/components/dating/DatingProfileEditor";
@@ -26,7 +25,7 @@ import { api, errorMessage } from "@/lib/api";
 import { useAuth } from "@/lib/auth-context";
 import { dating, useDatingProfile, useDeck, useLikes, useMatches } from "@/lib/dating-store";
 import { isPremiumActive } from "@/lib/premium";
-import type { DatingCandidate, DatingMatch, MeResponse } from "@/lib/types";
+import type { DatingMatch, MeResponse } from "@/lib/types";
 
 type Tab = "deck" | "likes" | "matches" | "you";
 
@@ -91,7 +90,6 @@ export default function DatingPage() {
   const [tab, setTab] = useState<Tab>("deck");
   const [busy, setBusy] = useState(false);
   const [matched, setMatched] = useState<DatingMatch | null>(null);
-  const [front, setFront] = useState<DatingCandidate | undefined>();
   const [premiumOpen, setPremiumOpen] = useState(false);
   const premium = isPremiumActive(me?.user);
 
@@ -230,7 +228,6 @@ export default function DatingPage() {
                       candidates={deck.items}
                       twinklesLeft={deck.twinklesLeft}
                       onDecide={swipe}
-                      onTopChange={setFront}
                       onRemove={(candidate) => advance(candidate.handle)}
                       onTwinkleBlocked={() =>
                         toast("No Twinkles left today. One a day, on purpose.", "info")
@@ -249,12 +246,10 @@ export default function DatingPage() {
                     />
                   )}
 
-                  <p className="mt-5 flex items-center justify-center gap-1.5 text-center text-xs text-faint">
+                  <p className="mt-2 flex items-center justify-center gap-1.5 text-center text-xs text-faint">
                     <SparkleIcon size={12} className="text-gold" />
                     {deck.twinklesLeft} {deck.twinklesLeft === 1 ? "Twinkle" : "Twinkles"} left today
                   </p>
-
-                  <DatingBgWidgets candidate={front} />
                 </>
               )}
 
