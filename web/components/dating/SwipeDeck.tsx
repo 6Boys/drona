@@ -282,6 +282,7 @@ export function SwipeDeck({
           <ProfileCard
             candidate={top}
             interactive
+            photoNav={false}
             onLike={(target) => setPending(target)}
             onRemove={() => {
               onRemove?.(top);

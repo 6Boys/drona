@@ -428,6 +428,10 @@ export interface DatingProfile {
   vibe: string;
   interests: string[];
   prompts: DatingPrompt[];
+  /** 2–4 photos, most-recent-selected first. Empty on an account that opted
+   * into Love Finder before this field existed — the card falls back to the
+   * gradient identity rather than an empty gallery. */
+  photos: string[];
 }
 
 /** A deck entry: a full user plus whatever they wrote on their card. The API

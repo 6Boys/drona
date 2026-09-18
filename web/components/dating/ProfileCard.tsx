@@ -1,7 +1,8 @@
 "use client";
 
-import { useState, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { motion } from "framer-motion";
+import Image from "next/image";
 import { avatarBackground, avatarColours, initialsFor } from "@/components/ui/GradientAvatar";
 import { CanvasReveal } from "@/components/fx/CanvasReveal";
 import { Badge } from "@/components/ui/Badge";
@@ -72,6 +73,7 @@ export function ProfileCard({
   likedTargets,
   className,
   scrollable = true,
+  photoNav = true,
 }: {
   candidate: DatingCandidate;
   interactive?: boolean;
@@ -83,9 +85,26 @@ export function ProfileCard({
   likedTargets?: Set<string>;
   className?: string;
   scrollable?: boolean;
+  /** Tap-to-page zones over the photo. Off when this card is the live drag
+   * surface in SwipeDeck — a tap-zone's pointerdown has to stay out of
+   * framer-motion's way there, or a swipe that happens to start over the
+   * photo (most of the card) never begins. Nothing else drags this card, so
+   * every other caller (the "Read all of it" dialog, the editor preview, a
+   * plain profile view) can leave it on. */
+  photoNav?: boolean;
 }) {
   const [hot, setHot] = useState(false);
+  const [photoIndex, setPhotoIndex] = useState(0);
   const [first, ...rest] = candidate.prompts;
+  const photos = candidate.photos ?? [];
+  // Clamped, not just checked: a candidate swap can land photoIndex from the
+  // previous person past the end of a shorter photos array for one render
+  // before the reset effect below commits.
+  const activePhotoIndex = Math.min(photoIndex, Math.max(photos.length - 1, 0));
+
+  // A different candidate landing on the same mounted card (deck advancing to
+  // the next person) must not keep showing photo 3 of someone who only has 2.
+  useEffect(() => setPhotoIndex(0), [candidate.id]);
   const colours = avatarColours(candidate.avatar);
   const liked = (key: string) => likedTargets?.has(key) ?? false;
 
@@ -102,35 +121,105 @@ export function ProfileCard({
     >
       {/* ---------------------------------------------------------- photo -- */}
       <div className="relative z-10 shrink-0 basis-[max(11rem,44%)] px-3 pt-3">
-        <div
-          className="relative flex h-full items-center justify-center overflow-hidden rounded-[var(--r-xl)]"
-          style={{ background: avatarBackground(candidate.avatar) }}
-        >
-          <CanvasReveal active={hot} colours={colours} dotSize={2} gap={5} />
+        <div className="relative flex h-full items-center justify-center overflow-hidden rounded-[var(--r-xl)]">
+          {photos.length > 0 ? (
+            <>
+              <Image
+                key={photos[activePhotoIndex]}
+                // Non-null: activePhotoIndex is clamped into [0, photos.length)
+                // above, and this branch only renders when photos.length > 0 —
+                // TS just can't see across that from a computed index.
+                src={photos[activePhotoIndex]!}
+                alt={`${candidate.displayName}'s photo ${activePhotoIndex + 1} of ${photos.length}`}
+                fill
+                unoptimized
+                className="object-cover"
+              />
 
-          {/* Light falling from above, then a floor shadow to seat the name. */}
-          <span
-            aria-hidden
-            className="absolute inset-0"
-            style={{
-              background:
-                "linear-gradient(180deg, rgba(255,255,255,0.34) 0%, transparent 46%, rgba(22,21,15,0.18) 100%)",
-            }}
-          />
+              {photos.length > 1 && (
+                <>
+                  {photoNav && (
+                    <>
+                      {/* Tap either half to page through — the same convention
+                          Hinge and Tinder use, so there is nothing new to learn. */}
+                      <button
+                        type="button"
+                        aria-label="Previous photo"
+                        onPointerDown={(e) => e.stopPropagation()}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setPhotoIndex((i) => (i - 1 + photos.length) % photos.length);
+                        }}
+                        className="absolute inset-y-0 left-0 z-10 w-1/2 cursor-pointer"
+                      />
+                      <button
+                        type="button"
+                        aria-label="Next photo"
+                        onPointerDown={(e) => e.stopPropagation()}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setPhotoIndex((i) => (i + 1) % photos.length);
+                        }}
+                        className="absolute inset-y-0 right-0 z-10 w-1/2 cursor-pointer"
+                      />
+                    </>
+                  )}
+                  <div className="absolute inset-x-3 top-3 z-10 flex gap-1">
+                    {photos.map((_, i) => (
+                      <span
+                        key={i}
+                        aria-hidden
+                        className={cn(
+                          "h-1 flex-1 rounded-full transition-colors",
+                          i === activePhotoIndex ? "bg-white" : "bg-white/35",
+                        )}
+                      />
+                    ))}
+                  </div>
+                </>
+              )}
+            </>
+          ) : (
+            <div
+              className="absolute inset-0 flex items-center justify-center"
+              style={{ background: avatarBackground(candidate.avatar) }}
+            >
+              <CanvasReveal active={hot} colours={colours} dotSize={2} gap={5} />
 
-          <span className="display relative text-[5.5rem] leading-none text-white/85">
-            {initialsFor(candidate.displayName)}
-          </span>
+              {/* Light falling from above, then a floor shadow to seat the name. */}
+              <span
+                aria-hidden
+                className="absolute inset-0"
+                style={{
+                  background:
+                    "linear-gradient(180deg, rgba(255,255,255,0.34) 0%, transparent 46%, rgba(22,21,15,0.18) 100%)",
+                }}
+              />
+
+              <span className="display relative text-[5.5rem] leading-none text-white/85">
+                {initialsFor(candidate.displayName)}
+              </span>
+            </div>
+          )}
 
           {candidate.photoVerified && (
-            <span className="glass glass-pill absolute top-3 left-3 flex items-center gap-1.5 px-2.5 py-1 text-[0.6875rem] text-text">
+            <span
+              className={cn(
+                "glass glass-pill absolute left-3 z-10 flex items-center gap-1.5 px-2.5 py-1 text-[0.6875rem] text-text",
+                photos.length > 1 ? "top-7" : "top-3",
+              )}
+            >
               <CheckIcon size={11} className="text-positive" />
               Verified student
             </span>
           )}
 
           {interactive && (
-            <ReportBlockMenu candidate={candidate} onHandled={onRemove} className="absolute top-3 right-3" />
+            <ReportBlockMenu
+              candidate={candidate}
+              onHandled={onRemove}
+              className={cn("absolute z-10", photos.length > 1 ? "top-7 right-3" : "top-3 right-3")}
+            />
           )}
         </div>
 

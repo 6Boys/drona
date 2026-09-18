@@ -5,6 +5,7 @@ import { PageBody, TopBar } from "@/components/app-shell/TopBar";
 import { AvatarBuilder } from "@/components/profile/AvatarBuilder";
 import { Button } from "@/components/ui/Button";
 import { Input, Select, Textarea, Toggle } from "@/components/ui/Field";
+import { MediaUpload } from "@/components/ui/MediaUpload";
 import { Badge } from "@/components/ui/Badge";
 import { useToast } from "@/components/ui/Toast";
 import { api, errorMessage } from "@/lib/api";
@@ -13,6 +14,13 @@ import { useTheme } from "@/lib/theme";
 import type { Avatar as AvatarShape, MeResponse } from "@/lib/types";
 
 const BRANCHES = ["CSE", "IT", "ECE", "EEE", "ME", "CE", "MBA", "MCA", "Other"];
+
+// "2024-28" — the admission year plus the two-digit graduation year, four years
+// later. A free-text field let people type anything; a bar of the only years
+// that actually mean something here can't produce garbage.
+const CURRENT_YEAR = new Date().getFullYear();
+const BATCH_START_YEARS = Array.from({ length: 8 }, (_, i) => CURRENT_YEAR - 5 + i);
+const batchLabel = (startYear: number) => `${startYear}-${String((startYear + 4) % 100).padStart(2, "0")}`;
 
 function Section({
   title,
@@ -44,8 +52,11 @@ export default function SettingsPage() {
     bio: me?.user.bio ?? "",
     branch: me?.user.branch ?? "CSE",
     year: String(me?.user.year ?? 2),
-    batch: me?.user.batch ?? "",
+    batchStart: Number(me?.user.batch?.slice(0, 4)) || CURRENT_YEAR,
   });
+  const [handle, setHandle] = useState(me?.user.handle ?? "");
+  const [photoPreview, setPhotoPreview] = useState(me?.user.photoUrl ?? "");
+  const [photoBusy, setPhotoBusy] = useState(false);
   const [avatar, setAvatar] = useState<AvatarShape>(
     me?.user.avatar ?? { hat: "none", eyes: "sparkle", colour: "ube", accessory: "none" },
   );
@@ -110,12 +121,17 @@ export default function SettingsPage() {
                 ))}
               </Select>
             </div>
-            <Input
+            <Select
               label="Batch"
-              value={profile.batch}
-              onChange={(e) => setProfile({ ...profile, batch: e.target.value })}
-              maxLength={20}
-            />
+              value={String(profile.batchStart)}
+              onChange={(e) => setProfile({ ...profile, batchStart: Number(e.target.value) })}
+            >
+              {BATCH_START_YEARS.map((y) => (
+                <option key={y} value={y}>
+                  {batchLabel(y)}
+                </option>
+              ))}
+            </Select>
 
             <Button
               loading={busy === "profile"}
@@ -128,7 +144,7 @@ export default function SettingsPage() {
                       bio: profile.bio,
                       branch: profile.branch,
                       year: Number(profile.year),
-                      batch: profile.batch,
+                      batch: batchLabel(profile.batchStart),
                     }),
                   "Profile updated",
                 )
@@ -139,7 +155,40 @@ export default function SettingsPage() {
           </div>
         </Section>
 
-        <Section title="Identity" description="The gradient and initials that represent you across the app.">
+        <Section
+          title="Profile picture"
+          description="A real photo replaces your gradient everywhere it appears — feed, chats, profile."
+        >
+          <MediaUpload
+            value={photoPreview}
+            label="Your photo"
+            onChange={async (url) => {
+              if (!url) {
+                // The server has no "clear photo" call yet — MediaUpload's own
+                // remove button always fires onChange(""), but there is
+                // nothing to send it to, so this stays a local no-op with an
+                // honest explanation rather than a request that would 422.
+                toast("Removing a photo isn't supported yet — upload a new one to replace it.", "info");
+                return;
+              }
+              const previous = photoPreview;
+              setPhotoPreview(url); // shows the new photo immediately, not after the round trip
+              setPhotoBusy(true);
+              try {
+                apply(await api.post<MeResponse>("/v1/me/verify-photo", { photoUrl: url }));
+                toast("Profile picture updated", "success");
+              } catch (err) {
+                setPhotoPreview(previous);
+                toast(errorMessage(err, "could not save that photo"), "error");
+              } finally {
+                setPhotoBusy(false);
+              }
+            }}
+          />
+          {photoBusy && <p className="mt-2 text-xs text-faint">Saving…</p>}
+        </Section>
+
+        <Section title="Identity" description="The gradient and initials shown until you add a real photo.">
           <AvatarBuilder value={avatar} onChange={setAvatar} name={me.user.displayName} size={88} />
           <Button
             className="mt-4"
@@ -199,10 +248,6 @@ export default function SettingsPage() {
               <dd className="truncate font-mono text-xs text-text">{me.user.email}</dd>
             </div>
             <div className="flex items-center justify-between gap-4">
-              <dt className="text-muted">Handle</dt>
-              <dd className="font-mono text-xs text-text">@{me.user.handle}</dd>
-            </div>
-            <div className="flex items-center justify-between gap-4">
               <dt className="text-muted">Status</dt>
               <dd>
                 <Badge tone={me.user.status === "ACTIVE" ? "positive" : "warning"} mono>
@@ -211,6 +256,29 @@ export default function SettingsPage() {
               </dd>
             </div>
           </dl>
+
+          <div className="mt-4 border-t border-border pt-4">
+            <Input
+              label="Handle"
+              value={handle}
+              onChange={(e) => setHandle(e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, ""))}
+              maxLength={20}
+              hint="3–20 characters · lowercase letters, numbers and underscores"
+              className="font-mono"
+            />
+            <Button
+              className="mt-2.5"
+              size="sm"
+              variant="outline"
+              loading={busy === "handle"}
+              disabled={handle === me.user.handle || handle.length < 3}
+              onClick={() =>
+                run("handle", () => api.patch<MeResponse>("/v1/me", { handle }), "Handle updated")
+              }
+            >
+              Save handle
+            </Button>
+          </div>
 
           <div className="mt-4 flex flex-wrap gap-2 border-t border-border pt-4">
             <Button variant="outline" onClick={logout}>

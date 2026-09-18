@@ -297,6 +297,9 @@ const FEATURED: DatingCandidate = {
   isBuddy: false,
   vibe: "sings in the stairwell, unbothered",
   interests: ["stairwell singing", "thrifting", "bad horror films"],
+  // No real photo on the public landing page — the gradient identity is the
+  // honest illustration here, not a stand-in for a photo that doesn't exist.
+  photos: [],
   prompts: [
     {
       question: "The way to win me over is",

@@ -1,10 +1,14 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import Image from "next/image";
 import { ProfileCard } from "./ProfileCard";
 import { Button } from "@/components/ui/Button";
-import { PlusIcon, XIcon, CheckIcon } from "@/components/ui/Icons";
+import { precheck } from "@/components/ui/MediaUpload";
+import { PlusIcon, XIcon, CheckIcon, SpinnerIcon } from "@/components/ui/Icons";
+import { uploadMedia, errorMessage } from "@/lib/api";
+import { useToast } from "@/components/ui/Toast";
 import { INTEREST_LIBRARY, PROMPT_LIBRARY } from "@/lib/mock-dating";
 import type { DatingCandidate, DatingPrompt, DatingProfile, User } from "@/lib/types";
 import { cn } from "@/lib/cn";
@@ -22,6 +26,8 @@ const MAX_PROMPTS = 3;
 const MAX_INTERESTS = 6;
 const ANSWER_LIMIT = 160;
 const VIBE_LIMIT = 60;
+const MIN_PHOTOS = 2;
+const MAX_PHOTOS = 4;
 
 function Chip({
   label,
@@ -73,6 +79,85 @@ function Field({
   );
 }
 
+/** A row of MIN_PHOTOS–MAX_PHOTOS square tiles: filled ones show the photo
+ * with a remove button, the first empty one is an upload target, and any
+ * slots after that stay disabled until it's filled — one clear next action
+ * rather than four simultaneous drop zones. */
+function PhotoSlots({ photos, onChange }: { photos: string[]; onChange: (next: string[]) => void }) {
+  const toast = useToast();
+  const [busy, setBusy] = useState(false);
+  const inputRef = useRef<HTMLInputElement | null>(null);
+
+  const pick = async (file: File) => {
+    const problem = precheck(file);
+    if (problem) {
+      toast(problem, "error");
+      return;
+    }
+    setBusy(true);
+    try {
+      const result = await uploadMedia(file);
+      onChange([...photos, result.url]);
+    } catch (err) {
+      toast(errorMessage(err, "that upload failed"), "error");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <div className="grid grid-cols-4 gap-2">
+      <input
+        ref={inputRef}
+        type="file"
+        accept="image/jpeg,image/png,image/webp,image/gif"
+        className="hidden"
+        onChange={(e) => {
+          const file = e.target.files?.[0];
+          e.target.value = "";
+          if (file) void pick(file);
+        }}
+      />
+      {Array.from({ length: MAX_PHOTOS }, (_, i) => {
+        const url = photos[i];
+        if (url) {
+          return (
+            <div key={i} className="relative aspect-square overflow-hidden rounded-[var(--r-md)] border border-border">
+              <Image src={url} alt="" width={200} height={200} unoptimized className="size-full object-cover" />
+              <button
+                type="button"
+                aria-label="Remove photo"
+                onClick={() => onChange(photos.filter((_, j) => j !== i))}
+                className="absolute top-1 right-1 flex size-6 cursor-pointer items-center justify-center rounded-full bg-black/60 text-white transition-colors hover:bg-black/80"
+              >
+                <XIcon size={12} />
+              </button>
+            </div>
+          );
+        }
+        const isNextSlot = i === photos.length;
+        return (
+          <button
+            key={i}
+            type="button"
+            disabled={!isNextSlot || busy}
+            aria-label="Add photo"
+            onClick={() => inputRef.current?.click()}
+            className={cn(
+              "flex aspect-square cursor-pointer items-center justify-center rounded-[var(--r-md)] border border-dashed transition-colors",
+              isNextSlot
+                ? "border-border-strong text-muted hover:border-accent hover:text-accent"
+                : "cursor-not-allowed border-border text-faint",
+            )}
+          >
+            {isNextSlot && busy ? <SpinnerIcon size={16} /> : <PlusIcon size={16} />}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
 export function DatingProfileEditor({
   user,
   profile,
@@ -85,13 +170,15 @@ export function DatingProfileEditor({
   const [vibe, setVibe] = useState(profile.vibe);
   const [interests, setInterests] = useState<string[]>(profile.interests);
   const [prompts, setPrompts] = useState<DatingPrompt[]>(profile.prompts);
+  const [photos, setPhotos] = useState<string[]>(profile.photos);
   const [picking, setPicking] = useState(false);
   const [saved, setSaved] = useState(false);
 
   const dirty =
     vibe !== profile.vibe ||
     JSON.stringify(interests) !== JSON.stringify(profile.interests) ||
-    JSON.stringify(prompts) !== JSON.stringify(profile.prompts);
+    JSON.stringify(prompts) !== JSON.stringify(profile.prompts) ||
+    JSON.stringify(photos) !== JSON.stringify(profile.photos);
 
   const used = new Set(prompts.map((p) => p.question));
 
@@ -125,17 +212,22 @@ export function DatingProfileEditor({
       // A half-written block is not on your card yet, so it is not in the
       // preview either — the preview is what the deck would show right now.
       prompts: prompts.filter((p) => p.answer.trim()),
+      photos,
     }),
-    [user, vibe, interests, prompts],
+    [user, vibe, interests, prompts, photos],
   );
 
   const answered = prompts.filter((p) => p.answer.trim()).length;
-  const ready = answered >= 1 && interests.length >= 1;
+  const ready = answered >= 1 && interests.length >= 1 && photos.length >= MIN_PHOTOS;
 
   return (
     <div className="grid gap-6 lg:grid-cols-[1fr_25rem]">
       {/* ------------------------------------------------------------ form -- */}
       <div className="space-y-4">
+        <Field label="your photos" hint={`${photos.length}/${MAX_PHOTOS} · ${MIN_PHOTOS} minimum`}>
+          <PhotoSlots photos={photos} onChange={setPhotos} />
+        </Field>
+
         <Field label="one line about you" hint={`${vibe.length}/${VIBE_LIMIT}`}>
           <input
             value={vibe}
@@ -244,7 +336,12 @@ export function DatingProfileEditor({
             disabled={!dirty || !ready}
             icon={saved ? <CheckIcon size={15} /> : undefined}
             onClick={() => {
-              onSave({ vibe: vibe.trim(), interests, prompts: prompts.filter((p) => p.answer.trim()) });
+              onSave({
+                vibe: vibe.trim(),
+                interests,
+                prompts: prompts.filter((p) => p.answer.trim()),
+                photos,
+              });
               setSaved(true);
               setTimeout(() => setSaved(false), 1800);
             }}
@@ -256,7 +353,7 @@ export function DatingProfileEditor({
               ? dirty
                 ? "Unsaved changes."
                 : "Your card is live in the deck."
-              : "Add one answer and one interest before this goes live."}
+              : `Add ${MIN_PHOTOS} photos, one answer and one interest before this goes live.`}
           </p>
         </div>
       </div>

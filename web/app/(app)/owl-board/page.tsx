@@ -122,7 +122,7 @@ export default function OwlBoardPage() {
               <Stat label="this week" value={String(status.weekPoints)} hint="points" />
               <Stat label="rank" value={status.rank > 0 ? `#${status.rank}` : "—"} hint="on campus" />
               <Stat label="tonight" value={String(status.sessionPoints)} hint={`${status.sessionActions} actions`} />
-              <Stat label="stardust" value={(me?.user.stardust ?? 0).toLocaleString()} />
+              <Stat label="sparks" value={(me?.user.stardust ?? 0).toLocaleString()} />
             </div>
           )}
         </section>

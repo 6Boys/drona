@@ -902,15 +902,17 @@ route("POST", "/v1/me/verify-photo", (ctx) => {
 // rules about what matches and what a swipe costs. In memory, like the rest
 // of this file — it dies with the process.
 
-const datingProfiles = new Map(); // userId -> {vibe, interests, prompts}
+const datingProfiles = new Map(); // userId -> {vibe, interests, prompts, photos}
 const swipes = new Map(); // `${actorId}>${targetId}` -> {action, target, note, at}
 const datingMatches = []; // {id, a, b, threadId, createdAt, wiltsAt}
 
 const DAILY_TWINKLES = 1;
 const MATCH_WILT_DAYS = 7;
+const MIN_DATING_PHOTOS = 2;
+const MAX_DATING_PHOTOS = 4;
 
 const profileFor = (userId) =>
-  datingProfiles.get(userId) ?? { vibe: "", interests: [], prompts: [] };
+  datingProfiles.get(userId) ?? { vibe: "", interests: [], prompts: [], photos: [] };
 
 const candidateOf = (user, viewerId) => ({ ...publicUser(user, viewerId), ...profileFor(user.id) });
 
@@ -1022,6 +1024,19 @@ seedDatingDemo();
 route("GET", "/v1/dating/profile", (ctx) => send(ctx.res, 200, profileFor(ctx.user.id)));
 
 route("PUT", "/v1/dating/profile", (ctx) => {
+  const photos = (ctx.body.photos ?? [])
+    .slice(0, MAX_DATING_PHOTOS)
+    .map((p) => String(p).trim())
+    .filter(Boolean);
+  if (photos.length < MIN_DATING_PHOTOS) {
+    return fail(
+      ctx.res,
+      422,
+      "VALIDATION",
+      `at least ${MIN_DATING_PHOTOS} photos are required`,
+      `Add at least ${MIN_DATING_PHOTOS} photos before saving your card.`,
+    );
+  }
   const profile = {
     vibe: String(ctx.body.vibe ?? "").trim().slice(0, 60),
     interests: (ctx.body.interests ?? []).slice(0, 6).map((i) => String(i).trim()).filter(Boolean),
@@ -1029,6 +1044,7 @@ route("PUT", "/v1/dating/profile", (ctx) => {
       .slice(0, 3)
       .map((p) => ({ question: String(p.question ?? "").trim(), answer: String(p.answer ?? "").trim() }))
       .filter((p) => p.question && p.answer),
+    photos,
   };
   datingProfiles.set(ctx.user.id, profile);
   send(ctx.res, 200, profile);
