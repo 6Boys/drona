@@ -4,6 +4,7 @@ import { Inter, Instrument_Serif, JetBrains_Mono } from "next/font/google";
 import { AuthProvider } from "@/lib/auth-context";
 import { ToastProvider } from "@/components/ui/Toast";
 import { ServiceWorkerRegister } from "@/components/pwa/ServiceWorkerRegister";
+import { InstallPrompt } from "@/components/pwa/InstallPrompt";
 import "./globals.css";
 
 const inter = Inter({
@@ -104,6 +105,13 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <AuthProvider>
           <ToastProvider>{children}</ToastProvider>
         </AuthProvider>
+        {/* Mounted app-wide, not just inside AppShell — this is what calls
+            preventDefault() on the browser's own beforeinstallprompt. Waiting
+            until after login to capture that event means Chrome may already
+            have shown its own default install banner (a plain OS-style
+            notification bar) on someone's very first visit to the public
+            marketing page, before this component ever mounted. */}
+        <InstallPrompt />
       </body>
     </html>
   );

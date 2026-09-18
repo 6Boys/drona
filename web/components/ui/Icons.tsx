@@ -306,6 +306,13 @@ export const BookmarkIcon = ({ filled, ...p }: IconProps & { filled?: boolean })
   </svg>
 );
 
+export const RefreshIcon = (p: IconProps) => (
+  <svg {...base(p)}>
+    <path d="M4 12a8 8 0 0 1 13.66-5.66M20 12a8 8 0 0 1-13.66 5.66" />
+    <path d="M17.5 3.5v3.5H14M6.5 20.5V17H10" />
+  </svg>
+);
+
 export const ChartIcon = (p: IconProps) => (
   <svg {...base(p)}>
     <path d="M4 20.5V3.5M4 20.5h16" />

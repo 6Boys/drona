@@ -1851,6 +1851,138 @@ route("POST", "/v1/posts/:id/poll", (ctx) => {
   send(ctx.res, 200, publicPoll(post, ctx.user.id));
 });
 
+// ---------------------------------------------------------- grapevine -----
+// Anonymous feed. A post carries a number assigned per account, not a name —
+// stable until the account chooses to flush it for a new one, at which point
+// its old posts stay attached to the old number rather than following you.
+// Posts expire 24h after posting; GET /v1/grapevine/feed never returns one
+// past that, so the client never has to separately track "is this actually
+// still alive." Reporting reuses the existing generic POST /v1/reports
+// (targetType "GRAPEVINE_POST") rather than a new endpoint — blocking does
+// not: there is no stable identity here to block, by design.
+
+const GRAPEVINE_POST_HOURS = 24;
+const anonNumbers = new Map(); // userId -> "4821"
+const takenAnonNumbers = new Set(); // every number currently assigned to someone
+const grapevinePosts = new Map(); // id -> {id, authorId, anonNumber, body, createdAt, expiresAt, votes}
+let grapevineSeq = 0;
+
+function randomAnonNumber() {
+  for (let attempt = 0; attempt < 50; attempt++) {
+    const n = String(Math.floor(1000 + Math.random() * 9000));
+    if (!takenAnonNumbers.has(n)) return n;
+  }
+  // 9000 possible values at campus scale — collisions are a last resort, not
+  // the expected path, and even landing on one is cosmetic, not a crash.
+  return String(Math.floor(1000 + Math.random() * 9000));
+}
+
+function anonNumberFor(userId) {
+  let n = anonNumbers.get(userId);
+  if (!n) {
+    n = randomAnonNumber();
+    anonNumbers.set(userId, n);
+    takenAnonNumbers.add(n);
+  }
+  return n;
+}
+
+function flushAnonNumber(userId) {
+  const old = anonNumbers.get(userId);
+  if (old) takenAnonNumbers.delete(old);
+  const next = randomAnonNumber();
+  anonNumbers.set(userId, next);
+  takenAnonNumbers.add(next);
+  return next;
+}
+
+function publicGrapevinePost(post, viewerId) {
+  return {
+    id: post.id,
+    anonNumber: post.anonNumber,
+    body: post.body,
+    createdAt: post.createdAt,
+    expiresAt: post.expiresAt,
+    // No seeded base score the way regular posts get one (publicPost above)
+    // — a fresh anonymous post has no author identity to make "starts at 1"
+    // mean anything, so it starts at exactly what people voted, zero.
+    score: [...post.votes.values()].reduce((a, b) => a + b, 0),
+    viewerVote: post.votes.get(viewerId) ?? 0,
+    // Only "yours" if your number hasn't moved on since you wrote it —
+    // flushing makes your own older posts stop being yours for UI purposes
+    // too, the same as anyone else's the moment you do it.
+    viewerIsAuthor: post.authorId === viewerId && post.anonNumber === anonNumbers.get(viewerId),
+  };
+}
+
+route("GET", "/v1/grapevine/me", (ctx) => {
+  send(ctx.res, 200, { anonNumber: anonNumberFor(ctx.user.id) });
+});
+
+route("POST", "/v1/grapevine/flush", (ctx) => {
+  send(ctx.res, 200, { anonNumber: flushAnonNumber(ctx.user.id) });
+});
+
+route("GET", "/v1/grapevine/feed", (ctx) => {
+  const now = Date.now();
+  const sort = ctx.query.sort === "new" ? "new" : "hot";
+  const items = [...grapevinePosts.values()]
+    .filter((p) => new Date(p.expiresAt).getTime() > now)
+    .map((p) => publicGrapevinePost(p, ctx.user.id));
+
+  items.sort((a, b) =>
+    sort === "new"
+      ? new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+      : b.score - a.score || new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
+  );
+
+  send(ctx.res, 200, { items: items.slice(0, Number(ctx.query.limit ?? 50)) });
+});
+
+route("POST", "/v1/grapevine/posts", (ctx) => {
+  const body = String(ctx.body.body ?? "").trim();
+  if (!body) return fail(ctx.res, 422, "VALIDATION", "say something first");
+  if (body.length > 500) return fail(ctx.res, 422, "VALIDATION", "500 characters, max");
+
+  const now = new Date();
+  const expiresAt = new Date(now.getTime() + GRAPEVINE_POST_HOURS * 3600_000);
+  const pid = id("gvn", ++grapevineSeq);
+  const post = {
+    id: pid,
+    authorId: ctx.user.id,
+    anonNumber: anonNumberFor(ctx.user.id),
+    body,
+    createdAt: now.toISOString(),
+    expiresAt: expiresAt.toISOString(),
+    votes: new Map(),
+  };
+  grapevinePosts.set(pid, post);
+
+  send(ctx.res, 201, {
+    post: publicGrapevinePost(post, ctx.user.id),
+    supportCard: CRISIS.test(body) ? SUPPORT_CARD : undefined,
+  });
+});
+
+route("POST", "/v1/grapevine/posts/:id/vote", (ctx) => {
+  const post = grapevinePosts.get(ctx.params.id);
+  if (!post) return fail(ctx.res, 404, "NOT_FOUND", "that post is gone");
+  const value = Number(ctx.body.value ?? 0);
+  post.votes.set(ctx.user.id, value > 0 ? 1 : value < 0 ? -1 : 0);
+  const shaped = publicGrapevinePost(post, ctx.user.id);
+  send(ctx.res, 200, { score: shaped.score, viewerVote: shaped.viewerVote });
+});
+
+route("DELETE", "/v1/grapevine/posts/:id", (ctx) => {
+  const post = grapevinePosts.get(ctx.params.id);
+  if (!post) return fail(ctx.res, 404, "NOT_FOUND", "that post is gone");
+  if (post.authorId !== ctx.user.id) {
+    return fail(ctx.res, 403, "FORBIDDEN", "that isn't yours to delete");
+  }
+  grapevinePosts.delete(ctx.params.id);
+  send(ctx.res, 204);
+});
+
 // ------------------------------------------------------------ websocket -----
 // A minimal raw RFC 6455 implementation — no `ws` package, to keep this tool
 // dependency-free. Handles exactly what lib/ws.ts's client sends: subscribe,

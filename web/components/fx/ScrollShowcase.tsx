@@ -83,13 +83,28 @@ export function ScrollShowcase({ steps, className }: { steps: ShowcaseStep[]; cl
           </div>
 
           <div className="order-1 flex justify-center lg:order-2">
-            <div className="relative h-[30rem] w-[15.5rem] shrink-0 overflow-hidden rounded-[2.75rem] border-[6px] border-[var(--ink-900)] bg-bg shadow-[var(--sh-pop)]">
-              <div className="absolute inset-x-0 top-0 z-10 flex justify-center pt-2.5">
-                <div className="h-5 w-24 rounded-full bg-[var(--ink-900)]" />
+            {/* A titanium-edge frame, not a flat outline: the outer shell is
+                the metal (a touch of highlight along its own rounded corner),
+                the inset ring is where glass meets metal, and the screen's
+                corner radius is tightened to sit flush inside both rather
+                than repeating the same radius at every layer. Volume and
+                power keys are struck as thin slivers on the shell itself, and
+                the Dynamic Island floats clear of the top edge instead of
+                fusing into it the way a single bezel-colored pill used to. */}
+            <div className="relative h-[35rem] w-[17rem] shrink-0 rounded-[3.1rem] bg-gradient-to-b from-[var(--ink-700)] to-[var(--ink-900)] p-[3px] shadow-[var(--sh-pop)]">
+              <span className="pointer-events-none absolute -left-[1.5px] top-24 h-9 w-[3px] rounded-l-sm bg-[var(--ink-900)]" />
+              <span className="pointer-events-none absolute -left-[1.5px] top-36 h-14 w-[3px] rounded-l-sm bg-[var(--ink-900)]" />
+              <span className="pointer-events-none absolute -left-[1.5px] top-52 h-14 w-[3px] rounded-l-sm bg-[var(--ink-900)]" />
+              <span className="pointer-events-none absolute -right-[1.5px] top-40 h-16 w-[3px] rounded-r-sm bg-[var(--ink-900)]" />
+
+              <div className="relative h-full w-full overflow-hidden rounded-[2.85rem] bg-bg ring-1 ring-inset ring-white/15">
+                <div className="absolute inset-x-0 top-2.5 z-10 flex justify-center">
+                  <div className="h-[1.65rem] w-[6.75rem] rounded-full bg-[var(--ink-900)]" />
+                </div>
+                {steps.map((step, i) => (
+                  <Screen key={step.eyebrow} step={step} progress={scrollYProgress} index={i} total={steps.length} />
+                ))}
               </div>
-              {steps.map((step, i) => (
-                <Screen key={step.eyebrow} step={step} progress={scrollYProgress} index={i} total={steps.length} />
-              ))}
             </div>
           </div>
         </div>
@@ -104,7 +119,7 @@ export function ScrollShowcase({ steps, className }: { steps: ShowcaseStep[]; cl
 
 export function FeedScreenPreview() {
   return (
-    <div className="flex h-full flex-col bg-bg pt-8">
+    <div className="flex h-full flex-col bg-bg pt-9">
       <div className="flex items-center gap-2 border-b border-border px-3 py-2.5">
         <span className="text-[0.6875rem] font-medium text-text">The Nest</span>
         <span className="ml-auto flex size-5 items-center justify-center rounded-full bg-surface-2 text-faint">
@@ -154,7 +169,7 @@ export function ChatScreenPreview() {
     { mine: false, text: "oh that's actually so much better" },
   ];
   return (
-    <div className="flex h-full flex-col bg-bg pt-8">
+    <div className="flex h-full flex-col bg-bg pt-9">
       <div className="flex items-center gap-2 border-b border-border px-3 py-2.5">
         <GradientAvatar avatar={{ hat: "none", eyes: "sparkle", colour: "peach", accessory: "none" }} name="CSE '26 Den" size={20} />
         <span className="text-[0.6875rem] font-medium text-text">CSE &apos;26 Den</span>
@@ -187,7 +202,7 @@ export function OwlScreenPreview() {
     { rank: 3, name: "You", pts: 780, mine: true },
   ];
   return (
-    <div className="flex h-full flex-col bg-bg pt-8">
+    <div className="flex h-full flex-col bg-bg pt-9">
       <div className="flex items-center gap-2 border-b border-border px-3 py-2.5">
         <span className="text-[0.6875rem] font-medium text-text">Night Shift</span>
         <span className="ml-auto rounded-full border border-[color-mix(in_oklab,var(--accent)_35%,transparent)] bg-accent-wash px-1.5 py-0.5 text-[0.5625rem] text-accent-hi">

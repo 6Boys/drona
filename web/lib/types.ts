@@ -497,3 +497,30 @@ export interface SwipeResult {
   match?: DatingMatch;
   twinklesLeft: number;
 }
+
+/* -------------------------------------------------------------- grapevine -- */
+// The anonymous feed. A post carries a number, not a name — nobody, including
+// the person who wrote it a week later, can point at one and say who that
+// was unless the number is still theirs. Every post expires 24h after
+// posting; the server never returns one past that, so the client doesn't
+// need its own "is this actually still alive" check.
+
+/** Your current standing identity in the anonymous feed — assigned the first
+ * time you touch it, stable after that until you choose to flush it. */
+export interface AnonIdentity {
+  anonNumber: string;
+}
+
+export interface AnonPost {
+  id: string;
+  anonNumber: string;
+  body: string;
+  createdAt: string;
+  expiresAt: string;
+  score: number;
+  viewerVote: number;
+  /** Only true for the account that posted it under its *current* number —
+   * flushing your number means your own older posts stop being "yours" for
+   * UI purposes too, same as anyone else's. */
+  viewerIsAuthor: boolean;
+}

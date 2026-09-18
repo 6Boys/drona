@@ -18,6 +18,18 @@ export function timeAgo(iso: string | undefined): string {
   return new Date(iso).toLocaleDateString(undefined, { day: "numeric", month: "short" });
 }
 
+/** "23h left", "42m left", "expired" — the inverse of timeAgo, for anything
+ * with a countdown to a deadline rather than a history behind it. */
+export function expiresIn(iso: string | undefined): string {
+  if (!iso) return "";
+  const until = new Date(iso).getTime();
+  if (Number.isNaN(until)) return "";
+  const secs = (until - Date.now()) / 1000;
+  if (secs <= 0) return "expired";
+  if (secs < 3600) return `${Math.max(1, Math.floor(secs / 60))}m left`;
+  return `${Math.floor(secs / 3600)}h left`;
+}
+
 export function clockTime(iso: string | undefined): string {
   if (!iso) return "";
   return new Date(iso).toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });

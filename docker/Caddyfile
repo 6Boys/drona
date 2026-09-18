@@ -1,0 +1,15 @@
+# DronaSphere lives on a subdomain, not the apex — redclove.space's apex and
+# `www` stay pointed at the existing RedClove Academy site on Vercel; this
+# box only ever answers for {$DOMAIN} and {$API_DOMAIN}.
+#
+# Both blocks get automatic HTTPS for free: Caddy requests a Let's Encrypt
+# cert on first request to each domain (HTTP-01, needs port 80 reachable)
+# and renews it forever after with zero config.
+
+{$DOMAIN} {
+	reverse_proxy web:3000
+}
+
+{$API_DOMAIN} {
+	reverse_proxy api:8080
+}

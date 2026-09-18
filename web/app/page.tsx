@@ -30,6 +30,7 @@ import { UtmCapture } from "@/components/analytics/UtmCapture";
 import {
   ArrowRightIcon,
   BookIcon,
+  FlameIcon,
   HeartIcon,
   MessageIcon,
   MoonIcon,
@@ -154,6 +155,14 @@ const SURFACES = [
     line: "The reason to open this on a dead Tuesday.",
     body: "PYQs, notes and lab files sorted by subject and semester, upvoted by people who actually sat the paper. Uploading earns Sparks. It is the least social thing here and quietly the most useful.",
     ramp: "linear-gradient(140deg, #9a6b18 0%, #e3c489 100%)",
+  },
+  {
+    id: "grapevine",
+    icon: FlameIcon,
+    name: "Grapevine",
+    line: "The one surface with no name attached.",
+    body: "A number instead of a handle, yours until you flush it for a new one, and a hard 24-hour clock on everything posted. Say what you'd never put your name on — reports still work exactly like everywhere else here.",
+    ramp: "linear-gradient(140deg, #7a2e2e 0%, #d98c6a 100%)",
   },
   {
     id: "owl",
@@ -420,12 +429,18 @@ export default function LandingPage() {
             </ButtonLink>
           </div>
 
-          <p className="mono-label mt-6">
+          {/* mono-label is var(--faint) by design — a deliberately quiet
+              caption — but that reads as nearly invisible against the grain
+              texture and Atmosphere glow behind it here specifically. A drop
+              shadow (not a color change) gives it just enough edge contrast
+              to actually be legible without losing the "quiet" intent
+              everywhere else mono-label is used. */}
+          <p className="mono-label mt-6 [filter:drop-shadow(0_1px_3px_rgba(0,0,0,0.6))]">
             verified students only · one account per college email · no ads
           </p>
 
           <div className="mt-14">
-            <p className="mono-label mb-4">get the app</p>
+            <p className="mono-label mb-4">get the webapp</p>
             <GetTheApp />
           </div>
         </div>

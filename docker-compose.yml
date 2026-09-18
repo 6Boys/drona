@@ -159,7 +159,33 @@ services:
     ports:
       - "${WEB_PORT:-3000}:3000"
 
+  # Terminates TLS for DOMAIN/API_DOMAIN and reverse-proxies to web/api over
+  # the compose network — the only thing that needs 80/443 forwarded on the
+  # router. web/api's own published ports above stay LAN-only in practice
+  # (nothing forwards them from the internet), which is what makes it safe to
+  # leave them published for local debugging.
+  caddy:
+    image: caddy:2-alpine
+    container_name: drona-caddy
+    profiles: ["full"]
+    restart: unless-stopped
+    depends_on:
+      - api
+      - web
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      DOMAIN: ${DOMAIN:?set DOMAIN in .env, e.g. drona.example.com}
+      API_DOMAIN: ${API_DOMAIN:?set API_DOMAIN in .env, e.g. api.drona.example.com}
+    volumes:
+      - ./docker/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+
 volumes:
   pgdata:
   redisdata:
   media:
+  caddy_data:
+  caddy_config:

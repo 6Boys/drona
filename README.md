@@ -397,7 +397,7 @@ NEXT_PUBLIC_API_BASE_URL=http://192.168.1.50:8080
 NEXT_PUBLIC_WS_URL=ws://192.168.1.50:8080/v1/ws
 ALLOWED_ORIGINS=http://192.168.1.50:3000
 
-# …or behind a reverse proxy with TLS
+# …or behind a reverse proxy with TLS — see docker/Caddyfile below
 NEXT_PUBLIC_API_BASE_URL=https://api.drona.example.com
 NEXT_PUBLIC_WS_URL=wss://api.drona.example.com/v1/ws
 ALLOWED_ORIGINS=https://drona.example.com
@@ -408,6 +408,14 @@ docker compose --profile full up --build -d   # first run: builds and migrates
 docker compose --profile migrate up           # after a schema change
 docker compose build web && docker compose up -d web   # after changing a NEXT_PUBLIC_* value
 ```
+
+**TLS with a real domain**: the `caddy` service (profile `full`) reverse-proxies
+`DOMAIN` → `web:3000` and `API_DOMAIN` → `api:8080`, and requests/renews its own
+Let's Encrypt certs with zero extra config (`docker/Caddyfile`). Set both in
+`.env`, point their DNS `A` records at this box's public IP, and forward TCP
+`80` and `443` on your router to it — Caddy needs port 80 reachable for the
+ACME HTTP-01 challenge. Nothing else needs forwarding; `web`/`api`'s own
+published ports stay LAN-only in practice since only 80/443 are forwarded.
 
 > A changed `NEXT_PUBLIC_*` needs a **rebuild**, not a restart. That is how
 > Next.js inlines public env vars; a restart alone silently keeps the old URL.
