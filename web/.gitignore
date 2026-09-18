@@ -4,3 +4,8 @@ out
 next-env.d.ts
 *.tsbuildinfo
 coverage
+
+# Built by mobile/ (gradle assembleDebug), copied here so the landing page's
+# "Download for Android" link has something to serve — a build artifact like
+# .next/, not something to track. See mobile/README.md for the build step.
+public/downloads/

@@ -1,6 +1,7 @@
 import Link from "next/link";
 import type { Metadata } from "next";
 import { AppPreview } from "@/components/marketing/AppPreview";
+import { GetTheApp } from "@/components/marketing/GetTheApp";
 import { ProfileCard } from "@/components/dating/ProfileCard";
 import type { DatingCandidate } from "@/lib/types";
 import { ButtonLink } from "@/components/ui/Button";
@@ -423,6 +424,11 @@ export default function LandingPage() {
           <p className="mono-label mt-6">
             verified students only · one account per college email · no ads
           </p>
+
+          <div className="mt-14">
+            <p className="mono-label mb-4">get the app</p>
+            <GetTheApp />
+          </div>
         </div>
       </section>
 

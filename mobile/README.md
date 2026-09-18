@@ -84,6 +84,23 @@ A debug APK installs directly on any Android device or emulator with
 developer account. That's the actual "Android app you can hand someone"
 deliverable this whole approach was for.
 
+### Publishing it from the landing page
+
+The landing page's "Download for Android" button serves whatever file sits at
+`web/public/downloads/dronasphere-debug.apk` — that path is gitignored (it's
+a build artifact, same as `.next/`), so after building, copy it there:
+
+```bash
+cp android/app/build/outputs/apk/debug/app-debug.apk \
+  ../web/public/downloads/dronasphere-debug.apk
+```
+
+The APK only works for whoever built it: `server.url` is baked in at `cap
+sync` time (step 1 above), so re-copying it here after re-syncing against a
+different address — a real domain instead of a homelab IP — is what makes
+the button actually useful to a visitor who isn't on the same Tailscale
+network or LAN.
+
 ### Release builds (signed, for real distribution)
 
 A release build needs a signing key. Generate one once and keep it safe —
