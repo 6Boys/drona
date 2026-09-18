@@ -2,13 +2,13 @@
 
 import { useState } from "react";
 import { PageBody, TopBar } from "@/components/app-shell/TopBar";
-import { AnonComposer } from "@/components/grapevine/AnonComposer";
-import { AnonPostCard } from "@/components/grapevine/AnonPostCard";
+import { AnonComposer } from "@/components/afterhours/AnonComposer";
+import { AnonPostCard } from "@/components/afterhours/AnonPostCard";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { Segmented } from "@/components/ui/Segmented";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { FlameIcon } from "@/components/ui/Icons";
-import { useGrapevineFeed, type GrapevineSort } from "@/lib/grapevine-store";
+import { useAfterHoursFeed, type AfterHoursSort } from "@/lib/afterhours-store";
 
 /* -----------------------------------------------------------------------------
    The one campus surface with no name attached to it. Everything you post
@@ -17,17 +17,17 @@ import { useGrapevineFeed, type GrapevineSort } from "@/lib/grapevine-store";
    left for someone to wonder about.
    -------------------------------------------------------------------------- */
 
-export default function GrapevinePage() {
-  const [sort, setSort] = useState<GrapevineSort>("hot");
-  const feed = useGrapevineFeed(sort);
+export default function AfterHoursPage() {
+  const [sort, setSort] = useState<AfterHoursSort>("hot");
+  const feed = useAfterHoursFeed(sort);
 
   return (
     <>
       <TopBar
-        title="Grapevine"
+        title="AfterHours"
         subtitle="Anonymous · campus-only · posts last 24 hours"
         tabs={
-          <Segmented<GrapevineSort>
+          <Segmented<AfterHoursSort>
             size="sm"
             value={sort}
             onChange={setSort}
@@ -49,7 +49,7 @@ export default function GrapevinePage() {
             <EmptyState
               icon={FlameIcon}
               title="Nothing here right now"
-              body="Every post here lasts 24 hours, then it's gone — so an empty Grapevine just means nobody's said anything recently. Be the first."
+              body="Every post here lasts 24 hours, then it's gone — so an empty AfterHours just means nobody's said anything recently. Be the first."
               compact
             />
           ) : (

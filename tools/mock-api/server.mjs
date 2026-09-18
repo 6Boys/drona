@@ -17,7 +17,7 @@
 // all for ordinary testing.
 //
 // Any 6-digit code verifies. Sign in as any seeded handle's email
-// (e.g. aniket@dronacharya.info), a new address to walk onboarding, or an
+// (e.g. akshit@dronacharya.info), a new address to walk onboarding, or an
 // address containing "admin" (e.g. admin@gmail.com) to skip onboarding
 // entirely for quick testing.
 
@@ -29,7 +29,7 @@ server.on("upgrade", handleUpgrade);
 
 server.listen(PORT, () => {
   console.log(`DronaSphere mock API on http://localhost:${PORT}`);
-  console.log(`  sign in as any seeded student, e.g. aniket@dronacharya.info`);
+  console.log(`  sign in as any seeded student, e.g. akshit@dronacharya.info`);
   console.log(`  any 6-digit code works (the UI prefills 123456)`);
   console.log(`  a brand-new address walks the full onboarding flow`);
   console.log(`  an address containing "admin" skips onboarding entirely`);

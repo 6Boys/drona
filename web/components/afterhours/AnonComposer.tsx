@@ -6,7 +6,7 @@ import { Textarea } from "@/components/ui/Field";
 import { RefreshIcon, SendIcon } from "@/components/ui/Icons";
 import { useToast } from "@/components/ui/Toast";
 import { errorMessage } from "@/lib/api";
-import { grapevine, useGrapevineIdentity } from "@/lib/grapevine-store";
+import { afterhours, useAfterHoursIdentity } from "@/lib/afterhours-store";
 import type { AnonPost } from "@/lib/types";
 
 const BODY_LIMIT = 500;
@@ -15,7 +15,7 @@ const BODY_LIMIT = 500;
  * control live right where you're about to use them, not buried in settings,
  * since deciding whether you want a fresh one is part of deciding to post. */
 export function AnonComposer({ onPosted }: { onPosted: (post: AnonPost) => void }) {
-  const { identity, flush } = useGrapevineIdentity();
+  const { identity, flush } = useAfterHoursIdentity();
   const toast = useToast();
   const [body, setBody] = useState("");
   const [posting, setPosting] = useState(false);
@@ -26,7 +26,7 @@ export function AnonComposer({ onPosted }: { onPosted: (post: AnonPost) => void 
     if (!trimmed || posting) return;
     setPosting(true);
     try {
-      const { post } = await grapevine.createPost(trimmed);
+      const { post } = await afterhours.createPost(trimmed);
       onPosted(post);
       setBody("");
     } catch (err) {

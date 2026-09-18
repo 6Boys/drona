@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/Button";
 import { FlagIcon, TimerIcon, XIcon } from "@/components/ui/Icons";
 import { useToast } from "@/components/ui/Toast";
 import { api, errorMessage } from "@/lib/api";
-import { grapevine } from "@/lib/grapevine-store";
+import { afterhours } from "@/lib/afterhours-store";
 import { timeAgo, expiresIn } from "@/lib/format";
 import type { AnonPost, VoteResult } from "@/lib/types";
 import { cn } from "@/lib/cn";
@@ -41,7 +41,7 @@ export function AnonPostCard({ post, onChange, onRemoved }: { post: AnonPost; on
     if (!reason) return;
     setBusy(true);
     try {
-      await api.post("/v1/reports", { targetType: "GRAPEVINE_POST", targetId: post.id, reason });
+      await api.post("/v1/reports", { targetType: "AFTERHOURS_POST", targetId: post.id, reason });
       toast("Reported. A moderator will review this within 24 hours.", "success");
       setReporting(false);
       setReason("");
@@ -55,7 +55,7 @@ export function AnonPostCard({ post, onChange, onRemoved }: { post: AnonPost; on
   const deletePost = async () => {
     setBusy(true);
     try {
-      await grapevine.deletePost(post.id);
+      await afterhours.deletePost(post.id);
       onRemoved();
     } catch (err) {
       toast(errorMessage(err, "could not remove that"), "error");
@@ -83,7 +83,7 @@ export function AnonPostCard({ post, onChange, onRemoved }: { post: AnonPost; on
 
       <div className="mt-3 flex items-center gap-2">
         <VoteBar
-          path={`/v1/grapevine/posts/${post.id}/vote`}
+          path={`/v1/afterhours/posts/${post.id}/vote`}
           score={post.score}
           viewerVote={post.viewerVote}
           size="sm"

@@ -36,7 +36,13 @@ export function Paywall({
   const [showRedeem, setShowRedeem] = useState(false);
   const [code, setCode] = useState("");
 
-  const choosePlan = async (plan: PlanId) => {
+  const choosePlan = async (plan: PlanId, e: React.MouseEvent) => {
+    // Likes You renders this inside LayoutGrid's expanded tile, which treats
+    // any click landing anywhere in it as "close" (that's how tapping the X
+    // works — the whole tile is the click target, not just the icon). Without
+    // this, choosing a plan closed the card before checkout ever resolved:
+    // indistinguishable from the paywall just not doing anything.
+    e.stopPropagation();
     setBusyPlan(plan);
     try {
       apply(await premium.checkout(plan));
@@ -49,7 +55,8 @@ export function Paywall({
     }
   };
 
-  const submitCode = async () => {
+  const submitCode = async (e?: React.SyntheticEvent) => {
+    e?.stopPropagation();
     if (!code.trim()) return;
     setRedeeming(true);
     try {
@@ -78,7 +85,7 @@ export function Paywall({
             key={plan.id}
             type="button"
             disabled={busyPlan !== null}
-            onClick={() => void choosePlan(plan.id)}
+            onClick={(e) => void choosePlan(plan.id, e)}
             className={cn(
               "cursor-pointer rounded-[var(--r-lg)] border border-border bg-surface p-4 text-left transition-colors",
               "hover:border-accent disabled:cursor-not-allowed disabled:opacity-60",
@@ -96,18 +103,21 @@ export function Paywall({
 
       <button
         type="button"
-        onClick={() => setShowRedeem((s) => !s)}
+        onClick={(e) => {
+          e.stopPropagation();
+          setShowRedeem((s) => !s);
+        }}
         className="mt-5 cursor-pointer text-[0.75rem] text-faint underline decoration-dotted underline-offset-2 hover:text-muted"
       >
         Have a code?
       </button>
 
       {showRedeem && (
-        <div className="mt-2.5 flex justify-center gap-2">
+        <div className="mt-2.5 flex justify-center gap-2" onClick={(e) => e.stopPropagation()}>
           <input
             value={code}
             onChange={(e) => setCode(e.target.value)}
-            onKeyDown={(e) => e.key === "Enter" && void submitCode()}
+            onKeyDown={(e) => e.key === "Enter" && void submitCode(e)}
             placeholder="redeem code"
             className="w-36 rounded-[var(--r-md)] border border-border bg-surface px-3 py-1.5 text-[0.8125rem] text-text outline-none placeholder:text-faint focus:border-accent"
           />

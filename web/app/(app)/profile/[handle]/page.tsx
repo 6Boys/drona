@@ -16,6 +16,7 @@ import { CopyButton } from "@/components/ui/CopyButton";
 import { Dialog } from "@/components/ui/Dialog";
 import { useToast } from "@/components/ui/Toast";
 import { CommunityRules } from "@/components/profile/CommunityRules";
+import { ActivationBadge } from "@/components/profile/ActivationBadge";
 import { Paywall } from "@/components/premium/Paywall";
 import { isPremiumActive } from "@/lib/premium";
 import { api, errorMessage } from "@/lib/api";
@@ -134,6 +135,7 @@ export default function ProfilePage() {
                 <div className="min-w-0 flex-1">
                   <div className="flex flex-wrap items-center gap-2">
                     <h1 className="text-lg font-medium tracking-[-0.015em] text-text">{user.displayName}</h1>
+                    <ActivationBadge activated={user.activated} />
                     {user.isPrivate && (
                       <Badge tone="neutral" mono>
                         <LockIcon size={10} /> private

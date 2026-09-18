@@ -112,7 +112,7 @@ export default function FeedPage() {
               />
             </div>
 
-            {/* The sidebar already has a Grapevine link, so this is
+            {/* The sidebar already has an AfterHours link, so this is
                 deliberately lg:hidden — a phone-width Nest has no other one-
                 tap way there (five bottom-nav slots, all already spoken for),
                 right beside the strip above rather than off in a scrollable
@@ -121,12 +121,12 @@ export default function FeedPage() {
                 the motion, not a literal drawer: a small nudge on tap toward
                 the thing it opens. */}
             <Link
-              href="/grapevine"
-              aria-label="Open Grapevine — the anonymous feed"
+              href="/afterhours"
+              aria-label="Open AfterHours — the anonymous feed"
               className="glass glass-pill flex shrink-0 items-center gap-1 px-2.5 py-1.5 text-[0.75rem] font-medium text-accent-hi transition-transform active:translate-x-0.5 lg:hidden"
             >
               <FlameIcon size={13} />
-              Grapevine
+              AfterHours
               <ChevronRightIcon size={12} />
             </Link>
           </>

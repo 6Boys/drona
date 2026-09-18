@@ -57,7 +57,7 @@ function weekKey(d = new Date()): string {
 
 const DEMO_USERS = [
   { n: 1,  handle: "dronu",      name: "Dronu",            branch: "CSE", year: 2, batch: "2024-28", rank: "COMET",          role: "CAMPUS_ADMIN", bio: "your resident owl. i live here 🦉" },
-  { n: 2,  handle: "aniket",     name: "Aniket Rathour",   branch: "CSE", year: 3, batch: "2023-27", rank: "MOON_MOTH",      role: "SUPERADMIN",   bio: "building this thing. say hi." },
+  { n: 2,  handle: "akshit",     name: "Akshit Jain",      branch: "CSE", year: 3, batch: "2023-27", rank: "MOON_MOTH",      role: "SUPERADMIN",   bio: "building this thing. say hi." },
   { n: 3,  handle: "meher",      name: "Meher Kaur",       branch: "ECE", year: 2, batch: "2024-28", rank: "NIGHT_OWL",      role: "STUDENT",      bio: "ece // sings in the stairwell" },
   { n: 4,  handle: "rishab",     name: "Rishab Jain",      branch: "CSE", year: 4, batch: "2022-26", rank: "MOON_MOTH",      role: "SPACE_MOD",    bio: "placements gyaan, ask me anything" },
   { n: 5,  handle: "tanya",      name: "Tanya Bose",       branch: "IT",  year: 2, batch: "2024-28", rank: "FLEDGLING",      role: "STUDENT",      bio: "sem 3 survivor 🫠" },

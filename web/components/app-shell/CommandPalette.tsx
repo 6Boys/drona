@@ -87,7 +87,7 @@ export function CommandPalette() {
       { id: "notes", label: "Note Locker", hint: "PYQs and notes", icon: BookIcon, run: go("/notes"), group: "Go to" },
       { id: "saved", label: "Saved posts", hint: "Your bookmarks", icon: BookIcon, run: go("/saved"), group: "Go to" },
       { id: "dating", label: "Love Finder", hint: "Opt-in deck", icon: HeartIcon, run: go("/dating"), group: "Go to" },
-      { id: "grapevine", label: "Grapevine", hint: "Anonymous, 24h posts", icon: FlameIcon, run: go("/grapevine"), group: "Go to" },
+      { id: "afterhours", label: "AfterHours", hint: "Anonymous, 24h posts", icon: FlameIcon, run: go("/afterhours"), group: "Go to" },
       { id: "profile", label: "Your profile", icon: UserIcon, run: go("/me"), group: "Go to" },
       { id: "settings", label: "Settings", icon: SettingsIcon, run: go("/settings"), group: "Go to" },
     ];

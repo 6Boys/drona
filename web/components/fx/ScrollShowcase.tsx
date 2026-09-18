@@ -202,7 +202,7 @@ export function ChatScreenPreview() {
 export function OwlScreenPreview() {
   const ranks = [
     { rank: 1, name: "Meher", pts: 940 },
-    { rank: 2, name: "Aniket", pts: 812 },
+    { rank: 2, name: "Akshit", pts: 812 },
     { rank: 3, name: "You", pts: 780, mine: true },
   ];
   return (

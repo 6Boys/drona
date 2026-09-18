@@ -6,21 +6,21 @@ import type { AnonIdentity, AnonPost } from "./types";
 
 /* -----------------------------------------------------------------------------
    Client state for the anonymous feed. Everything here is a thin wrapper over
-   /v1/grapevine/* — the server owns the number, the posts, and which ones are
+   /v1/afterhours/* — the server owns the number, the posts, and which ones are
    still alive. This only keeps what a screen needs between renders.
    -------------------------------------------------------------------------- */
 
-export type GrapevineSort = "hot" | "new";
+export type AfterHoursSort = "hot" | "new";
 
 /** Your current anon number, and the one action that changes it. */
-export function useGrapevineIdentity() {
+export function useAfterHoursIdentity() {
   const [identity, setIdentity] = useState<AnonIdentity | null>(null);
   const [loading, setLoading] = useState(true);
 
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      setIdentity(await api.get<AnonIdentity>("/v1/grapevine/me"));
+      setIdentity(await api.get<AnonIdentity>("/v1/afterhours/me"));
     } finally {
       setLoading(false);
     }
@@ -31,7 +31,7 @@ export function useGrapevineIdentity() {
   }, [load]);
 
   const flush = useCallback(async () => {
-    const next = await api.post<AnonIdentity>("/v1/grapevine/flush");
+    const next = await api.post<AnonIdentity>("/v1/afterhours/flush");
     setIdentity(next);
     return next;
   }, []);
@@ -39,7 +39,7 @@ export function useGrapevineIdentity() {
   return { identity, loading, flush };
 }
 
-export function useGrapevineFeed(sort: GrapevineSort) {
+export function useAfterHoursFeed(sort: AfterHoursSort) {
   const [items, setItems] = useState<AnonPost[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<unknown>(null);
@@ -48,7 +48,7 @@ export function useGrapevineFeed(sort: GrapevineSort) {
     setLoading(true);
     setError(null);
     try {
-      const res = await api.get<{ items: AnonPost[] }>("/v1/grapevine/feed", { sort, limit: 50 });
+      const res = await api.get<{ items: AnonPost[] }>("/v1/afterhours/feed", { sort, limit: 50 });
       setItems(res.items ?? []);
     } catch (err) {
       setError(err);
@@ -75,14 +75,14 @@ export function useGrapevineFeed(sort: GrapevineSort) {
   return { items, loading, error, reload: load, remove, prepend, setItems };
 }
 
-export const grapevine = {
+export const afterhours = {
   createPost(body: string) {
-    return api.post<{ post: AnonPost; supportCard?: unknown }>("/v1/grapevine/posts", { body });
+    return api.post<{ post: AnonPost; supportCard?: unknown }>("/v1/afterhours/posts", { body });
   },
   vote(postId: string, value: number) {
-    return api.post<{ score: number; viewerVote: number }>(`/v1/grapevine/posts/${postId}/vote`, { value });
+    return api.post<{ score: number; viewerVote: number }>(`/v1/afterhours/posts/${postId}/vote`, { value });
   },
   deletePost(postId: string) {
-    return api.delete<void>(`/v1/grapevine/posts/${postId}`);
+    return api.delete<void>(`/v1/afterhours/posts/${postId}`);
   },
 };

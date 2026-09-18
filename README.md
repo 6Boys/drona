@@ -291,7 +291,7 @@ npm run mock:api
 npm run dev:web
 ```
 
-- Sign in with any seeded campus email (e.g. `aniket@dronacharya.info`, `meher@dronacharya.info`) or enter a new email to test the onboarding walkthrough.
+- Sign in with any seeded campus email (e.g. `akshit@dronacharya.info`, `meher@dronacharya.info`) or enter a new email to test the onboarding walkthrough.
 - **Any 6-digit OTP code** is accepted by the mock server!
 
 ---

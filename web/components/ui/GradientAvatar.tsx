@@ -45,7 +45,7 @@ export function avatarColours(avatar: AvatarShape | undefined): [string, string]
   return [ramp.from, ramp.to];
 }
 
-/** First letter of each of the first two words — "Aniket Rathour" -> "AR". */
+/** First letter of each of the first two words — "Akshit Jain" -> "AJ". */
 export function initialsFor(name: string): string {
   const words = name.trim().split(/\s+/).filter(Boolean).slice(0, 2);
   if (!words.length) return "?";

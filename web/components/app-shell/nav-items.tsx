@@ -23,7 +23,7 @@ export interface NavItem {
 export const PRIMARY_NAV: NavItem[] = [
   { href: "/feed", label: "Nest", icon: HomeIcon },
   { href: "/dating", label: "Love Finder", icon: HeartIcon, romance: true },
-  { href: "/grapevine", label: "Grapevine", icon: FlameIcon },
+  { href: "/afterhours", label: "AfterHours", icon: FlameIcon },
   { href: "/spaces", label: "Spaces", icon: CompassIcon },
   { href: "/chats", label: "Chats", icon: MessageIcon },
 ];

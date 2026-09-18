@@ -33,6 +33,11 @@ export interface User {
   role: UserRole;
   status: UserStatus;
   isPrivate: boolean;
+  /** False for an imported account nobody has claimed yet — a "ghost user"
+   * seeded from a roster, not signed up by the person themselves. Flips to
+   * true the moment they complete email OTP verification for it, same as
+   * anyone else's first sign-in. Shown as the small A badge on a profile. */
+  activated: boolean;
   onboardingStep: OnboardingStep;
   followerCount: number;
   followingCount: number;
@@ -498,7 +503,7 @@ export interface SwipeResult {
   twinklesLeft: number;
 }
 
-/* -------------------------------------------------------------- grapevine -- */
+/* --------------------------------------------------------------- afterhours -- */
 // The anonymous feed. A post carries a number, not a name — nobody, including
 // the person who wrote it a week later, can point at one and say who that
 // was unless the number is still theirs. Every post expires 24h after

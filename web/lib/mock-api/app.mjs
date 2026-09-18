@@ -25,7 +25,7 @@
 // be built, demoed and reviewed without Postgres, Redis or Docker.
 //
 // Any 6-digit code verifies. Sign in as any seeded handle's email
-// (e.g. aniket@dronacharya.info) or a new address to walk onboarding.
+// (e.g. akshit@dronacharya.info) or a new address to walk onboarding.
 
 import { createHash } from "node:crypto";
 
@@ -42,7 +42,7 @@ const id = (prefix, n) => `${prefix}-${String(n).padStart(4, "0")}`;
 
 const PEOPLE = [
   ["dronu", "Dronu", "CSE", 2, "2024-28", "COMET", "CAMPUS_ADMIN", "your resident owl. i live here 🦉", { hat: "beanie", eyes: "sparkle", colour: "ube", accessory: "scarf" }],
-  ["aniket", "Aniket Rathour", "CSE", 3, "2023-27", "MOON_MOTH", "SUPERADMIN", "building this thing. say hi.", { hat: "headphones", eyes: "sparkle", colour: "mint", accessory: "glasses" }],
+  ["akshit", "Akshit Jain", "CSE", 3, "2023-27", "MOON_MOTH", "SUPERADMIN", "building this thing. say hi.", { hat: "headphones", eyes: "sparkle", colour: "mint", accessory: "glasses" }],
   ["meher", "Meher Kaur", "ECE", 2, "2024-28", "NIGHT_OWL", "STUDENT", "ece // sings in the stairwell", { hat: "flower", eyes: "wink", colour: "peach", accessory: "none" }],
   ["rishab", "Rishab Jain", "CSE", 4, "2022-26", "MOON_MOTH", "SPACE_MOD", "placements gyaan, ask me anything", { hat: "grad-cap", eyes: "sparkle", colour: "mint", accessory: "none" }],
   ["tanya", "Tanya Bose", "IT", 2, "2024-28", "FLEDGLING", "STUDENT", "sem 3 survivor 🫠", { hat: "none", eyes: "wide", colour: "butter", accessory: "earbuds" }],
@@ -79,6 +79,7 @@ PEOPLE.forEach(([handle, displayName, branch, year, batch, owlRank, role, bio, a
     role,
     status: "ACTIVE",
     isPrivate: false,
+    activated: true,
     onboardingStep: "DONE",
     stardust: 400 + i * 137,
     owlRank,
@@ -93,6 +94,121 @@ PEOPLE.forEach(([handle, displayName, branch, year, batch, owlRank, role, bio, a
 });
 
 const byHandle = (handle) => [...users.values()].find((u) => u.handle === handle.toLowerCase());
+
+// ------------------------------------------------------------ ghost users ---
+// A roster import creates accounts nobody has signed into yet — real seats
+// held for real people, not fake ones like the PEOPLE cast above. Everything
+// about a ghost is provisional: the display name is just a first name (a
+// full name isn't "theirs" to show off until they've actually shown up), and
+// `activated` stays false until the first successful email OTP verify for
+// that exact address flips it — see POST /v1/auth/otp/verify. Nothing here
+// requires it to run at module load: `importGhostRoster` is also what the
+// real roster-import route (POST /v1/admin/roster/import) calls once a real
+// spreadsheet replaces SYNTHETIC_ROSTER below.
+function firstNameOf(fullName) {
+  return fullName.trim().split(/\s+/)[0] ?? fullName.trim();
+}
+
+function handleFromName(fullName) {
+  const root =
+    fullName
+      .trim()
+      .split(/\s+/)[0]
+      ?.toLowerCase()
+      .replace(/[^a-z0-9]/g, "") || "student";
+  if (!byHandle(root)) return root;
+  let n = 2;
+  while (byHandle(`${root}${n}`)) n += 1;
+  return `${root}${n}`;
+}
+
+let ghostSeq = 0;
+
+/** Creates one ghost account. Returns null (no-op) if that email is already
+ * someone's — importing the same roster twice must never duplicate or
+ * clobber an account that has since been activated. */
+function createGhostUser({ name, email, branch, year, batch }) {
+  const normalizedEmail = String(email).trim().toLowerCase();
+  if (!normalizedEmail || byHandleEmail(normalizedEmail)) return null;
+
+  const newId = id("usr", 900 + ++ghostSeq);
+  const user = {
+    id: newId,
+    campusId: CAMPUS_ID,
+    handle: handleFromName(name),
+    displayName: firstNameOf(name),
+    bio: "",
+    avatar: { hat: "none", eyes: "sparkle", colour: "ube", accessory: "none" },
+    batch: batch || "",
+    branch: branch || "",
+    year: year || undefined,
+    role: "STUDENT",
+    status: "ACTIVE",
+    isPrivate: false,
+    activated: false,
+    // DONE, not HANDLE: a ghost already has a handle and a place in the
+    // campus roster — onboarding is what a *person* walks through, and this
+    // account has no person behind it yet. It only starts looking untouched
+    // the way onboarding would produce, not asking to be finished.
+    onboardingStep: "DONE",
+    stardust: 0,
+    owlRank: "SLEEPY_SPARROW",
+    owlRankLabel: RANK_LABELS.SLEEPY_SPARROW,
+    loveFinderEnabled: false,
+    photoVerified: false,
+    premiumUntil: null,
+    email: normalizedEmail,
+    createdAt: iso(),
+    weekPoints: 0,
+  };
+  users.set(newId, user);
+  return user;
+}
+
+function byHandleEmail(email) {
+  return [...users.values()].find((u) => u.email === email);
+}
+
+/** `students`: [{ name, email, branch?, year?, batch? }]. Skips anything
+ * already claimed rather than erroring — a partial re-run of the same file
+ * should be safe to just run again. */
+function importGhostRoster(students) {
+  let created = 0;
+  let skipped = 0;
+  for (const s of students) {
+    if (createGhostUser(s)) created += 1;
+    else skipped += 1;
+  }
+  return { created, skipped };
+}
+
+// Fills the campus with unclaimed seats until the real roster replaces it —
+// enough to see the white-A ghost badge, the search/follow paths finding a
+// ghost, and the red-A flip on first sign-in, all before a single real
+// student's data ever touches this file.
+const SYNTHETIC_ROSTER = [
+  { name: "Priya Sharma", email: "priya.sharma@dronacharya.info", branch: "CSE", year: 2, batch: "2024-28" },
+  { name: "Rohan Verma", email: "rohan.verma@dronacharya.info", branch: "ECE", year: 3, batch: "2023-27" },
+  { name: "Ananya Iyer", email: "ananya.iyer@dronacharya.info", branch: "IT", year: 2, batch: "2024-28" },
+  { name: "Vikram Malhotra", email: "vikram.malhotra@dronacharya.info", branch: "ME", year: 4, batch: "2022-26" },
+  { name: "Sneha Reddy", email: "sneha.reddy@dronacharya.info", branch: "CSE", year: 3, batch: "2023-27" },
+  { name: "Karan Mehta", email: "karan.mehta@dronacharya.info", branch: "EEE", year: 2, batch: "2024-28" },
+  { name: "Divya Nair", email: "divya.nair@dronacharya.info", branch: "CSE", year: 4, batch: "2022-26" },
+  { name: "Aditya Joshi", email: "aditya.joshi@dronacharya.info", branch: "IT", year: 3, batch: "2023-27" },
+  { name: "Pooja Agarwal", email: "pooja.agarwal@dronacharya.info", branch: "ECE", year: 2, batch: "2024-28" },
+  { name: "Siddharth Rao", email: "siddharth.rao@dronacharya.info", branch: "CSE", year: 3, batch: "2023-27" },
+  { name: "Neha Kapoor", email: "neha.kapoor@dronacharya.info", branch: "ME", year: 2, batch: "2024-28" },
+  { name: "Varun Chopra", email: "varun.chopra@dronacharya.info", branch: "CE", year: 4, batch: "2022-26" },
+  { name: "Ritika Desai", email: "ritika.desai@dronacharya.info", branch: "IT", year: 2, batch: "2024-28" },
+  { name: "Manish Pillai", email: "manish.pillai@dronacharya.info", branch: "CSE", year: 3, batch: "2023-27" },
+  { name: "Simran Bhatia", email: "simran.bhatia@dronacharya.info", branch: "ECE", year: 3, batch: "2023-27" },
+  { name: "Aryan Saxena", email: "aryan.saxena@dronacharya.info", branch: "CSE", year: 2, batch: "2024-28" },
+  { name: "Kavya Menon", email: "kavya.menon@dronacharya.info", branch: "IT", year: 4, batch: "2022-26" },
+  { name: "Nikhil Bansal", email: "nikhil.bansal@dronacharya.info", branch: "ME", year: 3, batch: "2023-27" },
+  { name: "Isha Trivedi", email: "isha.trivedi@dronacharya.info", branch: "CSE", year: 2, batch: "2024-28" },
+  { name: "Yash Khanna", email: "yash.khanna@dronacharya.info", branch: "EEE", year: 3, batch: "2023-27" },
+];
+importGhostRoster(SYNTHETIC_ROSTER);
 
 // follows: Set of "follower>target"
 const follows = new Set();
@@ -386,6 +502,7 @@ function publicUser(user, viewerId, self = false) {
     role: user.role,
     status: user.status,
     isPrivate: user.isPrivate,
+    activated: user.activated ?? true,
     onboardingStep: user.onboardingStep,
     followerCount: [...follows].filter((f) => f.endsWith(`>${user.id}`)).length,
     followingCount: [...follows].filter((f) => f.startsWith(`${user.id}>`)).length,
@@ -404,7 +521,9 @@ function publicUser(user, viewerId, self = false) {
 
 function meResponse(user) {
   const followingCount = [...follows].filter((f) => f.startsWith(`${user.id}>`)).length;
-  const verified = users.size;
+  // A ghost user hasn't verified anything yet — counting them here would make
+  // "N verified students on your campus" a lie the moment a roster is imported.
+  const verified = [...users.values()].filter((u) => u.activated).length;
   return {
     user: publicUser(user, user.id, true),
     onboardingStep: user.onboardingStep,
@@ -799,9 +918,19 @@ route("POST", "/v1/auth/otp/verify", (ctx) => {
       email,
       createdAt: iso(),
       weekPoints: 0,
+      // Walking in and verifying an email nobody pre-loaded IS activating —
+      // this only ever starts false for a ghost user created by the roster
+      // import below, never for a real sign-up.
+      activated: true,
     };
     users.set(newId, user);
   }
+
+  // A ghost user's whole point is that email OTP is what claims it — this is
+  // that moment, for every account, not just the ones that were ghosts a
+  // line ago. Already-activated accounts logging back in just get set to the
+  // same value they already had.
+  user.activated = true;
 
   if (isTestAdminEmail(email)) skipOnboarding(user);
 
@@ -812,6 +941,19 @@ route("POST", "/v1/auth/otp/verify", (ctx) => {
     user: publicUser(user, user.id, true),
     onboardingStep: user.onboardingStep,
   });
+});
+
+// Where next year's real roster lands once it exists: same shape as
+// SYNTHETIC_ROSTER above ([{ name, email, branch?, year?, batch? }]),
+// gated to the two roles that can already see "campus admin" tooling
+// elsewhere in the product rather than a new permission of its own.
+route("POST", "/v1/admin/roster/import", (ctx) => {
+  if (!["SUPERADMIN", "CAMPUS_ADMIN"].includes(ctx.user.role)) {
+    return fail(ctx.res, 403, "FORBIDDEN", "campus admins only");
+  }
+  const students = Array.isArray(ctx.body.students) ? ctx.body.students : null;
+  if (!students) return fail(ctx.res, 422, "VALIDATION", "expected a students array");
+  send(ctx.res, 200, importGhostRoster(students));
 });
 
 route("POST", "/v1/auth/refresh", (ctx) => {
@@ -1050,7 +1192,7 @@ const DEMO_CARDS = {
 
 /** Seeded so the demo has a deck to swipe and likes to answer on first load. */
 function seedDatingDemo() {
-  const viewer = byHandle("aniket");
+  const viewer = byHandle("akshit");
   if (!viewer) return;
 
   for (const [handle, card] of Object.entries(DEMO_CARDS)) {
@@ -1851,21 +1993,21 @@ route("POST", "/v1/posts/:id/poll", (ctx) => {
   send(ctx.res, 200, publicPoll(post, ctx.user.id));
 });
 
-// ---------------------------------------------------------- grapevine -----
+// ---------------------------------------------------------- afterhours ----
 // Anonymous feed. A post carries a number assigned per account, not a name —
 // stable until the account chooses to flush it for a new one, at which point
 // its old posts stay attached to the old number rather than following you.
-// Posts expire 24h after posting; GET /v1/grapevine/feed never returns one
+// Posts expire 24h after posting; GET /v1/afterhours/feed never returns one
 // past that, so the client never has to separately track "is this actually
 // still alive." Reporting reuses the existing generic POST /v1/reports
-// (targetType "GRAPEVINE_POST") rather than a new endpoint — blocking does
+// (targetType "AFTERHOURS_POST") rather than a new endpoint — blocking does
 // not: there is no stable identity here to block, by design.
 
-const GRAPEVINE_POST_HOURS = 24;
+const AFTERHOURS_POST_HOURS = 24;
 const anonNumbers = new Map(); // userId -> "4821"
 const takenAnonNumbers = new Set(); // every number currently assigned to someone
-const grapevinePosts = new Map(); // id -> {id, authorId, anonNumber, body, createdAt, expiresAt, votes}
-let grapevineSeq = 0;
+const afterhoursPosts = new Map(); // id -> {id, authorId, anonNumber, body, createdAt, expiresAt, votes}
+let afterhoursSeq = 0;
 
 function randomAnonNumber() {
   for (let attempt = 0; attempt < 50; attempt++) {
@@ -1896,7 +2038,7 @@ function flushAnonNumber(userId) {
   return next;
 }
 
-function publicGrapevinePost(post, viewerId) {
+function publicAfterHoursPost(post, viewerId) {
   return {
     id: post.id,
     anonNumber: post.anonNumber,
@@ -1915,20 +2057,20 @@ function publicGrapevinePost(post, viewerId) {
   };
 }
 
-route("GET", "/v1/grapevine/me", (ctx) => {
+route("GET", "/v1/afterhours/me", (ctx) => {
   send(ctx.res, 200, { anonNumber: anonNumberFor(ctx.user.id) });
 });
 
-route("POST", "/v1/grapevine/flush", (ctx) => {
+route("POST", "/v1/afterhours/flush", (ctx) => {
   send(ctx.res, 200, { anonNumber: flushAnonNumber(ctx.user.id) });
 });
 
-route("GET", "/v1/grapevine/feed", (ctx) => {
+route("GET", "/v1/afterhours/feed", (ctx) => {
   const now = Date.now();
   const sort = ctx.query.sort === "new" ? "new" : "hot";
-  const items = [...grapevinePosts.values()]
+  const items = [...afterhoursPosts.values()]
     .filter((p) => new Date(p.expiresAt).getTime() > now)
-    .map((p) => publicGrapevinePost(p, ctx.user.id));
+    .map((p) => publicAfterHoursPost(p, ctx.user.id));
 
   items.sort((a, b) =>
     sort === "new"
@@ -1939,14 +2081,14 @@ route("GET", "/v1/grapevine/feed", (ctx) => {
   send(ctx.res, 200, { items: items.slice(0, Number(ctx.query.limit ?? 50)) });
 });
 
-route("POST", "/v1/grapevine/posts", (ctx) => {
+route("POST", "/v1/afterhours/posts", (ctx) => {
   const body = String(ctx.body.body ?? "").trim();
   if (!body) return fail(ctx.res, 422, "VALIDATION", "say something first");
   if (body.length > 500) return fail(ctx.res, 422, "VALIDATION", "500 characters, max");
 
   const now = new Date();
-  const expiresAt = new Date(now.getTime() + GRAPEVINE_POST_HOURS * 3600_000);
-  const pid = id("gvn", ++grapevineSeq);
+  const expiresAt = new Date(now.getTime() + AFTERHOURS_POST_HOURS * 3600_000);
+  const pid = id("aft", ++afterhoursSeq);
   const post = {
     id: pid,
     authorId: ctx.user.id,
@@ -1956,30 +2098,30 @@ route("POST", "/v1/grapevine/posts", (ctx) => {
     expiresAt: expiresAt.toISOString(),
     votes: new Map(),
   };
-  grapevinePosts.set(pid, post);
+  afterhoursPosts.set(pid, post);
 
   send(ctx.res, 201, {
-    post: publicGrapevinePost(post, ctx.user.id),
+    post: publicAfterHoursPost(post, ctx.user.id),
     supportCard: CRISIS.test(body) ? SUPPORT_CARD : undefined,
   });
 });
 
-route("POST", "/v1/grapevine/posts/:id/vote", (ctx) => {
-  const post = grapevinePosts.get(ctx.params.id);
+route("POST", "/v1/afterhours/posts/:id/vote", (ctx) => {
+  const post = afterhoursPosts.get(ctx.params.id);
   if (!post) return fail(ctx.res, 404, "NOT_FOUND", "that post is gone");
   const value = Number(ctx.body.value ?? 0);
   post.votes.set(ctx.user.id, value > 0 ? 1 : value < 0 ? -1 : 0);
-  const shaped = publicGrapevinePost(post, ctx.user.id);
+  const shaped = publicAfterHoursPost(post, ctx.user.id);
   send(ctx.res, 200, { score: shaped.score, viewerVote: shaped.viewerVote });
 });
 
-route("DELETE", "/v1/grapevine/posts/:id", (ctx) => {
-  const post = grapevinePosts.get(ctx.params.id);
+route("DELETE", "/v1/afterhours/posts/:id", (ctx) => {
+  const post = afterhoursPosts.get(ctx.params.id);
   if (!post) return fail(ctx.res, 404, "NOT_FOUND", "that post is gone");
   if (post.authorId !== ctx.user.id) {
     return fail(ctx.res, 403, "FORBIDDEN", "that isn't yours to delete");
   }
-  grapevinePosts.delete(ctx.params.id);
+  afterhoursPosts.delete(ctx.params.id);
   send(ctx.res, 204);
 });
 
