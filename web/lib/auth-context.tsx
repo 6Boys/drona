@@ -20,7 +20,7 @@ interface AuthState {
   /** Stores tokens from a verified OTP and loads the account behind them. */
   signIn: (session: SessionResponse) => Promise<MeResponse | null>;
   /** Re-fetches /v1/me — call after anything that moves onboarding, follows,
-   * Stardust or the Love Finder toggle. */
+   * Sparks or the Love Finder toggle. */
   refresh: () => Promise<MeResponse | null>;
   /** Applies a MeResponse the caller already has, skipping a round trip. */
   apply: (me: MeResponse) => void;

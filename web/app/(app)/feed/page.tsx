@@ -15,26 +15,23 @@ import type { Post } from "@/lib/types";
 
 type Sort = "hot" | "new";
 type Source = "all" | "following";
-type Scope = "campus" | "global";
 
 export default function FeedPage() {
   const { me } = useAuth();
   const [sort, setSort] = useState<Sort>("hot");
   const [source, setSource] = useState<Source>("all");
-  const [scope, setScope] = useState<Scope>("campus");
   const [composing, setComposing] = useState(false);
 
-  const paged = usePaged<Post>("/v1/feed", { sort, source, scope, limit: 20 });
+  // Campus-only, with no cross-campus scope to pick: there is no plan to run
+  // this beyond one college, so a "Global" that shows the same rows as
+  // "Campus" was a switch that only ever promised something.
+  const paged = usePaged<Post>("/v1/feed", { sort, source, scope: "campus", limit: 20 });
 
   return (
     <>
       <TopBar
         title="The Nest"
-        subtitle={
-          scope === "campus"
-            ? `${me?.campusVerifiedUsers ?? 0} verified students on your campus`
-            : "Every campus on DronaSphere"
-        }
+        subtitle={`${me?.campusVerifiedUsers ?? 0} verified students on your campus`}
         actions={
           <Button size="sm" icon={<PlusIcon size={15} />} onClick={() => setComposing(true)}>
             <span className="hidden sm:inline">New post</span>
@@ -58,15 +55,6 @@ export default function FeedPage() {
               options={[
                 { value: "all", label: "All" },
                 { value: "following", label: "Following" },
-              ]}
-            />
-            <Segmented
-              size="sm"
-              value={scope}
-              onChange={setScope}
-              options={[
-                { value: "campus", label: "Campus" },
-                { value: "global", label: "Global" },
               ]}
             />
           </>

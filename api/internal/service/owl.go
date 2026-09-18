@@ -276,11 +276,11 @@ func (s *OwlService) Heartbeat(ctx context.Context, userID, campusID, fingerprin
 
 	switch {
 	case status.CozyMode:
-		status.Message = "The board closed at " + s.cfg.NightCurfew.String() + ". Points are paused until tomorrow night."
+		status.Message = "Closed at " + s.cfg.NightCurfew.Display12() + ". Points resume tomorrow night."
 	case nightOpen:
-		status.Message = "Night window is open. " + s.cfg.NightCurfew.String() + " is the hard stop."
+		status.Message = "Open now. " + s.cfg.NightCurfew.Display12() + " is the hard stop."
 	default:
-		status.Message = "The board opens at " + s.cfg.NightWindowStart.String() + "."
+		status.Message = "Opens at " + s.cfg.NightWindowStart.Display12() + "."
 	}
 	return status, nil
 }

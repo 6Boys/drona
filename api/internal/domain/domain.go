@@ -153,7 +153,9 @@ func RankForPoints(points int) OwlRank {
 func (r OwlRank) Label() string {
 	switch r {
 	case RankSleepySparrow:
-		return "Sleepy Sparrow"
+		// The constant keeps its original name because it is persisted; only
+		// the label a student actually reads changed.
+		return "Starter"
 	case RankFledgling:
 		return "Fledgling"
 	case RankNightOwl:

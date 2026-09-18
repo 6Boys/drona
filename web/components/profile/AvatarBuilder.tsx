@@ -1,11 +1,6 @@
 "use client";
 
-import {
-  AVATAR_GEOMETRIES,
-  AVATAR_RAMPS,
-  GradientAvatar,
-  avatarBackground,
-} from "@/components/ui/GradientAvatar";
+import { AVATAR_RAMPS, GradientAvatar, avatarBackground } from "@/components/ui/GradientAvatar";
 import type { Avatar } from "@/lib/types";
 import { cn } from "@/lib/cn";
 
@@ -60,30 +55,6 @@ export function AvatarBuilder({
         </div>
       </div>
 
-      <div>
-        <p className="mono-label mb-2.5">Shape</p>
-        <div className="flex flex-wrap gap-1.5">
-          {Object.entries(AVATAR_GEOMETRIES).map(([key, geometry]) => {
-            const active = value.hat === key;
-            return (
-              <button
-                key={key}
-                type="button"
-                aria-pressed={active}
-                onClick={() => onChange({ ...value, hat: key })}
-                className={cn(
-                  "cursor-pointer rounded-full border px-3 py-1.5 text-xs transition-colors",
-                  active
-                    ? "border-accent bg-accent-wash text-accent-hi"
-                    : "border-border text-muted hover:border-border-strong hover:text-text",
-                )}
-              >
-                {geometry.label}
-              </button>
-            );
-          })}
-        </div>
-      </div>
     </div>
   );
 }

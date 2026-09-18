@@ -149,14 +149,7 @@ export default function DatingPage() {
     <div data-theme="dating">
       <TopBar
         title="Love Finder"
-        subtitle="Campus-only, opt-in, 18+. Matches wilt quietly if nobody says anything."
-        actions={
-          me.user.loveFinderEnabled ? (
-            <Badge tone="rose" mono>
-              in the deck
-            </Badge>
-          ) : null
-        }
+        subtitle="Campus only"
         tabs={
           !gated && !off ? (
             <Segmented<Tab>

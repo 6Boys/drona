@@ -29,9 +29,16 @@ export function Segmented<T extends string>({
   const id = useId();
 
   return (
+    // auto-cols-fr rather than inline-flex: the lit pill is inset-0 of whichever
+    // option is active, so flex sizing made it hug the label — "All" came out
+    // visibly smaller than "Hot", and the pill changed width mid-slide when you
+    // switched to "Following". Equal columns keep one pill size per group.
     <div
       role="tablist"
-      className={cn("glass glass-pill inline-flex items-center gap-0.5 overflow-hidden p-1", className)}
+      className={cn(
+        "glass glass-pill inline-grid grid-flow-col auto-cols-fr items-center gap-0.5 overflow-hidden p-1",
+        className,
+      )}
     >
       {options.map((option) => {
         const active = option.value === value;

@@ -4,22 +4,19 @@ import Link from "next/link";
 import { useState } from "react";
 import { PageBody, TopBar } from "@/components/app-shell/TopBar";
 import { Avatar } from "@/components/ui/Avatar";
-import { Button } from "@/components/ui/Button";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { OwlRankBadge } from "@/components/ui/OwlRankBadge";
 import { Segmented } from "@/components/ui/Segmented";
 import { NightChart } from "@/components/owl/NightChart";
 import { Skeleton } from "@/components/ui/Skeleton";
-import { CoinIcon, MoonIcon, TimerIcon } from "@/components/ui/Icons";
-import { useToast } from "@/components/ui/Toast";
-import { api, errorMessage } from "@/lib/api";
+import { MoonIcon, TimerIcon } from "@/components/ui/Icons";
 import { useApi } from "@/lib/use-api";
 import { useAuth } from "@/lib/auth-context";
 import { useNight } from "@/lib/night-context";
-import type { CocoonResult, OwlBoard } from "@/lib/types";
+import type { OwlBoard } from "@/lib/types";
 import { cn } from "@/lib/cn";
 
-type Scope = "campus" | "global" | "batch" | "buddies";
+type Scope = "campus" | "batch" | "buddies";
 
 function countdown(minutes: number): string {
   if (minutes <= 0) return "closed";
@@ -39,31 +36,11 @@ function Stat({ label, value, hint }: { label: string; value: string; hint?: str
 }
 
 export default function OwlBoardPage() {
-  const { me, refresh: refreshMe } = useAuth();
-  const { status, refresh } = useNight();
-  const toast = useToast();
+  const { me } = useAuth();
+  const { status } = useNight();
   const [scope, setScope] = useState<Scope>("campus");
-  const [claiming, setClaiming] = useState(false);
 
   const board = useApi<OwlBoard>("/v1/owl/board", { scope, limit: 50 });
-
-  const claimCocoon = async () => {
-    setClaiming(true);
-    try {
-      const result = await api.post<CocoonResult>("/v1/owl/cocoon");
-      toast(result.message, result.awarded ? "success" : "info");
-      if (result.awarded) {
-        // The bonus moves both the night session and the Stardust balance, so
-        // the sidebar and the stat tiles need the account reloaded too.
-        refresh();
-        refreshMe();
-      }
-    } catch (err) {
-      toast(errorMessage(err, "could not claim that"), "error");
-    } finally {
-      setClaiming(false);
-    }
-  };
 
   const cozy = status?.cozyMode ?? false;
   const open = (status?.nightOpen ?? false) && !cozy;
@@ -71,8 +48,8 @@ export default function OwlBoardPage() {
   return (
     <>
       <TopBar
-        title="Owl Board"
-        subtitle="10 PM to 3 AM · weekly reset · points for doing things, not for being awake"
+        title="Night Shift"
+        subtitle="10 PM to 3 AM · weekly reset"
         tabs={
           <Segmented
             size="sm"
@@ -82,7 +59,6 @@ export default function OwlBoardPage() {
               { value: "campus", label: "Campus" },
               { value: "batch", label: "Batch" },
               { value: "buddies", label: "Buddies" },
-              { value: "global", label: "Global" },
             ]}
           />
         }
@@ -154,23 +130,6 @@ export default function OwlBoardPage() {
         <div className="mt-4">
           <NightChart />
         </div>
-
-        <section className="card mt-4 flex flex-wrap items-center justify-between gap-4 p-5">
-          <div className="min-w-0">
-            <h2 className="flex items-center gap-2 text-[0.9375rem] font-medium">
-              <CoinIcon size={16} className="text-gold" />
-              Cocoon Bonus
-            </h2>
-            <p className="mt-1 max-w-lg text-sm text-muted">
-              Go fully inactive for seven hours in a day and claim more Stardust than a whole night of
-              grinding is worth. Recovery outscores damage here — that&apos;s the entire point of the
-              design, not a consolation prize.
-            </p>
-          </div>
-          <Button variant="outline" loading={claiming} onClick={claimCocoon}>
-            Claim rest bonus
-          </Button>
-        </section>
 
         <section className="card mt-4 overflow-hidden">
           <header className="flex items-center justify-between border-b border-border px-4 py-3">

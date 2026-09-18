@@ -56,7 +56,7 @@ const PEOPLE = [
 ];
 
 const RANK_LABELS = {
-  SLEEPY_SPARROW: "Sleepy Sparrow",
+  SLEEPY_SPARROW: "Starter",
   FLEDGLING: "Fledgling",
   NIGHT_OWL: "Night Owl",
   MOON_MOTH: "Moon Moth",
@@ -190,7 +190,7 @@ function makePost({ space, author, type, title, body, score, hours, linkUrl, pol
   { space: "night-shift", author: uid(6), type: "TEXT", score: 64, hours: 26, title: "2:14 AM. workshop assignment. who else is up", body: "third coffee. the lathe drawing is fighting back.", commentBodies: ["up. debugging a segfault that only happens on tuesdays", "logging off at 3, curfew hits and dronu starts yawning at me"] },
   { space: "memes", author: uid(3), type: "TEXT", score: 156, hours: 12, title: "the library at 8:59 AM vs 9:01 AM", body: "you know exactly what I mean", commentBodies: ["accurate and i hate it"] },
   { space: "lost-found", author: uid(12), type: "TEXT", score: 22, hours: 3, title: "FOUND: blue water bottle, CSE block stairs, has a bhagavad gita sticker", body: "It's with the guard at gate 2. Come get it before it becomes mine.", commentBodies: ["MINE. omw"] },
-  { space: "clubs", author: uid(11), type: "TEXT", score: 41, hours: 20, title: "Weekly contest Sat 7 PM — 4 problems, beginners bracket separate", body: "Two brackets so first-years aren't fighting final-years. Top 3 in each get Stardust + a frame.", commentBodies: ["is it rated 🤡", "beginner bracket is such a good idea actually"] },
+  { space: "clubs", author: uid(11), type: "TEXT", score: 41, hours: 20, title: "Weekly contest Sat 7 PM — 4 problems, beginners bracket separate", body: "Two brackets so first-years aren't fighting final-years. Top 3 in each get Sparks + a frame.", commentBodies: ["is it rated 🤡", "beginner bracket is such a good idea actually"] },
   { space: "placements", author: uid(8), type: "LINK", score: 73, hours: 30, title: "Off-campus drive: Zoho hiring 2026 batch, apply by Friday", body: "", linkUrl: "https://careers.zohocorp.com", commentBodies: ["applied, thanks", "does anyone know if they take ECE"] },
   { space: "cse-sem3", author: uid(5), type: "POLL", score: 19, hours: 6, title: "COA mid-sem: how cooked are we", body: "Be honest. The pipelining unit alone.", poll: [
     { label: "Fully prepared, bring it on", seed: 4 },
@@ -568,11 +568,20 @@ function heartbeat(user) {
     owlRank: user.owlRank,
     owlRankLabel: user.owlRankLabel,
     message: cozy
-      ? "The board closed at 03:00. Points are paused until tomorrow night."
+      ? "Closed at 3:00 AM. Points resume tomorrow night."
       : nightOpen
-        ? "Night window is open. 03:00 is the hard stop."
-        : "The board opens at 22:00.",
+        ? "Open now. 3:00 AM is the hard stop."
+        : "Opens at 10:00 PM.",
   };
+}
+
+/** Which night a moment belongs to. Anything before the 3 AM curfew still
+ * counts toward the night that started the previous evening, so a 1 AM post
+ * lands on the same bar as the 11 PM one before it. */
+function nightKey(at = new Date()) {
+  const d = new Date(at);
+  if (d.getHours() < 3) d.setDate(d.getDate() - 1);
+  return d.toISOString().slice(0, 10);
 }
 
 function grant(user, points, reason) {
@@ -581,6 +590,11 @@ function grant(user, points, reason) {
   user.weekPoints += earned;
   user.sessionPoints = (user.sessionPoints ?? 0) + earned;
   user.sessionActions = (user.sessionActions ?? 0) + 1;
+  // Real per-night ledger, so /v1/owl/history can report what was actually
+  // earned instead of inventing a plausible-looking week.
+  user.nightPoints = user.nightPoints ?? {};
+  const key = nightKey();
+  user.nightPoints[key] = (user.nightPoints[key] ?? 0) + earned;
   return {
     points: earned,
     sessionPoints: user.sessionPoints,
@@ -775,7 +789,7 @@ route("POST", "/v1/auth/otp/verify", (ctx) => {
       onboardingStep: "HANDLE",
       stardust: 0,
       owlRank: "SLEEPY_SPARROW",
-      owlRankLabel: "Sleepy Sparrow",
+      owlRankLabel: "Starter",
       loveFinderEnabled: false,
       photoVerified: false,
       email,
@@ -1615,25 +1629,24 @@ route("GET", "/v1/owl/board", (ctx) => {
 });
 
 route("GET", "/v1/owl/history", (ctx) => {
-  // Seven nights ending tonight. Derived deterministically from the user id so
-  // the shape is stable across reloads rather than reshuffling every poll.
-  const seed = [...ctx.user.id].reduce((n, c) => n + c.charCodeAt(0), 0);
+  // Seven nights ending tonight, read straight off the ledger `grant()` writes.
+  // A night nobody earned anything on is a zero — an empty week should look
+  // empty rather than be filled in with invented numbers.
+  const ledger = ctx.user.nightPoints ?? {};
+  const tonight = nightKey();
   const items = Array.from({ length: 7 }, (_, i) => {
     const day = new Date();
     day.setDate(day.getDate() - (6 - i));
-    const wobble = ((seed * (i + 3)) % 47) / 47;
-    const isTonight = i === 6;
+    const key = day.toISOString().slice(0, 10);
     return {
-      date: day.toISOString().slice(0, 10),
+      date: key,
       label: day.toLocaleDateString("en-US", { weekday: "short" }),
-      points: isTonight
-        ? (ctx.user.sessionPoints ?? 0)
-        : Math.round(40 + wobble * 160),
-      isTonight,
+      points: ledger[key] ?? 0,
+      isTonight: key === tonight,
     };
   });
 
-  send(ctx.res, 200, { items, best: Math.max(...items.map((i) => i.points)) });
+  send(ctx.res, 200, { items, best: Math.max(0, ...items.map((i) => i.points)) });
 });
 
 route("POST", "/v1/owl/cocoon", (ctx) => {
@@ -1648,7 +1661,7 @@ route("POST", "/v1/owl/cocoon", (ctx) => {
     stardust: awarded ? 250 : 0,
     balance: ctx.user.stardust,
     message: awarded
-      ? "7h 24m offline. +250 Stardust — more than a full night of grinding is worth, by design."
+      ? "7h 24m offline. +250 Sparks — more than a full night of grinding is worth, by design."
       : "You've claimed today's Cocoon Bonus already. Come back after another proper rest.",
   });
 });

@@ -216,38 +216,8 @@ export default function SettingsPage() {
             <Button variant="outline" onClick={logout}>
               Sign out
             </Button>
-            <Button
-              variant="ghost"
-              loading={busy === "all"}
-              onClick={async () => {
-                setBusy("all");
-                try {
-                  await api.post("/v1/auth/logout-all");
-                  await logout();
-                } catch (err) {
-                  toast(errorMessage(err, "could not sign out everywhere"), "error");
-                  setBusy(null);
-                }
-              }}
-            >
-              Sign out everywhere
-            </Button>
           </div>
         </Section>
-
-        <section className="card p-5">
-          <h2 className="text-[0.9375rem] font-medium text-text">What we do with your data</h2>
-          <ul className="mt-2 space-y-1.5 text-[0.8125rem] leading-relaxed text-muted">
-            <li>
-              Chats are encrypted in transit and at rest, but they are{" "}
-              <span className="text-text">not end-to-end encrypted</span>. Staff access is logged and
-              restricted. We would rather say that plainly than imply encryption we haven&apos;t built.
-            </li>
-            <li>Your date of birth is stored for the 18+ gate and is never displayed to anyone.</li>
-            <li>Location, if you ever enable it, is coarse zones only — never a map with you on it.</li>
-            <li>Account export and deletion work from day one. Ask in settings and it runs.</li>
-          </ul>
-        </section>
       </PageBody>
     </>
   );

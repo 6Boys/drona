@@ -8,12 +8,12 @@ import { Glow } from "@/components/fx/Glow";
 import { Badge } from "@/components/ui/Badge";
 import { StickerBar } from "@/components/ui/StickerBar";
 import { VoteBar } from "./VoteBar";
-import { MessageIcon, LinkIcon, LockIcon, BookmarkIcon } from "@/components/ui/Icons";
+import { MessageIcon, LinkIcon, LockIcon } from "@/components/ui/Icons";
 import { useToast } from "@/components/ui/Toast";
 import { api, errorMessage } from "@/lib/api";
 import { timeAgo } from "@/lib/format";
 import { PollBlock } from "./PollBlock";
-import type { BookmarkResult, Poll, Post, ReactResult, Sticker } from "@/lib/types";
+import type { Poll, Post, ReactResult, Sticker } from "@/lib/types";
 import { cn } from "@/lib/cn";
 
 const TYPE_BADGE: Partial<Record<Post["type"], string>> = {
@@ -34,7 +34,6 @@ export function PostCard({
 }) {
   const toast = useToast();
   const [reacting, setReacting] = useState(false);
-  const [bookmarking, setBookmarking] = useState(false);
 
   // `post` is a prop, so the copy captured when a handler starts goes stale the
   // moment anything else about the post lands mid-flight — a vote, someone
@@ -42,25 +41,6 @@ export function PostCard({
   // reverted whatever arrived in between; merge into the current one instead.
   const postRef = useRef(post);
   postRef.current = post;
-
-  const toggleBookmark = async () => {
-    // Bookmarking is a toggle, so a double-tap isn't idempotent the way a
-    // second vote would be: it saved and then immediately unsaved.
-    if (bookmarking) return;
-    setBookmarking(true);
-    const optimistic = !postRef.current.viewerBookmarked;
-    onChange({ ...postRef.current, viewerBookmarked: optimistic });
-    try {
-      const result = await api.post<BookmarkResult>(`/v1/posts/${post.id}/bookmark`);
-      onChange({ ...postRef.current, viewerBookmarked: result.bookmarked });
-      toast(result.bookmarked ? "Saved" : "Removed from saved", "success");
-    } catch (err) {
-      onChange({ ...postRef.current, viewerBookmarked: !optimistic });
-      toast(errorMessage(err, "could not save that"), "error");
-    } finally {
-      setBookmarking(false);
-    }
-  };
 
   const react = async (sticker: Sticker) => {
     if (reacting) return;
@@ -199,22 +179,6 @@ export function PostCard({
           <MessageIcon size={13} />
           <span className="tabnum">{post.commentCount}</span>
         </Link>
-
-        <button
-          type="button"
-          onClick={toggleBookmark}
-          aria-label={post.viewerBookmarked ? "Remove from saved" : "Save post"}
-          aria-pressed={post.viewerBookmarked}
-          className={cn(
-            "flex h-7 cursor-pointer items-center gap-1.5 rounded-full border px-2.5 text-xs transition-colors",
-            post.viewerBookmarked
-              ? "border-[color-mix(in_oklab,var(--accent)_45%,transparent)] bg-accent-wash text-accent-hi"
-              : "border-border text-muted hover:border-border-strong hover:text-text",
-          )}
-        >
-          <BookmarkIcon size={13} filled={post.viewerBookmarked} />
-          <span className="hidden sm:inline">{post.viewerBookmarked ? "Saved" : "Save"}</span>
-        </button>
 
         <div className="ml-auto">
           <StickerBar stickers={post.stickers} onToggle={react} compact={!detail} />

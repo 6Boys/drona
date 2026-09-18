@@ -54,7 +54,7 @@ function UploadDialog({ open, onClose, onDone }: { open: boolean; onClose: () =>
         semester: Number(form.semester),
         branch: form.branch || undefined,
       });
-      toast(`Uploaded · +${result.stardust} Stardust`, "success");
+      toast(`Uploaded · +${result.stardust} Sparks`, "success");
       refresh();
       onDone();
       onClose();
@@ -70,7 +70,7 @@ function UploadDialog({ open, onClose, onDone }: { open: boolean; onClose: () =>
       open={open}
       onClose={onClose}
       title="Add to the locker"
-      description="Uploads earn Stardust. Upvotes on your uploads earn more."
+      description="Uploads earn Sparks. Upvotes on your uploads earn more."
       footer={
         <>
           <Button variant="ghost" onClick={onClose}>

@@ -152,7 +152,7 @@ const SURFACES = [
     icon: BookIcon,
     name: "Note Locker",
     line: "The reason to open this on a dead Tuesday.",
-    body: "PYQs, notes and lab files sorted by subject and semester, upvoted by people who actually sat the paper. Uploading earns Stardust. It is the least social thing here and quietly the most useful.",
+    body: "PYQs, notes and lab files sorted by subject and semester, upvoted by people who actually sat the paper. Uploading earns Sparks. It is the least social thing here and quietly the most useful.",
     ramp: "linear-gradient(140deg, #9a6b18 0%, #e3c489 100%)",
   },
   {
@@ -537,7 +537,7 @@ export default function LandingPage() {
                 {
                   icon: MoonIcon,
                   title: "Ranks that reset weekly",
-                  body: "Sleepy Sparrow → Fledgling → Night Owl → Moon Moth → Comet. Season badges stay on your shelf forever.",
+                  body: "Starter → Fledgling → Night Owl → Moon Moth → Comet. Season badges stay on your shelf forever.",
                 },
                 {
                   icon: TimerIcon,

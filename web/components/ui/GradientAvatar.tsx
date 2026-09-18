@@ -26,25 +26,16 @@ export const AVATAR_RAMPS: Record<string, Ramp> = {
   cream: { from: "#8a8377", to: "#c2bbac", label: "Stone" },
 };
 
-export const AVATAR_GEOMETRIES: Record<string, { angle: number; label: string; radial?: boolean }> = {
-  none: { angle: 135, label: "Diagonal" },
-  beanie: { angle: 90, label: "Vertical" },
-  "grad-cap": { angle: 45, label: "Rising" },
-  flower: { angle: 0, label: "Horizontal" },
-  headphones: { angle: 200, label: "Falling" },
-  bandana: { angle: 0, label: "Radial", radial: true },
-};
-
 const DEFAULT_RAMP = AVATAR_RAMPS.ube as Ramp;
-const DEFAULT_GEOMETRY = AVATAR_GEOMETRIES.none as { angle: number; label: string; radial?: boolean };
 
+// One gradient shape for everyone, radial. There used to be a "Shape" picker
+// (diagonal, vertical, rising…) stored on `avatar.hat`; it produced six ways to
+// look slightly different rather than recognisably yourself. The field is still
+// in the payload so existing accounts don't fail validation — it just no longer
+// changes anything.
 export function avatarBackground(avatar: AvatarShape | undefined): string {
   const ramp = AVATAR_RAMPS[avatar?.colour ?? ""] ?? DEFAULT_RAMP;
-  const geometry = AVATAR_GEOMETRIES[avatar?.hat ?? ""] ?? DEFAULT_GEOMETRY;
-
-  return geometry.radial
-    ? `radial-gradient(circle at 30% 25%, ${ramp.from} 0%, ${ramp.to} 100%)`
-    : `linear-gradient(${geometry.angle}deg, ${ramp.from} 0%, ${ramp.to} 100%)`;
+  return `radial-gradient(circle at 30% 25%, ${ramp.from} 0%, ${ramp.to} 100%)`;
 }
 
 /** The two stops on their own, for effects that need to paint in a person's

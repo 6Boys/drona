@@ -83,6 +83,21 @@ func (t TimeOfDay) Minutes() int { return t.Hour*60 + t.Minute }
 
 func (t TimeOfDay) String() string { return fmt.Sprintf("%02d:%02d", t.Hour, t.Minute) }
 
+// Display12 is the clock as a student reads it — "10:00 PM", not "22:00".
+// String stays 24-hour on purpose: it round-trips with ParseTimeOfDay and is
+// what config errors quote back, neither of which wants a localised form.
+func (t TimeOfDay) Display12() string {
+	hour := t.Hour % 12
+	if hour == 0 {
+		hour = 12
+	}
+	suffix := "AM"
+	if t.Hour >= 12 {
+		suffix = "PM"
+	}
+	return fmt.Sprintf("%d:%02d %s", hour, t.Minute, suffix)
+}
+
 // ParseTimeOfDay accepts "HH:MM".
 func ParseTimeOfDay(s string) (TimeOfDay, error) {
 	parts := strings.Split(strings.TrimSpace(s), ":")

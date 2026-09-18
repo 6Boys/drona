@@ -226,7 +226,7 @@ export function AppPreview() {
           <div className="border-t border-border p-2.5">
             <p className="mono-label text-[0.5rem]">cocoon bonus</p>
             <p className="mt-1 text-[0.625rem] text-muted">
-              7h offline claimed · <span className="text-gold">+250 Stardust</span>
+              7h offline claimed · <span className="text-gold">+250 Sparks</span>
             </p>
           </div>
         </div>

@@ -77,7 +77,7 @@ func TestRankForPoints(t *testing.T) {
 }
 
 func TestOwlRank_Labels(t *testing.T) {
-	assert.Equal(t, "Sleepy Sparrow", RankSleepySparrow.Label())
+	assert.Equal(t, "Starter", RankSleepySparrow.Label())
 	assert.Equal(t, "Fledgling", RankFledgling.Label())
 	assert.Equal(t, "Night Owl", RankNightOwl.Label())
 	assert.Equal(t, "Moon Moth", RankMoonMoth.Label())
