@@ -170,7 +170,11 @@ export function DatingProfileEditor({
   const [vibe, setVibe] = useState(profile.vibe);
   const [interests, setInterests] = useState<string[]>(profile.interests);
   const [prompts, setPrompts] = useState<DatingPrompt[]>(profile.prompts);
-  const [photos, setPhotos] = useState<string[]>(profile.photos);
+  // Defensive default: an account whose profile was written before `photos`
+  // existed can hand back a response with no such field at all — this must
+  // never crash the whole editor over it, so treat missing the same as empty
+  // rather than trusting the type's promise that it's always an array.
+  const [photos, setPhotos] = useState<string[]>(profile.photos ?? []);
   const [picking, setPicking] = useState(false);
   const [saved, setSaved] = useState(false);
 
@@ -178,7 +182,7 @@ export function DatingProfileEditor({
     vibe !== profile.vibe ||
     JSON.stringify(interests) !== JSON.stringify(profile.interests) ||
     JSON.stringify(prompts) !== JSON.stringify(profile.prompts) ||
-    JSON.stringify(photos) !== JSON.stringify(profile.photos);
+    JSON.stringify(photos) !== JSON.stringify(profile.photos ?? []);
 
   const used = new Set(prompts.map((p) => p.question));
 

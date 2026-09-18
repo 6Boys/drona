@@ -952,8 +952,22 @@ const MATCH_WILT_DAYS = 7;
 const MIN_DATING_PHOTOS = 2;
 const MAX_DATING_PHOTOS = 4;
 
-const profileFor = (userId) =>
-  datingProfiles.get(userId) ?? { vibe: "", interests: [], prompts: [], photos: [] };
+// Normalizes field-by-field, not just "missing entry -> whole default object":
+// DEMO_CARDS (seedDatingDemo, below) predates `photos` and stores profiles
+// with no such key at all, so a stored entry existing was enough to skip the
+// old top-level `??` fallback and hand back `photos: undefined` — which then
+// threw in DatingProfileEditor's `photos.length` the moment anyone opened
+// "Your card" on a seeded demo account. Every field defaults independently so
+// adding a new one later can't reopen the same gap.
+const profileFor = (userId) => {
+  const stored = datingProfiles.get(userId);
+  return {
+    vibe: stored?.vibe ?? "",
+    interests: stored?.interests ?? [],
+    prompts: stored?.prompts ?? [],
+    photos: stored?.photos ?? [],
+  };
+};
 
 const candidateOf = (user, viewerId) => ({ ...publicUser(user, viewerId), ...profileFor(user.id) });
 

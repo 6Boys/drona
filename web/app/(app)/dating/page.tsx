@@ -159,7 +159,15 @@ export default function DatingPage() {
           !gated && !off ? (
             <Segmented<Tab>
               value={tab}
-              onChange={setTab}
+              onChange={(next) => {
+                setTab(next);
+                // "Your card" runs long; landing on Discover already scrolled
+                // partway down it put the deck's sticky-header-height math out
+                // of sync with where the page actually was — this is the
+                // scenario that was letting the top card paint over the
+                // header (see the z-index fix in SwipeDeck).
+                window.scrollTo({ top: 0 });
+              }}
               options={[
                 { value: "deck", label: "Discover", count: deck.items.length },
                 { value: "likes", label: "Likes you", count: likes.items.length },

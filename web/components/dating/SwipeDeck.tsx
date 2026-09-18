@@ -272,7 +272,15 @@ export function SwipeDeck({
             dragging it. */}
         <motion.div
           key={top.id}
-          className="absolute inset-0 z-20 cursor-grab active:cursor-grabbing"
+          // z-10, not z-20: the behind-cards fan a few lines up tops out at
+          // z-9 (`10 - depth`), so 10 is already enough to clear them. z-20
+          // collided with TopBar's own z-20 (components/app-shell/TopBar.tsx)
+          // — same value, and this card is later in the DOM, so on any page
+          // that had scrolled even slightly (switching dating tabs doesn't
+          // reset scroll position, so landing back on Discover already
+          // scrolled was enough) the dragged card painted over the sticky
+          // header instead of under it, blanking out the title and tabs.
+          className="absolute inset-0 z-10 cursor-grab active:cursor-grabbing"
           style={{ x, y, rotate }}
           drag
           dragConstraints={{ left: 0, right: 0, top: 0, bottom: 0 }}
