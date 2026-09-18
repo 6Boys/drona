@@ -7,6 +7,7 @@ import { Dialog } from "@/components/ui/Dialog";
 import { Button } from "@/components/ui/Button";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { HeartIcon, SparkleIcon, XIcon } from "@/components/ui/Icons";
+import { Paywall } from "@/components/premium/Paywall";
 import { timeAgo } from "@/lib/format";
 import type { DatingLike, DatingMatch, DatingPrompt } from "@/lib/types";
 
@@ -40,10 +41,16 @@ function quoteFor(like: DatingLike): string | undefined {
 export function LikesYouGrid({
   likes,
   myPrompts,
+  unlocked,
   onAnswer,
 }: {
   likes: DatingLike[];
   myPrompts: DatingPrompt[];
+  /** Premium gate. Locked: every tile is obscured — a reaction with no name
+   * or face behind it — and opening one leads to the paywall, not the match
+   * panel. There is nothing partial about it; matching back requires
+   * identity, which is the thing being sold. */
+  unlocked: boolean;
   onAnswer: (like: DatingLike, accept: boolean) => void;
 }) {
   const [preview, setPreview] = useState<DatingLike | null>(null);
@@ -67,6 +74,7 @@ export function LikesYouGrid({
       <ProfileTile
         candidate={like.candidate}
         active={open}
+        obscured={!unlocked}
         /* Once the panel below is quoting the comment in full, the tile saying
            it too is just the same sentence twice. */
         quote={(i === 0 || likes.length < 3) && !open ? quoteFor(like) : undefined}
@@ -82,7 +90,14 @@ export function LikesYouGrid({
         }
       />
     ),
-    content: (
+    content: !unlocked ? (
+      <div className="glass glass-strong glass-panel p-5">
+        <Paywall
+          title="Unlock to match"
+          body="See who this is and match back directly — no waiting for them to also like you."
+        />
+      </div>
+    ) : (
       <div className="glass glass-strong glass-panel p-5">
         <p className="mono-label">
           {like.action === "TWINKLE" ? "twinkled" : "liked"} · {targetLine(like, myPrompts)}

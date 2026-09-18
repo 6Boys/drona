@@ -6,7 +6,7 @@ import Image from "next/image";
 import { avatarBackground, avatarColours, initialsFor } from "@/components/ui/GradientAvatar";
 import { CanvasReveal } from "@/components/fx/CanvasReveal";
 import { Badge } from "@/components/ui/Badge";
-import { HeartIcon, CheckIcon, BookIcon, HomeIcon, SparkleIcon } from "@/components/ui/Icons";
+import { HeartIcon, CheckIcon, BookIcon, HomeIcon, SparkleIcon, LockIcon } from "@/components/ui/Icons";
 import { ReportBlockMenu } from "./ReportBlockMenu";
 import type { DatingCandidate, LikeTarget } from "@/lib/types";
 import { cn } from "@/lib/cn";
@@ -343,12 +343,16 @@ export function ProfileTile({
   footer,
   className,
   active,
+  obscured,
 }: {
   candidate: DatingCandidate;
   quote?: string;
   footer?: ReactNode;
   className?: string;
   active?: boolean;
+  /** Premium-gated: what they said stays, who they are doesn't — no initials,
+   * no name, no branch/year (each is identifying on a campus this size). */
+  obscured?: boolean;
 }) {
   const [hot, setHot] = useState(false);
   const on = active ?? hot;
@@ -362,6 +366,10 @@ export function ProfileTile({
     >
       <CanvasReveal active={on} colours={avatarColours(candidate.avatar)} dotSize={2} gap={5} />
 
+      {obscured && (
+        <span aria-hidden className="absolute inset-0 backdrop-blur-md" />
+      )}
+
       <span
         aria-hidden
         className="absolute inset-0"
@@ -372,9 +380,15 @@ export function ProfileTile({
       />
 
       <div className="relative flex h-full flex-col justify-between p-4">
-        <span className="display self-start text-[2.25rem] leading-none text-white/80">
-          {initialsFor(candidate.displayName)}
-        </span>
+        {obscured ? (
+          <span className="flex size-9 items-center justify-center self-start rounded-full bg-black/30 text-white/80">
+            <LockIcon size={16} />
+          </span>
+        ) : (
+          <span className="display self-start text-[2.25rem] leading-none text-white/80">
+            {initialsFor(candidate.displayName)}
+          </span>
+        )}
 
         <div>
           {quote && (
@@ -383,10 +397,16 @@ export function ProfileTile({
             </p>
           )}
           <p className="mt-1.5 text-[0.9375rem] font-medium text-white">
-            {candidate.displayName}
-            <span className="ml-1.5 text-[0.75rem] font-normal text-white/70">
-              {candidate.branch} · Year {candidate.year}
-            </span>
+            {obscured ? (
+              "Someone on your campus"
+            ) : (
+              <>
+                {candidate.displayName}
+                <span className="ml-1.5 text-[0.75rem] font-normal text-white/70">
+                  {candidate.branch} · Year {candidate.year}
+                </span>
+              </>
+            )}
           </p>
           {footer}
         </div>

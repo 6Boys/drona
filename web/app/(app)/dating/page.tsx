@@ -11,6 +11,8 @@ import { LikesYouGrid } from "@/components/dating/LikesYouGrid";
 import { MatchesPanel } from "@/components/dating/MatchesPanel";
 import { DatingProfileEditor } from "@/components/dating/DatingProfileEditor";
 import { VerifyPhotoPanel } from "@/components/dating/VerifyPhotoPanel";
+import { Paywall, PremiumBanner } from "@/components/premium/Paywall";
+import { Dialog } from "@/components/ui/Dialog";
 import { Atmosphere } from "@/components/fx/Backdrops";
 import { Glow } from "@/components/fx/Glow";
 import { FlipWords } from "@/components/fx/Text";
@@ -23,6 +25,7 @@ import { useToast } from "@/components/ui/Toast";
 import { api, errorMessage } from "@/lib/api";
 import { useAuth } from "@/lib/auth-context";
 import { dating, useDatingProfile, useDeck, useLikes, useMatches } from "@/lib/dating-store";
+import { isPremiumActive } from "@/lib/premium";
 import type { DatingCandidate, DatingMatch, MeResponse } from "@/lib/types";
 
 type Tab = "deck" | "likes" | "matches" | "you";
@@ -89,6 +92,8 @@ export default function DatingPage() {
   const [busy, setBusy] = useState(false);
   const [matched, setMatched] = useState<DatingMatch | null>(null);
   const [front, setFront] = useState<DatingCandidate | undefined>();
+  const [premiumOpen, setPremiumOpen] = useState(false);
+  const premium = isPremiumActive(me?.user);
 
   const deck = useDeck();
   const likes = useLikes();
@@ -256,10 +261,17 @@ export default function DatingPage() {
                           : `${likes.items.length} people liked you`}
                     </h2>
                     <p className="mt-2 max-w-xl text-[0.875rem] leading-relaxed text-muted">
-                      Everything visible, nothing blurred, nothing behind a paywall. Open one to read
-                      what they said and answer it.
+                      {premium
+                        ? "Open one to read what they said and answer it."
+                        : "Who liked you and what they reacted to — unlock premium to see who it is and match back."}
                     </p>
                   </header>
+
+                  {!premium && likes.items.length > 0 && (
+                    <div className="mb-5">
+                      <PremiumBanner onClick={() => setPremiumOpen(true)} />
+                    </div>
+                  )}
 
                   {likes.loading ? (
                     <div className="grid auto-rows-[13rem] grid-cols-1 gap-3 md:auto-rows-[15rem] md:grid-cols-3">
@@ -271,6 +283,7 @@ export default function DatingPage() {
                     <LikesYouGrid
                       likes={likes.items}
                       myPrompts={card.profile?.prompts ?? []}
+                      unlocked={premium}
                       onAnswer={(like, accept) =>
                         swipe({
                           action: accept ? "LIKE" : "PASS",
@@ -280,6 +293,19 @@ export default function DatingPage() {
                       }
                     />
                   )}
+
+                  <Dialog
+                    open={premiumOpen}
+                    onClose={() => setPremiumOpen(false)}
+                    title="Go premium"
+                    width="sm"
+                  >
+                    <Paywall
+                      title="See who liked you"
+                      body="Unlock full profiles on Likes You and match back directly, no waiting."
+                      onUnlocked={() => setPremiumOpen(false)}
+                    />
+                  </Dialog>
                 </>
               )}
 

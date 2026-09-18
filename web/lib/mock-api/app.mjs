@@ -85,6 +85,7 @@ PEOPLE.forEach(([handle, displayName, branch, year, batch, owlRank, role, bio, a
     owlRankLabel: RANK_LABELS[owlRank],
     loveFinderEnabled: i % 3 === 0,
     photoVerified: i % 4 === 0,
+    premiumUntil: null,
     email: `${handle}@dronacharya.info`,
     createdAt: hoursAgo(2000 - i * 40),
     weekPoints: [980, 860, 790, 640, 610, 520, 40, 480, 300, 120, 410, 90][i] ?? 100,
@@ -393,7 +394,9 @@ function publicUser(user, viewerId, self = false) {
     owlRankLabel: user.owlRankLabel,
     loveFinderEnabled: user.loveFinderEnabled,
     photoVerified: user.photoVerified,
-    ...(self ? { email: user.email, isAdult: true } : {}),
+    // Whether a stranger paid for premium is nobody else's business — only
+    // ever included on your own profile, never a candidate's or a public one.
+    ...(self ? { email: user.email, isAdult: true, premiumUntil: user.premiumUntil ?? null } : {}),
     createdAt: user.createdAt,
     ...rel,
   };
@@ -792,6 +795,7 @@ route("POST", "/v1/auth/otp/verify", (ctx) => {
       owlRankLabel: "Starter",
       loveFinderEnabled: false,
       photoVerified: false,
+      premiumUntil: null,
       email,
       createdAt: iso(),
       weekPoints: 0,
@@ -890,6 +894,43 @@ route("POST", "/v1/me/verify-photo", (ctx) => {
   if (!photoUrl) return fail(ctx.res, 422, "VALIDATION", "photoUrl is required");
   ctx.user.photoUrl = photoUrl;
   ctx.user.photoVerified = true;
+  send(ctx.res, 200, meResponse(ctx.user));
+});
+
+// ------------------------------------------------------------- premium -----
+// One entitlement (premiumUntil) behind two doors: a redeem code, and a paid
+// plan. Real money needs a real gateway — this mock has neither Razorpay
+// credentials nor anywhere to send a rupee, so /checkout grants the plan's
+// period immediately rather than pretending to open a checkout it cannot
+// complete. A real deployment replaces exactly this route with order
+// creation, and adds a /verify route that only grants the period once
+// Razorpay's payment signature checks out — the client only knows it POSTs
+// to /v1/premium/checkout and gets back an unlocked account (see
+// lib/premium.ts), so swapping the gateway in later does not touch anything
+// upstream of this handler.
+const PREMIUM_PLAN_DAYS = { weekly: 7, monthly: 30 };
+const REDEEM_CODES = new Set(["admin"]);
+
+route("POST", "/v1/premium/redeem", (ctx) => {
+  const code = String(ctx.body.code ?? "").trim().toLowerCase();
+  if (!REDEEM_CODES.has(code)) {
+    return fail(ctx.res, 422, "INVALID_CODE", "that code doesn't work", "That code isn't valid.");
+  }
+  const until = new Date();
+  until.setFullYear(until.getFullYear() + 100);
+  ctx.user.premiumUntil = until.toISOString();
+  send(ctx.res, 200, meResponse(ctx.user));
+});
+
+route("POST", "/v1/premium/checkout", (ctx) => {
+  const plan = String(ctx.body.plan ?? "");
+  const days = PREMIUM_PLAN_DAYS[plan];
+  if (!days) return fail(ctx.res, 422, "VALIDATION", "plan must be weekly or monthly");
+  const base = ctx.user.premiumUntil && new Date(ctx.user.premiumUntil) > new Date()
+    ? new Date(ctx.user.premiumUntil) // stacks onto remaining time rather than losing it
+    : new Date();
+  base.setDate(base.getDate() + days);
+  ctx.user.premiumUntil = base.toISOString();
   send(ctx.res, 200, meResponse(ctx.user));
 });
 

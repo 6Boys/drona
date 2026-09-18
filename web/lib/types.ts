@@ -41,6 +41,14 @@ export interface User {
   owlRankLabel: string;
   loveFinderEnabled: boolean;
   photoVerified: boolean;
+  /** ISO timestamp premium access runs until, or null — present on your own
+   * account only (like email/isAdult below), never on anyone else's: whether
+   * a stranger paid for premium isn't visible to other users. Checked against
+   * "now" by the caller — this is a snapshot from the last fetch, not
+   * something to treat as live. A redeemed code sets this far in the future
+   * rather than needing its own separate "is this a redeem or a paid plan"
+   * flag. */
+  premiumUntil?: string | null;
   email?: string;
   isAdult?: boolean;
   lastSeenAt?: string;

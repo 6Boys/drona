@@ -13,7 +13,11 @@ import { Segmented } from "@/components/ui/Segmented";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { CoinIcon, LockIcon, MessageIcon } from "@/components/ui/Icons";
 import { CopyButton } from "@/components/ui/CopyButton";
+import { Dialog } from "@/components/ui/Dialog";
 import { useToast } from "@/components/ui/Toast";
+import { CommunityRules } from "@/components/profile/CommunityRules";
+import { Paywall } from "@/components/premium/Paywall";
+import { isPremiumActive } from "@/lib/premium";
 import { api, errorMessage } from "@/lib/api";
 import { useApi } from "@/lib/use-api";
 import { useAuth } from "@/lib/auth-context";
@@ -69,6 +73,8 @@ export default function ProfilePage() {
   const profile = useApi<User>(`/v1/users/${handle}`);
   const [tab, setTab] = useState<"followers" | "following">("followers");
   const [busy, setBusy] = useState(false);
+  const [rulesOpen, setRulesOpen] = useState(false);
+  const premium = isPremiumActive(me?.user);
 
   const user = profile.data;
   const isSelf = me?.user.handle === handle;
@@ -185,6 +191,17 @@ export default function ProfilePage() {
                 )}
               </div>
 
+              {isSelf && (
+                <button
+                  type="button"
+                  onClick={() => setRulesOpen(true)}
+                  className="mt-2 flex cursor-pointer items-center gap-1.5 text-[0.75rem] text-muted hover:text-text"
+                >
+                  <span className="size-1.5 shrink-0 rounded-full bg-accent" aria-hidden />
+                  Read the rules
+                </button>
+              )}
+
               {!isSelf && (
                 <div className="mt-3 flex gap-2">
                   <Button
@@ -207,6 +224,24 @@ export default function ProfilePage() {
                     Edit profile
                   </Button>
                 </div>
+              )}
+
+              {isSelf && !premium && (
+                <div className="card mt-4 p-5">
+                  <Paywall />
+                </div>
+              )}
+
+              {isSelf && (
+                <Dialog
+                  open={rulesOpen}
+                  onClose={() => setRulesOpen(false)}
+                  title="Community rules"
+                  description="Worth reading once, especially the parts about Love Finder and reporting."
+                  width="sm"
+                >
+                  <CommunityRules />
+                </Dialog>
               )}
             </section>
 
