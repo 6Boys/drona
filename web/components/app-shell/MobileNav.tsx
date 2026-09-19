@@ -72,6 +72,9 @@ export function MobileNav() {
         {MOBILE_NAV.map((item) => {
           const active = pathname === item.href || pathname?.startsWith(`${item.href}/`);
           const Icon = item.icon;
+          // The one thing that's actually "on" — everything else here is
+          // muted, so this is the only color a glow has to agree with.
+          const glow = item.romance ? "var(--rose)" : "var(--accent-hi)";
           return (
             <Link
               key={item.href}
@@ -91,7 +94,24 @@ export function MobileNav() {
                   className="absolute inset-0 rounded-full bg-surface shadow-[var(--sh-card)]"
                 />
               )}
-              <Icon size={collapsed ? 20 : 19} className="relative" />
+              <Icon
+                size={collapsed ? 20 : 19}
+                className="relative"
+                style={
+                  active
+                    ? {
+                        // The glow lives on the icon, not the chip behind it —
+                        // a tight bright core plus a wider soft bloom is what
+                        // reads as "lit up" rather than just "has a shadow."
+                        filter: [
+                          `drop-shadow(0 0 2px color-mix(in oklab, ${glow} 90%, white))`,
+                          `drop-shadow(0 0 7px color-mix(in oklab, ${glow} 75%, transparent))`,
+                          `drop-shadow(0 0 14px color-mix(in oklab, ${glow} 50%, transparent))`,
+                        ].join(" "),
+                      }
+                    : undefined
+                }
+              />
               <AnimatePresence initial={false}>
                 {!collapsed && (
                   <motion.span

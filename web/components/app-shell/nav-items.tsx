@@ -8,12 +8,12 @@ import {
   FlameIcon,
   UserIcon,
 } from "@/components/ui/Icons";
-import type { ComponentType } from "react";
+import type { ComponentType, CSSProperties } from "react";
 
 export interface NavItem {
   href: string;
   label: string;
-  icon: ComponentType<{ size?: number; className?: string }>;
+  icon: ComponentType<{ size?: number; className?: string; style?: CSSProperties }>;
   /** The Love Finder tab re-themes its section; the nav hints at that before
    * you even click it. */
   romance?: boolean;
