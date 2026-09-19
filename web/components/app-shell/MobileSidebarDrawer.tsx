@@ -13,7 +13,7 @@ import { cn } from "@/lib/cn";
 
 /* -----------------------------------------------------------------------------
    The desktop Sidebar (Sidebar.tsx) is `lg:hidden`-gated, and MobileNav only
-   has five slots — Spaces, Note Locker, Saved, Night Shift and Settings have
+   has five slots — Spaces, Note Locker, Night Shift and Settings have
    no one-tap path below that breakpoint. This is the same nav, laid out as a
    full-height panel that slides in on demand instead of always occupying rail
    width, since a phone doesn't have the spare width a hovering rail does.

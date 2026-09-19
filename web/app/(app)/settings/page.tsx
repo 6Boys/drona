@@ -13,7 +13,7 @@ import { useAuth } from "@/lib/auth-context";
 import { useTheme } from "@/lib/theme";
 import type { Avatar as AvatarShape, MeResponse } from "@/lib/types";
 
-const BRANCHES = ["CSE", "IT", "ECE", "EEE", "ME", "CE", "MBA", "MCA", "Other"];
+const BRANCHES = ["CSE", "AIML", "IOT", "IT", "ECE", "EEE", "ME", "CE", "MBA", "MCA", "Other"];
 
 // "2024-28" — the admission year plus the two-digit graduation year, four years
 // later. A free-text field let people type anything; a bar of the only years

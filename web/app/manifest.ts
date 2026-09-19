@@ -8,7 +8,7 @@ export default function manifest(): MetadataRoute.Manifest {
   return {
     name: "DronaSphere",
     short_name: "DronaSphere",
-    description: "A campus-verified social platform: feed, chat, note locker, night-owl leaderboard, and a verified dating deck.",
+    description: "A campus-verified social platform: feed, chat, note locker, night leaderboard, and a verified dating deck.",
     // A signed-in student opening this from a home-screen icon wants the
     // app, not the marketing page — AppShell already redirects to /login
     // for anyone who isn't.

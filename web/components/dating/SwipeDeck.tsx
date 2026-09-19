@@ -23,8 +23,8 @@ import { cn } from "@/lib/cn";
    Dragging is the fast path — right to like the picture, left to pass — and
    the heart on any block is the considered one, which opens the comment
    sheet and lets you say what you're actually reacting to. Both end in the
-   same commit, so the card flies away exactly once either way. Twinkle used
-   to live on the up-swipe too; it's the action-row button only now, since
+   same commit, so the card flies away exactly once either way. SuperLike
+   used to live on the up-swipe too; it's the action-row button only now, since
    spending a limited resource on a gesture most people reach for to read
    more, rather than to commit to anything, was the kind of accidental cost
    nobody asked for.
@@ -45,7 +45,7 @@ type Direction = { x: number; y: number };
 const DIRECTIONS: Record<SwipeAction, Direction> = {
   PASS: { x: -1, y: 0 },
   LIKE: { x: 1, y: 0 },
-  TWINKLE: { x: 0, y: -1 },
+  SUPERLIKE: { x: 0, y: -1 },
 };
 
 export interface SwipeDecision {
@@ -89,7 +89,7 @@ function ActionButton({
 }: {
   onClick: () => void;
   label: string;
-  tone: "pass" | "twinkle" | "like";
+  tone: "pass" | "superlike" | "like";
   size?: "sm" | "md";
   disabled?: boolean;
   children: React.ReactNode;
@@ -108,7 +108,7 @@ function ActionButton({
         "disabled:cursor-not-allowed disabled:opacity-40",
         size === "md" ? "size-14" : "size-11",
         tone === "pass" && "text-muted hover:text-text",
-        tone === "twinkle" && "text-gold",
+        tone === "superlike" && "text-gold",
         tone === "like" && "text-accent",
       )}
     >
@@ -119,16 +119,21 @@ function ActionButton({
 
 export function SwipeDeck({
   candidates,
-  twinklesLeft,
+  superlikesLeft,
+  swipesLeft,
   onDecide,
-  onTwinkleBlocked,
+  onSuperlikeBlocked,
+  onSwipesBlocked,
   onRemove,
   emptyState,
 }: {
   candidates: DatingCandidate[];
-  twinklesLeft: number;
+  superlikesLeft: number;
+  /** null means unlimited (premium). */
+  swipesLeft: number | null;
   onDecide: (decision: SwipeDecision) => void;
-  onTwinkleBlocked: () => void;
+  onSuperlikeBlocked: () => void;
+  onSwipesBlocked: () => void;
   /** Fires when a card is dropped for a reason that isn't a swipe — a report
    * or a block. The parent has to forget them too: dropping it only from the
    * local copy means the next `advance()` rebuilds `candidates` and hands the
@@ -166,8 +171,12 @@ export function SwipeDeck({
     ) => {
       if (!top || busyRef.current) return;
 
-      if (action === "TWINKLE" && twinklesLeft <= 0) {
-        onTwinkleBlocked();
+      if (swipesLeft !== null && swipesLeft <= 0) {
+        onSwipesBlocked();
+        return;
+      }
+      if (action === "SUPERLIKE" && superlikesLeft <= 0) {
+        onSuperlikeBlocked();
         return;
       }
 
@@ -194,7 +203,7 @@ export function SwipeDeck({
       setDeck((prev) => prev.slice(1));
       busyRef.current = false;
     },
-    [top, twinklesLeft, onDecide, onTwinkleBlocked, x, y],
+    [top, superlikesLeft, swipesLeft, onDecide, onSuperlikeBlocked, onSwipesBlocked, x, y],
   );
 
   const handleDragEnd = useCallback(
@@ -207,11 +216,11 @@ export function SwipeDeck({
       } else if (offset.x < -SWIPE_THRESHOLD || velocity.x < -VELOCITY_THRESHOLD) {
         void commit("PASS", { x: velocity.x, y: 0 });
       } else if (offset.y < -SWIPE_THRESHOLD || velocity.y < -VELOCITY_THRESHOLD) {
-        // Used to spend a Twinkle here. Swiping up is the instinctive "show me
-        // more" gesture — Tinder's own super-like aside, most people reaching
-        // for it want to read further, not commit a limited resource by
-        // accident. Opens the same reader "Read all of it" does; the Twinkle
-        // action row button is the only way left to actually spend one, on
+        // Used to spend a SuperLike here. Swiping up is the instinctive "show
+        // me more" gesture — Tinder's own super-like aside, most people
+        // reaching for it want to read further, not commit a limited
+        // resource by accident. Opens the same reader "Read all of it" does;
+        // the SuperLike action row button is the only way left to actually spend one, on
         // purpose, not as an accidental side effect of trying to scroll.
         // dragConstraints is a single point (0,0 on every side), so releasing
         // without a commit() already snaps the card back there on its own —
@@ -338,7 +347,7 @@ export function SwipeDeck({
 
           <Verdict label="Like" style={{ opacity: likeOpacity }} className="left-8 text-accent" />
           <Verdict label="Pass" style={{ opacity: nopeOpacity }} className="right-8 text-muted" />
-          {/* Was "Twinkle" — an up-swipe no longer spends one, it opens the
+          {/* Was "SuperLike" — an up-swipe no longer spends one, it opens the
               reader, same as tapping the card or the button below. */}
           <Verdict
             label="Read all of it"
@@ -353,13 +362,15 @@ export function SwipeDeck({
           <XIcon size={22} />
         </ActionButton>
         <ActionButton
-          label="Send a Twinkle"
-          tone="twinkle"
+          // Never disabled: at 0 left there's something to do about it (buy
+          // more, go premium) rather than nothing, and a disabled button
+          // can't open that — commit() itself routes to onSuperlikeBlocked.
+          label="Send a SuperLike"
+          tone="superlike"
           size="sm"
-          disabled={twinklesLeft <= 0}
-          onClick={() => void commit("TWINKLE")}
+          onClick={() => void commit("SUPERLIKE")}
         >
-          <SparkleIcon size={17} />
+          <SparkleIcon size={17} className={superlikesLeft <= 0 ? "opacity-40" : undefined} />
         </ActionButton>
         <ActionButton label="Like" tone="like" onClick={() => void commit("LIKE")}>
           <HeartOutline />
@@ -393,12 +404,12 @@ export function SwipeDeck({
       <LikeNoteSheet
         candidate={pending ? top : null}
         target={pending}
-        twinklesLeft={twinklesLeft}
+        superlikesLeft={superlikesLeft}
         onClose={() => setPending(null)}
-        onSend={(note, twinkle) => {
+        onSend={(note, superlike) => {
           const target = pending ?? { kind: "PHOTO" as const };
           setPending(null);
-          void commit(twinkle ? "TWINKLE" : "LIKE", { x: 0, y: 0 }, { target, note });
+          void commit(superlike ? "SUPERLIKE" : "LIKE", { x: 0, y: 0 }, { target, note });
         }}
       />
     </div>

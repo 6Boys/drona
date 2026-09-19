@@ -9,6 +9,7 @@ import { SwipeDeck, type SwipeDecision } from "@/components/dating/SwipeDeck";
 import { LikesYouGrid } from "@/components/dating/LikesYouGrid";
 import { MatchesPanel } from "@/components/dating/MatchesPanel";
 import { DatingProfileEditor } from "@/components/dating/DatingProfileEditor";
+import { SuperlikeShopDialog } from "@/components/dating/SuperlikeShopDialog";
 import { VerifyPhotoPanel } from "@/components/dating/VerifyPhotoPanel";
 import { Paywall, PremiumBanner } from "@/components/premium/Paywall";
 import { Dialog } from "@/components/ui/Dialog";
@@ -91,6 +92,7 @@ export default function DatingPage() {
   const [busy, setBusy] = useState(false);
   const [matched, setMatched] = useState<DatingMatch | null>(null);
   const [premiumOpen, setPremiumOpen] = useState(false);
+  const [shopOpen, setShopOpen] = useState(false);
   const premium = isPremiumActive(me?.user);
 
   const deck = useDeck();
@@ -98,7 +100,7 @@ export default function DatingPage() {
   const matches = useMatches();
   const card = useDatingProfile();
 
-  const { setTwinklesLeft, advance } = deck;
+  const { setSuperlikesLeft, setSwipesLeft, advance } = deck;
   const reloadLikes = likes.reload;
   const reloadMatches = matches.reload;
 
@@ -110,13 +112,14 @@ export default function DatingPage() {
       advance(candidate.handle);
       try {
         const result = await dating.swipe(candidate.handle, action, target, note);
-        setTwinklesLeft(result.twinklesLeft);
+        setSuperlikesLeft(result.superlikesLeft);
+        setSwipesLeft(result.swipesLeft);
 
         if (result.matched && result.match) {
           setMatched(result.match);
           void reloadMatches();
-        } else if (action === "TWINKLE") {
-          toast(`Twinkle sent to ${candidate.displayName}`, "success");
+        } else if (action === "SUPERLIKE") {
+          toast(`SuperLike sent to ${candidate.displayName}`, "success");
         } else if (note) {
           toast(`Comment sent to ${candidate.displayName}`, "success");
         }
@@ -127,7 +130,7 @@ export default function DatingPage() {
         void deck.reload();
       }
     },
-    [advance, setTwinklesLeft, toast, reloadLikes, reloadMatches, deck],
+    [advance, setSuperlikesLeft, setSwipesLeft, toast, reloadLikes, reloadMatches, deck],
   );
 
   if (!me) return null;
@@ -226,11 +229,15 @@ export default function DatingPage() {
                   ) : (
                     <SwipeDeck
                       candidates={deck.items}
-                      twinklesLeft={deck.twinklesLeft}
+                      superlikesLeft={deck.superlikesLeft}
+                      swipesLeft={deck.swipesLeft}
                       onDecide={swipe}
                       onRemove={(candidate) => advance(candidate.handle)}
-                      onTwinkleBlocked={() =>
-                        toast("No Twinkles left today. One a day, on purpose.", "info")
+                      onSuperlikeBlocked={() => setShopOpen(true)}
+                      onSwipesBlocked={() =>
+                        premium
+                          ? toast("Something's off — premium should be unlimited.", "error")
+                          : setPremiumOpen(true)
                       }
                       emptyState={
                         <Panel
@@ -248,8 +255,27 @@ export default function DatingPage() {
 
                   <p className="mt-2 flex items-center justify-center gap-1.5 text-center text-xs text-faint">
                     <SparkleIcon size={12} className="text-gold" />
-                    {deck.twinklesLeft} {deck.twinklesLeft === 1 ? "Twinkle" : "Twinkles"} left today
+                    {deck.superlikesLeft} {deck.superlikesLeft === 1 ? "SuperLike" : "SuperLikes"} left
+                    {deck.swipesLeft !== null && <> · {deck.swipesLeft} swipes left today</>}
                   </p>
+
+                  <SuperlikeShopDialog
+                    open={shopOpen}
+                    onClose={() => setShopOpen(false)}
+                    onBought={(superlikesLeft) => deck.setSuperlikesLeft(superlikesLeft)}
+                    onGoPremium={() => {
+                      setShopOpen(false);
+                      setPremiumOpen(true);
+                    }}
+                  />
+
+                  <Dialog open={premiumOpen && tab === "deck"} onClose={() => setPremiumOpen(false)} title="Go premium" width="sm">
+                    <Paywall
+                      title="Go premium"
+                      body="4 fresh SuperLikes a day instead of 3 a week, unlimited swipes, and see who liked you."
+                      onUnlocked={() => setPremiumOpen(false)}
+                    />
+                  </Dialog>
                 </>
               )}
 

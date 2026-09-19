@@ -19,18 +19,19 @@ import type {
    the likes and the matches are rows in Postgres (see api/internal/store/
    dating.go), not browser state. What this file keeps locally is only what a
    screen needs between renders: the cards already fetched, and how many
-   Twinkles the server last said were left.
+   SuperLikes and swipes the server last said were left.
 
    The one rule worth stating: nothing here decides anything. Whether a swipe
-   is allowed, whether it matched, and how many Twinkles remain are all the
+   is allowed, whether it matched, and how many SuperLikes remain are all the
    server's answers, echoed back into React state — clearing local storage
-   cannot buy a second Twinkle or undo a pass.
+   cannot buy a second SuperLike or undo a pass.
    -------------------------------------------------------------------------- */
 
 /** How the deck, likes and matches tabs load and reload themselves. */
 export function useDeck() {
   const [items, setItems] = useState<DeckResponse["items"]>([]);
-  const [twinklesLeft, setTwinklesLeft] = useState(0);
+  const [superlikesLeft, setSuperlikesLeft] = useState(0);
+  const [swipesLeft, setSwipesLeft] = useState<number | null>(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<unknown>(null);
   const alive = useRef(true);
@@ -49,7 +50,8 @@ export function useDeck() {
       const deck = await api.get<DeckResponse>("/v1/dating/deck", { limit: 20 });
       if (!alive.current) return;
       setItems(deck.items ?? []);
-      setTwinklesLeft(deck.twinklesLeft);
+      setSuperlikesLeft(deck.superlikesLeft);
+      setSwipesLeft(deck.swipesLeft);
     } catch (err) {
       if (alive.current) setError(err);
     } finally {
@@ -67,7 +69,7 @@ export function useDeck() {
     setItems((prev) => prev.filter((c) => c.handle !== handle));
   }, []);
 
-  return { items, twinklesLeft, setTwinklesLeft, loading, error, reload: load, advance };
+  return { items, superlikesLeft, setSuperlikesLeft, swipesLeft, setSwipesLeft, loading, error, reload: load, advance };
 }
 
 // try/finally with no catch was the shape here: the rejection escaped as an
@@ -165,6 +167,10 @@ export const dating = {
 
   saveProfile(profile: DatingProfile) {
     return api.put<DatingProfile>("/v1/dating/profile", profile);
+  },
+
+  buySuperlikes(quantity: number) {
+    return api.post<{ superlikesLeft: number; quantity: number; chargedInr: number }>("/v1/dating/superlikes/buy", { quantity });
   },
 
   unmatch(handle: string) {

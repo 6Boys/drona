@@ -13,6 +13,7 @@ import { errorMessage } from "@/lib/api";
 import { afterhours } from "@/lib/afterhours-store";
 import { timeAgo } from "@/lib/format";
 import type { AnonReply, SupportCard as SupportCardData, VoteResult } from "@/lib/types";
+import { Sigil } from "./Atmosphere";
 import { ReportDialog } from "./ReportDialog";
 
 const REPLY_LIMIT = 300;
@@ -36,7 +37,8 @@ function ReplyRow({ reply, onChange, onRemoved }: { reply: AnonReply; onChange: 
   return (
     <li className="border-t border-border pt-3 first:border-0 first:pt-0">
       <div className="flex items-center gap-2 text-[0.6875rem]">
-        <span className="mono-label text-accent-hi">Anon #{reply.anonNumber}</span>
+        <Sigil anonNumber={reply.anonNumber} size={20} />
+        <span className="text-[0.75rem] font-medium text-text">#{reply.anonNumber}</span>
         {reply.isOp && (
           <Badge tone="accent" mono>
             OP
@@ -50,9 +52,9 @@ function ReplyRow({ reply, onChange, onRemoved }: { reply: AnonReply; onChange: 
         <span className="text-faint">{timeAgo(reply.createdAt)}</span>
       </div>
 
-      <p className="mt-1 text-sm leading-relaxed whitespace-pre-wrap text-text">{reply.body}</p>
+      <p className="mt-1.5 pl-7 text-[0.9375rem] leading-relaxed whitespace-pre-wrap text-text">{reply.body}</p>
 
-      <div className="mt-1.5 flex items-center gap-2">
+      <div className="mt-1.5 flex items-center gap-2 pl-7">
         <VoteBar
           path={`/v1/afterhours/replies/${reply.id}/vote`}
           score={reply.score}

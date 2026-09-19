@@ -97,7 +97,7 @@ export function FeedRail() {
         >
           <header className="flex items-center gap-2">
             <MoonIcon size={15} className={status.cozyMode ? "text-faint" : "text-accent-hi"} />
-            <h2 className="mono-label">owl board</h2>
+            <h2 className="mono-label">night board</h2>
           </header>
 
           <p className="mt-2 text-sm text-muted">{status.message}</p>

@@ -80,7 +80,7 @@ export function LikesYouGrid({
         quote={(i === 0 || likes.length < 3) && !open ? quoteFor(like) : undefined}
         footer={
           <p className="mt-1 flex items-center gap-1.5 text-[0.6875rem] text-white/75">
-            {like.action === "TWINKLE" ? (
+            {like.action === "SUPERLIKE" ? (
               <SparkleIcon size={11} className="text-gold" />
             ) : (
               <HeartIcon size={11} />
@@ -100,7 +100,7 @@ export function LikesYouGrid({
     ) : (
       <div className="glass glass-strong glass-panel p-5">
         <p className="mono-label">
-          {like.action === "TWINKLE" ? "twinkled" : "liked"} · {targetLine(like, myPrompts)}
+          {like.action === "SUPERLIKE" ? "superliked" : "liked"} · {targetLine(like, myPrompts)}
         </p>
 
         {like.note ? (

@@ -7,7 +7,6 @@ import {
   HeartIcon,
   FlameIcon,
   UserIcon,
-  BookmarkIcon,
 } from "@/components/ui/Icons";
 import type { ComponentType } from "react";
 
@@ -30,10 +29,7 @@ export const PRIMARY_NAV: NavItem[] = [
 
 export const NIGHT_NAV: NavItem[] = [{ href: "/owl-board", label: "Night Shift", icon: MoonIcon }];
 
-export const CAMPUS_NAV: NavItem[] = [
-  { href: "/notes", label: "Note Locker", icon: BookIcon },
-  { href: "/saved", label: "Saved", icon: BookmarkIcon },
-];
+export const CAMPUS_NAV: NavItem[] = [{ href: "/notes", label: "Note Locker", icon: BookIcon }];
 
 /** Five slots, and Love Finder holds one of them — it is a headline surface,
  * not something filed under "more". */
@@ -41,6 +37,6 @@ export const MOBILE_NAV: NavItem[] = [
   { href: "/feed", label: "Nest", icon: HomeIcon },
   { href: "/dating", label: "Love", icon: HeartIcon, romance: true },
   { href: "/chats", label: "Chats", icon: MessageIcon },
-  { href: "/owl-board", label: "Owl", icon: MoonIcon },
+  { href: "/owl-board", label: "Night", icon: MoonIcon },
   { href: "/me", label: "You", icon: UserIcon },
 ];

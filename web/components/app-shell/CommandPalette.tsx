@@ -85,7 +85,6 @@ export function CommandPalette() {
       { id: "chats", label: "Chats", hint: "DMs, Dens and Signals", icon: MessageIcon, run: go("/chats"), group: "Go to" },
       { id: "owl", label: "Night Shift", hint: "Night leaderboard", icon: MoonIcon, run: go("/owl-board"), group: "Go to" },
       { id: "notes", label: "Note Locker", hint: "PYQs and notes", icon: BookIcon, run: go("/notes"), group: "Go to" },
-      { id: "saved", label: "Saved posts", hint: "Your bookmarks", icon: BookIcon, run: go("/saved"), group: "Go to" },
       { id: "dating", label: "Love Finder", hint: "Opt-in deck", icon: HeartIcon, run: go("/dating"), group: "Go to" },
       { id: "afterhours", label: "AfterHours", hint: "Anonymous, 24h posts", icon: FlameIcon, run: go("/afterhours"), group: "Go to" },
       { id: "profile", label: "Your profile", icon: UserIcon, run: go("/me"), group: "Go to" },

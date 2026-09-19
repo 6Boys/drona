@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Avatar } from "@/components/ui/Avatar";
 import { Badge } from "@/components/ui/Badge";
@@ -66,6 +67,7 @@ function Bubble({
 
 export function Conversation({ threadId }: { threadId: string }) {
   const { me } = useAuth();
+  const router = useRouter();
   const toast = useToast();
   const viewerId = me?.user.id ?? "";
 
@@ -76,6 +78,7 @@ export function Conversation({ threadId }: { threadId: string }) {
   const [sending, setSending] = useState(false);
   const [typingBy, setTypingBy] = useState<string | null>(null);
   const [support, setSupport] = useState<SupportCardData | null>(null);
+  const [declining, setDeclining] = useState(false);
 
   const bottomRef = useRef<HTMLDivElement>(null);
   const typingSentAt = useRef(0);
@@ -176,7 +179,7 @@ export function Conversation({ threadId }: { threadId: string }) {
       setItems((prev) => prev.map((m) => (m.clientId === clientId ? result.message : m)));
       if (result.supportCard) setSupport(result.supportCard);
       if (result.owlPoints?.points) {
-        toast(`+${result.owlPoints.points} owl points`, "success");
+        toast(`+${result.owlPoints.points} night points`, "success");
       }
     } catch (err) {
       setItems((prev) => prev.filter((m) => m.clientId !== clientId));
@@ -198,6 +201,13 @@ export function Conversation({ threadId }: { threadId: string }) {
 
   const partner = thread.data ? threadPartner(thread.data, viewerId) : undefined;
   const isRequest = thread.data?.viewerState === "REQUESTED";
+  // Sent one message on a one-directional follow and it's still undecided —
+  // pending is true for both sides of that; isRequest above already claims
+  // the recipient's case, so whatever's left here is the sender's. Only true
+  // once they've actually used their one message — before that, a fresh
+  // pending thread still needs its composer, not a "waiting" banner with
+  // nothing sent yet.
+  const isPendingSender = !!thread.data?.pending && !isRequest && messages.some((m) => m.sender.id === viewerId);
   const isSignal = thread.data?.type === "SIGNAL";
 
   return (
@@ -299,19 +309,45 @@ export function Conversation({ threadId }: { threadId: string }) {
           <p className="text-xs text-muted">
             This is a message request. Accepting lets them message you directly.
           </p>
-          <Button
-            size="sm"
-            onClick={async () => {
-              try {
-                await api.post(`/v1/threads/${threadId}/accept`);
-                thread.refetch();
-              } catch (err) {
-                toast(errorMessage(err, "could not accept"), "error");
-              }
-            }}
-          >
-            Accept
-          </Button>
+          <div className="flex shrink-0 items-center gap-2">
+            <Button
+              size="sm"
+              variant="ghost"
+              loading={declining}
+              onClick={async () => {
+                setDeclining(true);
+                try {
+                  await api.post(`/v1/threads/${threadId}/decline`);
+                  router.push("/chats");
+                } catch (err) {
+                  toast(errorMessage(err, "could not decline"), "error");
+                  setDeclining(false);
+                }
+              }}
+            >
+              Decline
+            </Button>
+            <Button
+              size="sm"
+              disabled={declining}
+              onClick={async () => {
+                try {
+                  await api.post(`/v1/threads/${threadId}/accept`);
+                  thread.refetch();
+                } catch (err) {
+                  toast(errorMessage(err, "could not accept"), "error");
+                }
+              }}
+            >
+              Accept
+            </Button>
+          </div>
+        </div>
+      ) : isPendingSender ? (
+        <div className="border-t border-border bg-surface px-3 py-3">
+          <p className="text-xs text-muted">
+            You've sent your one message. It's in their requests — you can send more once they accept.
+          </p>
         </div>
       ) : (
         <form

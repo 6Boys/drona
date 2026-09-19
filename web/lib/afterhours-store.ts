@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { api } from "./api";
-import type { AnonIdentity, AnonPost, AnonReply, SupportCard } from "./types";
+import type { AnonIdentity, AnonMood, AnonPost, AnonReaction, AnonReply, SupportCard } from "./types";
 
 /* -----------------------------------------------------------------------------
    Client state for the anonymous feed. Everything here is a thin wrapper over
@@ -11,8 +11,13 @@ import type { AnonIdentity, AnonPost, AnonReply, SupportCard } from "./types";
    -------------------------------------------------------------------------- */
 
 export type AfterHoursSort = "hot" | "new";
+export type MoodFilter = AnonMood | "all";
+
+type FeedResponse = { items: AnonPost[]; liveCount: number };
 
 const POLL_MS = 30_000;
+
+const moodParam = (mood: MoodFilter) => (mood === "all" ? undefined : mood);
 
 /** Your current anon number, and the one action that changes it. */
 export function useAfterHoursIdentity() {
@@ -41,8 +46,9 @@ export function useAfterHoursIdentity() {
   return { identity, loading, flush };
 }
 
-export function useAfterHoursFeed(sort: AfterHoursSort) {
+export function useAfterHoursFeed(sort: AfterHoursSort, mood: MoodFilter = "all") {
   const [items, setItems] = useState<AnonPost[]>([]);
+  const [liveCount, setLiveCount] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<unknown>(null);
   // The latest server view, held back rather than swapped in: replacing the
@@ -51,20 +57,26 @@ export function useAfterHoursFeed(sort: AfterHoursSort) {
   const [pending, setPending] = useState<AnonPost[] | null>(null);
   const itemsRef = useRef(items);
   itemsRef.current = items;
+  // Mood chips invite rapid tapping; only the most recent request may land,
+  // or a slow "Crush" response could overwrite the "Rant" list asked for after.
+  const latestLoad = useRef(0);
 
   const load = useCallback(async () => {
+    const ticket = ++latestLoad.current;
     setLoading(true);
     setError(null);
     setPending(null);
     try {
-      const res = await api.get<{ items: AnonPost[] }>("/v1/afterhours/feed", { sort, limit: 50 });
+      const res = await api.get<FeedResponse>("/v1/afterhours/feed", { sort, limit: 50, mood: moodParam(mood) });
+      if (ticket !== latestLoad.current) return;
       setItems(res.items ?? []);
+      setLiveCount(res.liveCount ?? 0);
     } catch (err) {
-      setError(err);
+      if (ticket === latestLoad.current) setError(err);
     } finally {
-      setLoading(false);
+      if (ticket === latestLoad.current) setLoading(false);
     }
-  }, [sort]);
+  }, [sort, mood]);
 
   useEffect(() => {
     void load();
@@ -74,8 +86,9 @@ export function useAfterHoursFeed(sort: AfterHoursSort) {
     const id = setInterval(async () => {
       if (document.hidden) return;
       try {
-        const res = await api.get<{ items: AnonPost[] }>("/v1/afterhours/feed", { sort, limit: 50 });
+        const res = await api.get<FeedResponse>("/v1/afterhours/feed", { sort, limit: 50, mood: moodParam(mood) });
         const latest = res.items ?? [];
+        setLiveCount(res.liveCount ?? 0);
         const known = new Set(itemsRef.current.map((p) => p.id));
         if (latest.some((p) => !known.has(p.id))) setPending(latest);
       } catch {
@@ -83,7 +96,7 @@ export function useAfterHoursFeed(sort: AfterHoursSort) {
       }
     }, POLL_MS);
     return () => clearInterval(id);
-  }, [sort]);
+  }, [sort, mood]);
 
   const newCount = pending ? pending.filter((p) => !items.some((i) => i.id === p.id)).length : 0;
 
@@ -110,14 +123,21 @@ export function useAfterHoursFeed(sort: AfterHoursSort) {
 
   const prepend = useCallback((post: AnonPost) => {
     setItems((prev) => [post, ...prev]);
+    setLiveCount((n) => n + 1);
   }, []);
 
-  return { items, loading, error, reload: load, remove, prepend, setItems, newCount, showPending };
+  return { items, loading, error, reload: load, remove, prepend, setItems, newCount, showPending, liveCount };
 }
 
 export const afterhours = {
-  createPost(body: string) {
-    return api.post<{ post: AnonPost; supportCard?: SupportCard }>("/v1/afterhours/posts", { body });
+  createPost(body: string, mood: AnonMood) {
+    return api.post<{ post: AnonPost; supportCard?: SupportCard }>("/v1/afterhours/posts", { body, mood });
+  },
+  react(postId: string, reaction: AnonReaction | null) {
+    return api.post<{ reactions: AnonPost["reactions"]; viewerReaction: AnonReaction | null }>(
+      `/v1/afterhours/posts/${postId}/react`,
+      { reaction },
+    );
   },
   deletePost(postId: string) {
     return api.delete<void>(`/v1/afterhours/posts/${postId}`);

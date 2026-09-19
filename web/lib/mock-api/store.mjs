@@ -24,7 +24,7 @@ export const storeEnabled = Boolean(URL_ && TOKEN);
 // crash on a field it doesn't recognize. The environment is in the key so a
 // preview deployment built from some other branch can never write over
 // production's state, even when both are connected to the same database.
-const STATE_SCHEMA = 2;
+const STATE_SCHEMA = 4;
 const PREFIX = `drona:mock:v${STATE_SCHEMA}:${process.env.VERCEL_ENV || "local"}`;
 const VERSION_KEY = `${PREFIX}:version`;
 const STATE_KEY = `${PREFIX}:state`;

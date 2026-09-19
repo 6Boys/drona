@@ -251,6 +251,145 @@
     --accent-wash: color-mix(in oklab, var(--rose-400) 16%, var(--night-800));
     --ring: var(--rose-400);
   }
+
+  /* ------------------------------------------------------------ AfterHours --
+     The whole room changes while /afterhours is open (lib/afterhours-theme.ts
+     sets data-afterhours on <html> and removes it on the way out). Always
+     dark, whatever the app theme is — but dark is already the app's default,
+     so what sets it apart is temperature, glow and grain, not darkness.
+     Declared after :root.dark on purpose: equal specificity, so order wins. */
+  :root[data-afterhours] {
+    color-scheme: dark;
+    --border: color-mix(in oklab, white 8%, transparent);
+    --border-strong: color-mix(in oklab, white 16%, transparent);
+    --danger: #ff6b6b;
+    --positive: #7fd4a0;
+    --sh-card: 0 1px 0 0 color-mix(in oklab, white 6%, transparent) inset, 0 18px 40px -24px rgb(0 0 0 / 0.9);
+    --sh-pop: 0 30px 70px -30px rgb(0 0 0 / 0.95);
+    --glass-a: 0.55;
+    --glass-a-strong: 0.78;
+    --glass-border: rgb(255 255 255 / 0.1);
+    --glass-edge: inset 0 1px 0 0 rgb(255 255 255 / 0.08), inset 0 -1px 0 0 rgb(0 0 0 / 0.35);
+    --sh-glass: 0 12px 34px -16px rgb(0 0 0 / 0.8), 0 34px 80px -44px rgb(0 0 0 / 0.95);
+    --ah-grain: 0.07;
+  }
+
+  :root[data-afterhours="velvet"] {
+    --bg: #0c0610;
+    --panel: #120a16;
+    --surface: #1a0f1f;
+    --surface-2: #26162c;
+    --text: #f7eef4;
+    --muted: #bba6b6;
+    --faint: #7e6879;
+    --accent: #ff4f93;
+    --accent-hi: #ff8cba;
+    --accent-soft: color-mix(in oklab, #ff4f93 40%, #1a0f1f);
+    --accent-wash: color-mix(in oklab, #ff4f93 15%, #1a0f1f);
+    --on-accent: #ffffff;
+    --ring: #ff4f93;
+    --glass-tint: 26 12 30;
+    --ah-glow-a: #ff2e7e;
+    --ah-glow-b: #7b2cff;
+    --ah-glow-c: #ff6a3d;
+  }
+
+  :root[data-afterhours="candle"] {
+    --bg: #0d0906;
+    --panel: #140e09;
+    --surface: #1c140d;
+    --surface-2: #2a1e13;
+    --text: #f8efe2;
+    --muted: #c4ae93;
+    --faint: #85715a;
+    --accent: #ffb347;
+    --accent-hi: #ffd08a;
+    --accent-soft: color-mix(in oklab, #ffb347 38%, #1c140d);
+    --accent-wash: color-mix(in oklab, #ffb347 14%, #1c140d);
+    --on-accent: #1a1006;
+    --ring: #ffb347;
+    --glass-tint: 28 19 12;
+    --ah-glow-a: #ff9a2e;
+    --ah-glow-b: #ff5e3a;
+    --ah-glow-c: #ffd27a;
+  }
+
+  :root[data-afterhours="neon"] {
+    --bg: #05060d;
+    --panel: #0a0c17;
+    --surface: #0f1120;
+    --surface-2: #181b30;
+    --text: #eef2ff;
+    --muted: #a3aacb;
+    --faint: #646b8e;
+    --accent: #3df0ff;
+    --accent-hi: #a3faff;
+    --accent-soft: color-mix(in oklab, #3df0ff 34%, #0f1120);
+    --accent-wash: color-mix(in oklab, #3df0ff 13%, #0f1120);
+    --on-accent: #031418;
+    --ring: #3df0ff;
+    --glass-tint: 14 16 32;
+    --ah-glow-a: #00e5ff;
+    --ah-glow-b: #ff2bd6;
+    --ah-glow-c: #5b3cff;
+  }
+
+  :root[data-afterhours="noir"] {
+    --bg: #0a0a0a;
+    --panel: #101010;
+    --surface: #161616;
+    --surface-2: #222222;
+    --text: #f2f2f2;
+    --muted: #a6a6a6;
+    --faint: #696969;
+    --accent: #ececec;
+    --accent-hi: #ffffff;
+    --accent-soft: #3a3a3a;
+    --accent-wash: #232323;
+    --on-accent: #0a0a0a;
+    --ring: #ececec;
+    --glass-tint: 20 20 20;
+    --ah-glow-a: #ffffff;
+    --ah-glow-b: #6b6b6b;
+    --ah-glow-c: #9a9a9a;
+    --ah-grain: 0.14;
+  }
+
+  /* While switching in, out, or between ambiances: everything that reads a
+     token eases to the new value instead of cutting. Removed after ~0.9s so
+     it never slows down ordinary hover transitions. */
+  :root.ah-transition,
+  :root.ah-transition *,
+  :root.ah-transition *::before,
+  :root.ah-transition *::after {
+    transition:
+      background-color 0.7s ease,
+      color 0.7s ease,
+      border-color 0.7s ease,
+      fill 0.7s ease,
+      stroke 0.7s ease !important;
+  }
+
+  /* !important in an earlier layer beats the base layer's reduced-motion
+     reset, so it has to opt out here itself. */
+  @media (prefers-reduced-motion: reduce) {
+    :root.ah-transition,
+    :root.ah-transition *,
+    :root.ah-transition *::before,
+    :root.ah-transition *::after {
+      transition: none !important;
+    }
+  }
+
+  /* Each mood has its own colour, independent of ambiance, so a Crush reads
+     as a Crush in any room. */
+  [data-mood="confession"] { --mood: #ff5c9a; }
+  [data-mood="secret"] { --mood: #a47bff; }
+  [data-mood="crush"] { --mood: #ff4d6d; }
+  [data-mood="hottake"] { --mood: #ff8a3d; }
+  [data-mood="rant"] { --mood: #ff5a4f; }
+  [data-mood="3am"] { --mood: #6ea8ff; }
+  [data-mood="ask"] { --mood: #3fd3b0; }
 }
 
 @layer base {
@@ -548,6 +687,131 @@
     filter: blur(70px);
     opacity: 0.5;
   }
+
+  /* ----------------------------------------------------------- AfterHours --
+     Everything below only ever renders on /afterhours. The backdrop is plain
+     radial gradients rather than filter: blur() and the cards carry no
+     backdrop-filter — both are what make scrolling stutter on an iPhone, and
+     this is the page people will scroll longest at 2am. */
+  .ah-backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: -1;
+    overflow: hidden;
+    pointer-events: none;
+  }
+
+  .ah-orb {
+    position: absolute;
+    border-radius: 999px;
+    will-change: transform;
+  }
+
+  .ah-grain {
+    position: absolute;
+    inset: 0;
+    background-image: var(--grain);
+    opacity: var(--ah-grain);
+    mix-blend-mode: soft-light;
+  }
+
+  .ah-vignette {
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(ellipse 90% 70% at 50% 35%, transparent 45%, rgb(0 0 0 / 0.6) 100%);
+  }
+
+  .ah-star {
+    position: absolute;
+    width: 2px;
+    height: 2px;
+    border-radius: 999px;
+    background: color-mix(in oklab, var(--text) 80%, transparent);
+    box-shadow: 0 0 6px 1px color-mix(in oklab, var(--ah-glow-a) 60%, transparent);
+  }
+
+  .ah-card {
+    position: relative;
+    overflow: hidden;
+    border-radius: var(--r-xl);
+    border: 1px solid var(--border);
+    background:
+      radial-gradient(120% 90% at 0% 0%, color-mix(in oklab, var(--mood, var(--accent)) 13%, transparent) 0%, transparent 55%),
+      color-mix(in oklab, var(--surface) 84%, transparent);
+    box-shadow: var(--sh-card);
+    transition: border-color 0.25s ease;
+  }
+  .ah-card:hover {
+    border-color: color-mix(in oklab, var(--mood, var(--accent)) 38%, var(--border));
+  }
+
+  /* Tonight's top post: same card, a lit edge instead of a hairline. */
+  .ah-featured {
+    border-color: transparent;
+    background:
+      radial-gradient(120% 90% at 0% 0%, color-mix(in oklab, var(--mood) 20%, transparent) 0%, transparent 60%) padding-box,
+      linear-gradient(var(--surface), var(--surface)) padding-box,
+      conic-gradient(from 200deg, var(--mood), transparent 25%, color-mix(in oklab, var(--accent) 80%, transparent) 55%, transparent 78%, var(--mood)) border-box;
+    box-shadow: 0 24px 60px -30px color-mix(in oklab, var(--mood) 55%, transparent), var(--sh-card);
+  }
+
+  .ah-mood-tag {
+    color: color-mix(in oklab, var(--mood) 75%, white);
+    background: color-mix(in oklab, var(--mood) 14%, transparent);
+    border: 1px solid color-mix(in oklab, var(--mood) 32%, transparent);
+  }
+
+  /* Anything a person confessed is set as a quote — the editorial serif the
+     rest of the app reserves for what people wrote. */
+  .ah-quote {
+    font-family: var(--font-serif);
+    font-size: 1.3rem;
+    line-height: 1.34;
+    letter-spacing: -0.006em;
+    color: var(--text);
+  }
+
+  .ah-secret-veil {
+    filter: blur(9px);
+    user-select: none;
+    transition: filter 0.5s ease;
+  }
+
+  /* The fuse: how much of this post's 24 hours is left, burning right to
+     left, with the ember at the point it's burnt down to. */
+  .ah-fuse {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    height: 2px;
+    background: color-mix(in oklab, var(--mood, var(--accent)) 12%, transparent);
+  }
+  .ah-fuse > span {
+    position: absolute;
+    inset: 0 auto 0 0;
+    background: linear-gradient(90deg, color-mix(in oklab, var(--mood) 25%, transparent), var(--mood));
+    box-shadow: 0 0 10px color-mix(in oklab, var(--mood) 70%, transparent);
+  }
+  .ah-fuse > span::after {
+    content: "";
+    position: absolute;
+    right: -3px;
+    top: 50%;
+    width: 6px;
+    height: 6px;
+    margin-top: -3px;
+    border-radius: 999px;
+    background: #fff;
+    box-shadow:
+      0 0 8px 2px var(--mood),
+      0 0 18px 5px color-mix(in oklab, var(--mood) 55%, transparent);
+    animation: ah-flicker 1.7s ease-in-out infinite;
+  }
+
+  :root[data-afterhours="noir"] .ah-sigil {
+    filter: grayscale(1) contrast(1.15);
+  }
 }
 
 @layer utilities {
@@ -666,6 +930,67 @@
   }
   .drift {
     animation: drift var(--drift-dur, 22s) ease-in-out infinite;
+  }
+
+  @keyframes ah-flicker {
+    0%,
+    100% {
+      opacity: 1;
+      transform: scale(1);
+    }
+    30% {
+      opacity: 0.65;
+      transform: scale(0.82);
+    }
+    55% {
+      opacity: 1;
+      transform: scale(1.12);
+    }
+    80% {
+      opacity: 0.8;
+      transform: scale(0.94);
+    }
+  }
+
+  @keyframes ah-flame {
+    0%,
+    100% {
+      transform: scale(1, 1) skewX(0deg);
+    }
+    25% {
+      transform: scale(0.96, 1.05) skewX(-2deg);
+    }
+    50% {
+      transform: scale(1.03, 0.96) skewX(1.5deg);
+    }
+    75% {
+      transform: scale(0.98, 1.03) skewX(-1deg);
+    }
+  }
+  .ah-flame {
+    transform-origin: 50% 92%;
+    animation: ah-flame 2.2s ease-in-out infinite;
+  }
+
+  /* A post you just released arrives lit, then settles. */
+  @keyframes ah-ignite {
+    0% {
+      opacity: 0;
+      transform: translateY(14px) scale(0.985);
+    }
+    35% {
+      opacity: 1;
+      box-shadow:
+        0 0 0 1px var(--mood),
+        0 0 44px -6px var(--mood);
+    }
+    100% {
+      transform: none;
+      box-shadow: var(--sh-card);
+    }
+  }
+  .ah-ignite {
+    animation: ah-ignite 1.1s cubic-bezier(0.22, 1, 0.36, 1) both;
   }
 
   @keyframes twinkle {

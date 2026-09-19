@@ -225,7 +225,7 @@ const uid = (n) => id("usr", n);
 
 const SPACES = [
   ["placements", "Placements", "💼", "CTCs, interview experiences, off-campus links. No fake offers.", true],
-  ["hostel-food", "Hostel Food", "🍜", "Today's mess menu, reviewed brutally.", true],
+  ["branches", "Branches", "🏛️", "Every branch's own corner — CSE, ECE, AIML, IOT, ME and the rest.", true],
   ["cse-sem3", "CSE Sem 3", "📚", "DSA, DBMS, COA. Doubts welcome, no gatekeeping.", true],
   ["memes", "Memes", "😹", "The only space with no rules except don't punch down.", true],
   ["lost-found", "Lost & Found", "🔍", "ID cards, water bottles, dignity.", true],
@@ -303,7 +303,7 @@ function makePost({ space, author, type, title, body, score, hours, linkUrl, pol
 
 [
   { space: "placements", author: uid(4), type: "TEXT", score: 47, hours: 5, title: "Wrote my Deloitte interview experience — 3 rounds, full questions inside", body: "Round 1 was aptitude + 2 coding (both easy DSA — sliding window, one string thing).\nRound 2 was tech: DBMS normalisation, one SQL join query, projects grilled hard. Know your own resume.\nRound 3 HR: relocation, bond, why Deloitte. 25 mins.\nAsk me anything below, I'll answer till midnight.", commentBodies: ["did they ask DP?", "how many got shortlisted from our branch?", "bro thank you, saving this"] },
-  { space: "hostel-food", author: uid(5), type: "TEXT", score: 88, hours: 2, title: "mess gave us paneer today and I need everyone to know", body: "actual paneer. cubes and everything. i am emotional", commentBodies: ["it was rubber but i'll allow it", "the rajma yesterday was a war crime though"] },
+  { space: "memes", author: uid(5), type: "TEXT", score: 88, hours: 2, title: "mess gave us paneer today and I need everyone to know", body: "actual paneer. cubes and everything. i am emotional", commentBodies: ["it was rubber but i'll allow it", "the rajma yesterday was a war crime though"] },
   { space: "cse-sem3", author: uid(9), type: "ASK", score: 31, hours: 8, title: "Can someone explain why we normalise to 3NF but stop there?", body: "Sir said BCNF exists but 3NF is 'enough in practice' and moved on. Enough for what?? Exam is Tuesday.", commentBodies: ["3NF keeps dependency preservation, BCNF can lose it. that's the actual answer", "for the exam: just know the definitions + one example each"] },
   { space: "night-shift", author: uid(6), type: "TEXT", score: 64, hours: 26, title: "2:14 AM. workshop assignment. who else is up", body: "third coffee. the lathe drawing is fighting back.", commentBodies: ["up. debugging a segfault that only happens on tuesdays", "logging off at 3, curfew hits and dronu starts yawning at me"] },
   { space: "memes", author: uid(3), type: "TEXT", score: 156, hours: 12, title: "the library at 8:59 AM vs 9:01 AM", body: "you know exactly what I mean", commentBodies: ["accurate and i hate it"] },
@@ -372,6 +372,7 @@ function makeThread({ type, title, icon, memberIds, createdBy, msgs }) {
       createdAt: hoursAgo(hours),
     })),
   );
+  return tid;
 }
 
 makeThread({
@@ -407,6 +408,41 @@ makeThread({
   createdBy: uid(11),
   msgs: [[11, "Contest Saturday 7 PM. Beginners bracket is separate this time.", 20]],
 });
+
+// One Den per branch — the group chat every student in that branch lands in
+// the moment they finish onboarding (see joinBranchDen, called wherever
+// onboardingStep flips to DONE). Seeded with whichever of the PEOPLE cast
+// already carries that branch; AIML and IOT start empty since nobody in the
+// cast has either yet — the first real student with one opens it for real.
+const BRANCH_DEN_META = {
+  CSE: ["📘", "CSE — the whole branch"],
+  ECE: ["📡", "ECE — the whole branch"],
+  AIML: ["🤖", "AIML — the whole branch"],
+  IOT: ["📶", "IOT — the whole branch"],
+  ME: ["⚙️", "ME — the whole branch"],
+};
+const BRANCH_DENS = Object.fromEntries(
+  Object.entries(BRANCH_DEN_META).map(([branch, [icon, title]]) => [
+    branch,
+    makeThread({
+      type: "DEN",
+      title,
+      icon,
+      memberIds: [...users.values()].filter((u) => u.branch === branch).map((u) => u.id),
+      createdBy: uid(1),
+      msgs: [],
+    }),
+  ]),
+);
+
+/** Called wherever onboardingStep flips to DONE — a ghost roster import sets
+ * `branch` well before that moment, so joining here (not at account
+ * creation) is what "as they actually join" means. */
+function joinBranchDen(user) {
+  const tid = BRANCH_DENS[user.branch];
+  const thread = tid && threads.get(tid);
+  if (thread && !thread.memberIds.includes(user.id)) thread.memberIds.push(user.id);
+}
 
 // Per-user bookmark sets and notification inboxes.
 const bookmarks = new Map(); // userId -> Set<postId>
@@ -637,6 +673,10 @@ function publicThread(thread, viewerId) {
     lastMessageAt: last?.createdAt,
     unreadCount: list.filter((m) => m.senderId !== viewerId && new Date(m.createdAt).getTime() > readAt).length,
     viewerState: thread.requested.has(viewerId) ? "REQUESTED" : "ACTIVE",
+    // True for both sides of a still-undecided request: the recipient sees
+    // it via viewerState above (and the accept/decline prompt); the sender
+    // sees it here as "you already said your one thing, wait for them."
+    pending: thread.requested.size > 0,
     muted: false,
     createdAt: thread.createdAt,
   };
@@ -890,6 +930,7 @@ function skipOnboarding(user) {
   user.photoVerified = true;
   user.loveFinderEnabled = true;
   user.onboardingStep = "DONE";
+  joinBranchDen(user);
 
   // Auto-follow enough seeded students that the feed and rails aren't empty.
   const targets = [...users.values()].filter((u) => u.id !== user.id && u.onboardingStep === "DONE");
@@ -1097,10 +1138,66 @@ const datingProfiles = new Map(); // userId -> {vibe, interests, prompts, photos
 const swipes = new Map(); // `${actorId}>${targetId}` -> {action, target, note, at}
 const datingMatches = []; // {id, a, b, threadId, createdAt, wiltsAt}
 
-const DAILY_TWINKLES = 1;
+// SuperLikes: 3 free a week for everyone, refreshed to 4 a day (not banked —
+// unused days don't carry over) once premium, since premium is meant to feel
+// like more room, not a stockpile. Buying tops up a balance that never
+// expires and is spent only once the free allowance for the current period
+// is used up — see superlikesLeft below.
+const SUPERLIKE_FREE_PER_WEEK = 3;
+const SUPERLIKE_PREMIUM_PER_DAY = 4;
+const SUPERLIKE_PRICE_INR = 7;
+const FREE_SWIPES_PER_DAY = 20;
 const MATCH_WILT_DAYS = 7;
 const MIN_DATING_PHOTOS = 2;
 const MAX_DATING_PHOTOS = 7;
+
+const purchasedSuperlikes = new Map(); // userId -> balance, persists until spent
+const isPremiumActive = (user) => !!user.premiumUntil && new Date(user.premiumUntil).getTime() > Date.now();
+
+function startOfDay() {
+  const d = new Date();
+  d.setHours(0, 0, 0, 0);
+  return d;
+}
+
+function startOfWeek() {
+  const d = startOfDay();
+  // Monday-based: Sunday (0) is 6 days into the week that started the
+  // previous Monday, everything else is (day - 1) days in.
+  const sinceMonday = (d.getDay() + 6) % 7;
+  d.setDate(d.getDate() - sinceMonday);
+  return d;
+}
+
+function swipesSince(userId, since, filter) {
+  let count = 0;
+  for (const [key, swipe] of swipes) {
+    if (!key.startsWith(`${userId}>`)) continue;
+    if (new Date(swipe.at) < since) continue;
+    if (filter && !filter(swipe)) continue;
+    count += 1;
+  }
+  return count;
+}
+
+// The periodic allowance only, ignoring any purchased balance — spending
+// draws this down implicitly (it's derived from swipe history, not a
+// counter) before ever touching the purchased one. See superlikesLeft.
+function superlikeAllowance(user) {
+  const isSuperlike = (s) => s.action === "SUPERLIKE";
+  return isPremiumActive(user)
+    ? Math.max(0, SUPERLIKE_PREMIUM_PER_DAY - swipesSince(user.id, startOfDay(), isSuperlike))
+    : Math.max(0, SUPERLIKE_FREE_PER_WEEK - swipesSince(user.id, startOfWeek(), isSuperlike));
+}
+
+const superlikesLeft = (user) => superlikeAllowance(user) + (purchasedSuperlikes.get(user.id) ?? 0);
+
+// null means unlimited — Infinity doesn't survive JSON, and "no swipe limit
+// today" is exactly what premium promises, not a very large number of them.
+function swipesLeftToday(user) {
+  if (isPremiumActive(user)) return null;
+  return Math.max(0, FREE_SWIPES_PER_DAY - swipesSince(user.id, startOfDay()));
+}
 
 // Normalizes field-by-field, not just "missing entry -> whole default object":
 // DEMO_CARDS (seedDatingDemo, below) predates `photos` and stores profiles
@@ -1120,19 +1217,6 @@ const profileFor = (userId) => {
 };
 
 const candidateOf = (user, viewerId) => ({ ...publicUser(user, viewerId), ...profileFor(user.id) });
-
-const twinklesUsedToday = (userId) => {
-  const midnight = new Date();
-  midnight.setHours(0, 0, 0, 0);
-  let used = 0;
-  for (const [key, swipe] of swipes) {
-    if (!key.startsWith(`${userId}>`)) continue;
-    if (swipe.action === "TWINKLE" && new Date(swipe.at) >= midnight) used += 1;
-  }
-  return used;
-};
-
-const twinklesLeft = (userId) => Math.max(0, DAILY_TWINKLES - twinklesUsedToday(userId));
 
 // Cards for the seeded students, so the demo deck reads like the real thing
 // rather than a row of blank gradients. Written the way second-years write.
@@ -1217,7 +1301,7 @@ function seedDatingDemo() {
     const admirer = byHandle(handle);
     if (!admirer) continue;
     swipes.set(`${admirer.id}>${viewer.id}`, {
-      action: handle === "meher" ? "TWINKLE" : "LIKE",
+      action: handle === "meher" ? "SUPERLIKE" : "LIKE",
       target: { kind: "PROMPT", promptIndex: 0 },
       note: handle === "meher" ? "the ranked list better be defensible." : "",
       at: hoursAgo(handle === "meher" ? 6 : 30),
@@ -1276,13 +1360,13 @@ route("GET", "/v1/dating/deck", (ctx) => {
     .slice(0, Number(ctx.query.limit ?? 20))
     .map((u) => candidateOf(u, ctx.user.id));
 
-  send(ctx.res, 200, { items, twinklesLeft: twinklesLeft(ctx.user.id) });
+  send(ctx.res, 200, { items, superlikesLeft: superlikesLeft(ctx.user), swipesLeft: swipesLeftToday(ctx.user) });
 });
 
 route("POST", "/v1/dating/swipe", (ctx) => {
   const action = String(ctx.body.action ?? "");
-  if (!["PASS", "LIKE", "TWINKLE"].includes(action)) {
-    return fail(ctx.res, 422, "VALIDATION", "must be PASS, LIKE or TWINKLE");
+  if (!["PASS", "LIKE", "SUPERLIKE"].includes(action)) {
+    return fail(ctx.res, 422, "VALIDATION", "must be PASS, LIKE or SUPERLIKE");
   }
   const target = byHandle(String(ctx.body.handle ?? ""));
   if (!target) return fail(ctx.res, 404, "NOT_FOUND", "no account with that handle");
@@ -1292,8 +1376,18 @@ route("POST", "/v1/dating/swipe", (ctx) => {
   if (swipes.has(key)) {
     return fail(ctx.res, 409, "CONFLICT", "you already decided on this person", "you've already seen this one");
   }
-  if (action === "TWINKLE" && twinklesLeft(ctx.user.id) <= 0) {
-    return fail(ctx.res, 429, "RATE_LIMITED", "no Twinkles left today", "that's today's Twinkle spent ✨");
+  const swipesLeft = swipesLeftToday(ctx.user);
+  if (swipesLeft !== null && swipesLeft <= 0) {
+    return fail(ctx.res, 429, "RATE_LIMITED", "no swipes left today", "That's today's swipes — premium is unlimited.");
+  }
+  if (action === "SUPERLIKE") {
+    if (superlikeAllowance(ctx.user) <= 0) {
+      const purchased = purchasedSuperlikes.get(ctx.user.id) ?? 0;
+      if (purchased <= 0) {
+        return fail(ctx.res, 429, "RATE_LIMITED", "no SuperLikes left", "Out of SuperLikes — buy more or go premium for 4 a day.");
+      }
+      purchasedSuperlikes.set(ctx.user.id, purchased - 1);
+    }
   }
 
   swipes.set(key, {
@@ -1340,7 +1434,8 @@ route("POST", "/v1/dating/swipe", (ctx) => {
 
   send(ctx.res, 200, {
     matched: !!match,
-    twinklesLeft: twinklesLeft(ctx.user.id),
+    superlikesLeft: superlikesLeft(ctx.user),
+    swipesLeft: swipesLeftToday(ctx.user),
     ...(match
       ? {
           match: {
@@ -1352,6 +1447,19 @@ route("POST", "/v1/dating/swipe", (ctx) => {
           },
         }
       : {}),
+  });
+});
+
+// Real money needs a real gateway, same story as /v1/premium/checkout —
+// this grants the balance immediately rather than pretending to open a
+// checkout it cannot complete.
+route("POST", "/v1/dating/superlikes/buy", (ctx) => {
+  const quantity = Math.min(20, Math.max(1, Math.trunc(Number(ctx.body.quantity ?? 1))));
+  purchasedSuperlikes.set(ctx.user.id, (purchasedSuperlikes.get(ctx.user.id) ?? 0) + quantity);
+  send(ctx.res, 200, {
+    superlikesLeft: superlikesLeft(ctx.user),
+    quantity,
+    chargedInr: quantity * SUPERLIKE_PRICE_INR,
   });
 });
 
@@ -1481,6 +1589,7 @@ function followResult(ctx, target, following) {
   const followingCount = [...follows].filter((f) => f.startsWith(`${ctx.user.id}>`)).length;
   if (ctx.user.onboardingStep === "FOLLOWS" && followingCount >= MIN_FOLLOWS) {
     ctx.user.onboardingStep = "DONE";
+    joinBranchDen(ctx.user);
   }
   return {
     following,
@@ -1509,11 +1618,21 @@ route("POST", "/v1/users/:handle/follow", (ctx) => {
   const target = byHandle(ctx.params.handle);
   if (!target) return fail(ctx.res, 404, "NOT_FOUND", "no account with that handle");
   follows.add(`${ctx.user.id}>${target.id}`);
+  const mutual = follows.has(`${target.id}>${ctx.user.id}`);
+  // Becoming mutual clears a still-pending request between them either way —
+  // whichever one of them sent it, "DMs are open" should mean it right away,
+  // not "once you go find that message request and accept it."
+  if (mutual) {
+    const thread = [...threads.values()].find(
+      (t) => t.type === "DM" && t.memberIds.length === 2 && t.memberIds.includes(ctx.user.id) && t.memberIds.includes(target.id),
+    );
+    thread?.requested.clear();
+  }
   notify(target.id, {
     type: "FOLLOW",
     actorId: ctx.user.id,
     title: `${ctx.user.displayName} followed you`,
-    body: follows.has(`${target.id}>${ctx.user.id}`) ? "You're buddies now — DMs are open." : undefined,
+    body: mutual ? "You're buddies now — DMs are open." : undefined,
     href: `/profile/${ctx.user.handle}`,
   });
   send(ctx.res, 200, followResult(ctx, target, true));
@@ -1744,14 +1863,30 @@ route("GET", "/v1/threads/requests", (ctx) => {
   send(ctx.res, 200, { items });
 });
 
+// No follow at all: not allowed to start something, full stop. One-directional
+// follow: one message, into their requests, while it's still undecided —
+// enforced again on send (below) since re-opening this route a second time
+// must not hand out a second free message. Mutual: same as it's always been.
 route("POST", "/v1/threads/dm", (ctx) => {
   const target = byHandle(ctx.body.handle);
   if (!target) return fail(ctx.res, 404, "NOT_FOUND", "no account with that handle");
+  if (target.id === ctx.user.id) return fail(ctx.res, 400, "BAD_REQUEST", "you cannot message yourself");
 
   let thread = [...threads.values()].find(
     (t) => t.type === "DM" && t.memberIds.length === 2 && t.memberIds.includes(ctx.user.id) && t.memberIds.includes(target.id),
   );
+
   if (!thread) {
+    if (!follows.has(`${ctx.user.id}>${target.id}`)) {
+      return fail(
+        ctx.res,
+        403,
+        "FOLLOW_REQUIRED",
+        "you must follow someone before messaging them",
+        `Follow ${target.displayName} first — then you can send them a message.`,
+      );
+    }
+    const mutual = follows.has(`${target.id}>${ctx.user.id}`);
     const tid = id("thr", ++threadSeq);
     thread = {
       id: tid,
@@ -1760,7 +1895,10 @@ route("POST", "/v1/threads/dm", (ctx) => {
       createdById: ctx.user.id,
       createdAt: iso(),
       reads: new Map(),
-      requested: new Set(),
+      // Not mutual yet: this is a request until target accepts, declines, or
+      // follows back (any of which either clears it or the thread stops
+      // existing — see the accept/decline routes and the follow route).
+      requested: mutual ? new Set() : new Set([target.id]),
     };
     threads.set(tid, thread);
     messages.set(tid, []);
@@ -1781,9 +1919,26 @@ route("GET", "/v1/threads/:id/messages", (ctx) => {
 
 route("POST", "/v1/threads/:id/messages", (ctx) => {
   const list = messages.get(ctx.params.id);
-  if (!list) return fail(ctx.res, 404, "NOT_FOUND", "that chat is gone");
+  const thread = threads.get(ctx.params.id);
+  if (!list || !thread) return fail(ctx.res, 404, "NOT_FOUND", "that chat is gone");
   const body = String(ctx.body.body ?? "").trim();
   if (!body) return fail(ctx.res, 422, "VALIDATION", "nothing to send");
+
+  if (thread.type === "DM" && thread.requested.size > 0) {
+    if (thread.requested.has(ctx.user.id)) {
+      // The recipient replying is exactly what accepting means — nobody
+      // should have to find a separate button for something they just did.
+      thread.requested.delete(ctx.user.id);
+    } else if (list.some((m) => m.senderId === ctx.user.id)) {
+      return fail(
+        ctx.res,
+        403,
+        "REQUEST_PENDING",
+        "already sent your one message — waiting on them",
+        "You've sent your one message — wait for them to accept before sending another.",
+      );
+    }
+  }
 
   const message = {
     id: id("msg", Date.now() % 100000),
@@ -1815,6 +1970,20 @@ route("POST", "/v1/threads/:id/read", (ctx) => {
 
 route("POST", "/v1/threads/:id/accept", (ctx) => {
   threads.get(ctx.params.id)?.requested.delete(ctx.user.id);
+  send(ctx.res, 204);
+});
+
+// The sender's follow is untouched — declining a message says "not this",
+// not "unfollow me" on the sender's behalf, and only the person the request
+// is *for* can decline it.
+route("POST", "/v1/threads/:id/decline", (ctx) => {
+  const thread = threads.get(ctx.params.id);
+  if (!thread) return fail(ctx.res, 404, "NOT_FOUND", "that chat is gone");
+  if (!thread.requested.has(ctx.user.id)) {
+    return fail(ctx.res, 403, "FORBIDDEN", "nothing to decline here");
+  }
+  threads.delete(thread.id);
+  messages.delete(thread.id);
   send(ctx.res, 204);
 });
 
@@ -2034,14 +2203,18 @@ const AFTERHOURS_REPLY_LIMIT = 300;
 const AFTERHOURS_HIDE_AT = 3;
 const AFTERHOURS_POSTS_PER_HOUR = 5;
 const AFTERHOURS_REPLIES_PER_HOUR = 30;
+const AFTERHOURS_MOODS = ["confession", "secret", "crush", "hottake", "rant", "3am", "ask"];
+// One per person per post, tapback-style: picking another replaces it.
+const AFTERHOURS_REACTIONS = ["hug", "same", "fire", "tea", "dead"];
 const anonNumbers = new Map(); // userId -> "4821"
 // Every number ever handed out, including ones since flushed: a flushed
 // number still signs that account's older posts for up to a day, so giving
 // it to someone else would put two people's words under one name.
 const takenAnonNumbers = new Set();
-// id -> {id, authorId, anonNumber, body, createdAt, expiresAt, votes: Map,
-//        reports: Set<userId>, replies: [{id, authorId, anonNumber, body,
-//        createdAt, votes: Map, reports: Set<userId>}]}
+// id -> {id, authorId, anonNumber, mood, body, createdAt, expiresAt,
+//        votes: Map, reactions: Map<userId, reaction>, reports: Set<userId>,
+//        replies: [{id, authorId, anonNumber, body, createdAt, votes: Map,
+//        reports: Set<userId>}]}
 const afterhoursPosts = new Map();
 let afterhoursSeq = 0;
 
@@ -2098,10 +2271,17 @@ function publicAfterHoursReply(post, reply, viewerId) {
   };
 }
 
+function reactionCounts(reactions) {
+  const counts = Object.fromEntries(AFTERHOURS_REACTIONS.map((r) => [r, 0]));
+  for (const r of reactions.values()) counts[r] += 1;
+  return counts;
+}
+
 function publicAfterHoursPost(post, viewerId) {
   return {
     id: post.id,
     anonNumber: post.anonNumber,
+    mood: post.mood,
     body: post.body,
     createdAt: post.createdAt,
     expiresAt: post.expiresAt,
@@ -2112,6 +2292,8 @@ function publicAfterHoursPost(post, viewerId) {
     viewerVote: post.votes.get(viewerId) ?? 0,
     viewerIsAuthor: signedByViewer(post, viewerId),
     replyCount: post.replies.filter((r) => !hiddenFrom(r, viewerId)).length,
+    reactions: reactionCounts(post.reactions),
+    viewerReaction: post.reactions.get(viewerId) ?? null,
   };
 }
 
@@ -2143,9 +2325,13 @@ function liveReplyOr404(ctx) {
 
 const withinLastHour = (iso) => Date.now() - new Date(iso).getTime() < 3600_000;
 
-// Same ranking the main feed uses: votes, discounted by age. Without the decay
-// a single early post that caught on would sit on top for its whole 24 hours.
-const afterHoursHeat = (p) => p.score / Math.pow((Date.now() - new Date(p.createdAt).getTime()) / 3600_000 + 2, 1.5);
+// Same ranking the main feed uses — engagement discounted by age — where a
+// reaction counts as half a vote: cheaper to give, so worth less. Without the
+// decay a single early post that caught on would sit on top for its whole day.
+const afterHoursHeat = (p) => {
+  const reacted = Object.values(p.reactions).reduce((a, b) => a + b, 0);
+  return (p.score + reacted * 0.5) / Math.pow((Date.now() - new Date(p.createdAt).getTime()) / 3600_000 + 2, 1.5);
+};
 
 route("GET", "/v1/afterhours/me", (ctx) => {
   send(ctx.res, 200, { anonNumber: anonNumberFor(ctx.user.id) });
@@ -2157,8 +2343,10 @@ route("POST", "/v1/afterhours/flush", (ctx) => {
 
 route("GET", "/v1/afterhours/feed", (ctx) => {
   const sort = ctx.query.sort === "new" ? "new" : "hot";
-  const items = [...afterhoursPosts.values()]
-    .filter((p) => isLive(p) && !hiddenFrom(p, ctx.user.id))
+  const mood = AFTERHOURS_MOODS.includes(ctx.query.mood) ? ctx.query.mood : null;
+  const visible = [...afterhoursPosts.values()].filter((p) => isLive(p) && !hiddenFrom(p, ctx.user.id));
+  const items = visible
+    .filter((p) => !mood || p.mood === mood)
     .map((p) => publicAfterHoursPost(p, ctx.user.id));
 
   items.sort((a, b) =>
@@ -2167,7 +2355,9 @@ route("GET", "/v1/afterhours/feed", (ctx) => {
       : afterHoursHeat(b) - afterHoursHeat(a) || new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
   );
 
-  send(ctx.res, 200, { items: items.slice(0, Math.min(Number(ctx.query.limit ?? 50), 100)) });
+  // liveCount ignores the mood filter: it's "how much is being said tonight",
+  // not "how many results matched".
+  send(ctx.res, 200, { items: items.slice(0, Math.min(Number(ctx.query.limit ?? 50), 100)), liveCount: visible.length });
 });
 
 route("POST", "/v1/afterhours/posts", (ctx) => {
@@ -2176,6 +2366,8 @@ route("POST", "/v1/afterhours/posts", (ctx) => {
   if (body.length > AFTERHOURS_POST_LIMIT) {
     return fail(ctx.res, 422, "VALIDATION", `${AFTERHOURS_POST_LIMIT} characters, max`);
   }
+  const mood = ctx.body.mood ?? "confession";
+  if (!AFTERHOURS_MOODS.includes(mood)) return fail(ctx.res, 422, "VALIDATION", "unknown mood");
 
   // Expired posts are dropped here, on a write, rather than on a read: a
   // long-running server would otherwise carry every post ever made forever.
@@ -2192,10 +2384,12 @@ route("POST", "/v1/afterhours/posts", (ctx) => {
     id: pid,
     authorId: ctx.user.id,
     anonNumber: anonNumberFor(ctx.user.id),
+    mood,
     body,
     createdAt: now.toISOString(),
     expiresAt: new Date(now.getTime() + AFTERHOURS_POST_HOURS * 3600_000).toISOString(),
     votes: new Map(),
+    reactions: new Map(),
     reports: new Set(),
     replies: [],
   };
@@ -2214,6 +2408,18 @@ route("POST", "/v1/afterhours/posts/:id/vote", (ctx) => {
   post.votes.set(ctx.user.id, value > 0 ? 1 : value < 0 ? -1 : 0);
   const shaped = publicAfterHoursPost(post, ctx.user.id);
   send(ctx.res, 200, { score: shaped.score, viewerVote: shaped.viewerVote });
+});
+
+route("POST", "/v1/afterhours/posts/:id/react", (ctx) => {
+  const post = livePostOr404(ctx);
+  if (!post) return;
+  const reaction = ctx.body.reaction ?? null;
+  if (reaction !== null && !AFTERHOURS_REACTIONS.includes(reaction)) {
+    return fail(ctx.res, 422, "VALIDATION", "unknown reaction");
+  }
+  if (reaction === null) post.reactions.delete(ctx.user.id);
+  else post.reactions.set(ctx.user.id, reaction);
+  send(ctx.res, 200, { reactions: reactionCounts(post.reactions), viewerReaction: reaction });
 });
 
 route("DELETE", "/v1/afterhours/posts/:id", (ctx) => {
@@ -2291,45 +2497,63 @@ route("DELETE", "/v1/afterhours/replies/:id", (ctx) => {
 // Seeded so the surface isn't a dead end on first open. Authors are the
 // PEOPLE cast; nobody can tell which, which is the point of the page.
 [
-  { by: "kabir", h: 1.5, body: "the 2am vending machine on 3rd floor ate my last ₹20 and I've never felt more seen by an inanimate object", votes: 34, replies: [
+  { by: "arnav", h: 0.7, mood: "secret", body: "I've been going to the 7am yoga club for a month just because someone from ECE goes. I have not said one word to them. I now know 11 poses.", votes: 44, reactions: { hug: 6, same: 3, dead: 14 }, replies: [
+    ["zoya", 0.5, "11 poses is honestly commitment. say hi before it's 20"],
+    ["arnav", 0.3, "if I say hi I have to keep going to yoga. this is a trap either way"],
+  ] },
+  { by: "zoya", h: 2.2, mood: "crush", body: "to the person who returned my calculator in the COA lab with a sticky note that said 'you dropped this, also your handwriting is cute' — I think about it daily", votes: 63, reactions: { hug: 4, same: 2, fire: 9, tea: 21 }, replies: [
+    ["meher", 2, "NOT THE STICKY NOTE 😭 this is a movie"],
+    ["tanya", 1.8, "whoever you are, step forward. campus is invested now"],
+  ] },
+  { by: "rishab", h: 4, mood: "hottake", body: "hot take: the canteen maggi is better than any café on the main road and I'm tired of pretending otherwise", votes: 29, reactions: { fire: 11, same: 7, dead: 2 }, replies: [
+    ["kabir", 3.4, "it's the slightly burnt pan. that's the secret ingredient"],
+  ] },
+  { by: "tanya", h: 10, mood: "3am", body: "3am thought: we're all going to be nostalgic for this exact hostel corridor one day and none of us will admit it", votes: 52, reactions: { hug: 12, same: 18 }, replies: [] },
+  { by: "kabir", h: 1.5, mood: "3am", reactions: { dead: 19, same: 8, hug: 2 }, body: "the 2am vending machine on 3rd floor ate my last ₹20 and I've never felt more seen by an inanimate object", votes: 34, replies: [
     ["tanya", 1.2, "it ate mine on tuesday. it's building a retirement fund"],
     ["kabir", 1, "at least it's consistent. more than I can say for the wifi"],
     ["devansh", 0.6, "kick it on the left side, 70% success rate, trust"],
   ] },
-  { by: "meher", h: 3, body: "whoever plays guitar near the ECE stairwell around 11pm — you're genuinely good. please don't stop", votes: 58, replies: [
+  { by: "meher", h: 3, mood: "crush", reactions: { fire: 14, same: 6, tea: 5 }, body: "whoever plays guitar near the ECE stairwell around 11pm — you're genuinely good. please don't stop", votes: 58, replies: [
     ["zoya", 2.5, "THANK YOU someone finally said it"],
     ["arnav", 2, "it's the same three songs but they're the right three songs"],
   ] },
-  { by: "ira", h: 5, body: "reminder that sleeping 7 hours before the mid-sem is a study technique. the most underrated one, actually", votes: 41, replies: [
+  { by: "ira", h: 5, mood: "hottake", reactions: { fire: 6, same: 9, dead: 3 }, body: "reminder that sleeping 7 hours before the mid-sem is a study technique. the most underrated one, actually", votes: 41, replies: [
     ["kabir", 4, "said the person who clearly has never done a workshop drawing"],
     ["ira", 3.5, "the drawing will still be there after you sleep. I checked."],
   ] },
-  { by: "zoya", h: 7, body: "is it just me or does everyone else also pretend to understand the COA prof for the first 10 minutes and then fully give up", votes: 72, replies: [
+  { by: "zoya", h: 7, mood: "confession", reactions: { same: 31, dead: 12 }, body: "is it just me or does everyone else also pretend to understand the COA prof for the first 10 minutes and then fully give up", votes: 72, replies: [
     ["rishab", 6, "4th year here. it does not get better. you just get better at pretending"],
     ["tanya", 5.5, "10 minutes is generous. I'm out by the attendance call"],
     ["meher", 5, "the pipelining diagram is a personal attack"],
   ] },
-  { by: "arnav", h: 9, body: "honest question: does anyone actually eat the mess rajma or is it decorative", votes: 23, replies: [
+  { by: "arnav", h: 9, mood: "ask", reactions: { dead: 8, tea: 3 }, body: "honest question: does anyone actually eat the mess rajma or is it decorative", votes: 23, replies: [
     ["tanya", 8, "decorative. it's been the same rajma since 2019"],
   ] },
-  { by: "devansh", h: 12, body: "got rejected from the robotics fest shortlist after 3 weeks of work. not looking for advice, just wanted to say it somewhere", votes: 49, replies: [
+  { by: "devansh", h: 12, mood: "confession", reactions: { hug: 27, same: 5 }, body: "got rejected from the robotics fest shortlist after 3 weeks of work. not looking for advice, just wanted to say it somewhere", votes: 49, replies: [
     ["meher", 11, "that genuinely sucks. 3 weeks is a lot to put in. proud of you for building it anyway"],
     ["rishab", 10, "got rejected twice before my first shortlist. the thing you built still counts"],
     ["devansh", 9.5, "thank you, didn't expect replies. this helped"],
   ] },
-  { by: "tanya", h: 16, body: "library AC is set to arctic tundra again. bring a jacket or become a fossil", votes: 17, replies: [] },
+  { by: "tanya", h: 16, mood: "rant", reactions: { same: 7, dead: 4 }, body: "library AC is set to arctic tundra again. bring a jacket or become a fossil", votes: 17, replies: [] },
 ].forEach((seed) => {
   const author = byHandle(seed.by);
   const post = {
     id: id("aft", ++afterhoursSeq),
     authorId: author.id,
     anonNumber: anonNumberFor(author.id),
+    mood: seed.mood,
     body: seed.body,
     createdAt: hoursAgo(seed.h),
     expiresAt: new Date(Date.now() + (AFTERHOURS_POST_HOURS - seed.h) * 3600_000).toISOString(),
     // Seed voters are synthetic ids — nobody real, so no real account's
     // viewerVote comes back pre-set on a post they never touched.
     votes: new Map(Array.from({ length: seed.votes }, (_, i) => [`seed-${i}`, 1])),
+    reactions: new Map(
+      Object.entries(seed.reactions).flatMap(([reaction, n]) =>
+        Array.from({ length: n }, (_, i) => [`seed-${reaction}-${i}`, reaction]),
+      ),
+    ),
     reports: new Set(),
     replies: seed.replies.map(([handle, h, body]) => {
       const replier = byHandle(handle);
@@ -2648,6 +2872,7 @@ function snapshotState() {
     datingProfiles,
     swipes,
     datingMatches,
+    purchasedSuperlikes,
     notes: NOTES,
     anonNumbers,
     takenAnonNumbers,
@@ -2699,6 +2924,7 @@ function restoreState(json) {
   refill(datingProfiles, s.datingProfiles);
   refill(swipes, s.swipes);
   refill(datingMatches, s.datingMatches);
+  refill(purchasedSuperlikes, s.purchasedSuperlikes);
   refill(NOTES, s.notes);
   refill(anonNumbers, s.anonNumbers);
   refill(takenAnonNumbers, s.takenAnonNumbers);

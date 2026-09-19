@@ -241,6 +241,10 @@ export interface Thread {
   lastMessageAt?: string;
   unreadCount: number;
   viewerState: MemberState;
+  /** True for both sides of a still-undecided one-directional message
+   * request — the recipient also gets viewerState "REQUESTED"; the sender
+   * only gets this, since it's their own request they're waiting on. */
+  pending: boolean;
   muted: boolean;
   createdAt: string;
 }
@@ -451,7 +455,7 @@ export interface DatingProfile {
  * embeds one in the other, so a candidate is a User everywhere a User works. */
 export type DatingCandidate = User & DatingProfile;
 
-export type SwipeAction = "PASS" | "LIKE" | "TWINKLE";
+export type SwipeAction = "PASS" | "LIKE" | "SUPERLIKE";
 
 /** What exactly was liked. Hinge's whole shape: you don't like a person, you
  * like the photo or one specific answer, and that is what they see first. */
@@ -486,7 +490,9 @@ export interface DatingMatch {
 /** GET /v1/dating/deck — the cards plus the state the deck's UI needs. */
 export interface DeckResponse {
   items: DatingCandidate[];
-  twinklesLeft: number;
+  superlikesLeft: number;
+  /** null means unlimited — premium's whole pitch for this number. */
+  swipesLeft: number | null;
 }
 
 /** POST /v1/dating/swipe */
@@ -500,7 +506,8 @@ export interface SwipeRequest {
 export interface SwipeResult {
   matched: boolean;
   match?: DatingMatch;
-  twinklesLeft: number;
+  superlikesLeft: number;
+  swipesLeft: number | null;
 }
 
 /* --------------------------------------------------------------- afterhours -- */
@@ -516,9 +523,13 @@ export interface AnonIdentity {
   anonNumber: string;
 }
 
+export type AnonMood = "confession" | "secret" | "crush" | "hottake" | "rant" | "3am" | "ask";
+export type AnonReaction = "hug" | "same" | "fire" | "tea" | "dead";
+
 export interface AnonPost {
   id: string;
   anonNumber: string;
+  mood: AnonMood;
   body: string;
   createdAt: string;
   expiresAt: string;
@@ -530,6 +541,8 @@ export interface AnonPost {
   viewerIsAuthor: boolean;
   /** Replies this viewer can see — ones they reported are already left out. */
   replyCount: number;
+  reactions: Record<AnonReaction, number>;
+  viewerReaction: AnonReaction | null;
 }
 
 export interface AnonReply {

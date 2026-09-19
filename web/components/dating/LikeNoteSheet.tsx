@@ -23,18 +23,18 @@ const LIMIT = 220;
 export function LikeNoteSheet({
   candidate,
   target,
-  twinklesLeft,
+  superlikesLeft,
   onClose,
   onSend,
 }: {
   candidate: DatingCandidate | null;
   target: LikeTarget | null;
-  twinklesLeft: number;
+  superlikesLeft: number;
   onClose: () => void;
-  onSend: (note: string, twinkle: boolean) => void;
+  onSend: (note: string, superlike: boolean) => void;
 }) {
   const [note, setNote] = useState("");
-  const [twinkle, setTwinkle] = useState(false);
+  const [superlike, setSuperlike] = useState(false);
   const ref = useRef<HTMLTextAreaElement | null>(null);
 
   const open = !!candidate && !!target;
@@ -42,7 +42,7 @@ export function LikeNoteSheet({
   useEffect(() => {
     if (!open) return;
     setNote("");
-    setTwinkle(false);
+    setSuperlike(false);
     const id = setTimeout(() => ref.current?.focus(), 60);
     return () => clearTimeout(id);
   }, [open, candidate?.handle]);
@@ -56,7 +56,7 @@ export function LikeNoteSheet({
   const left = LIMIT - note.length;
 
   const send = () => {
-    onSend(note, twinkle && twinklesLeft > 0);
+    onSend(note, superlike && superlikesLeft > 0);
     onClose();
   };
 
@@ -72,8 +72,8 @@ export function LikeNoteSheet({
           <Button variant="ghost" onClick={onClose}>
             Cancel
           </Button>
-          <Button onClick={send} icon={twinkle ? <SparkleIcon size={15} /> : <HeartIcon size={15} />}>
-            {twinkle ? "Send with a Twinkle" : note.trim() ? "Send comment" : "Send like"}
+          <Button onClick={send} icon={superlike ? <SparkleIcon size={15} /> : <HeartIcon size={15} />}>
+            {superlike ? "Send with a SuperLike" : note.trim() ? "Send comment" : "Send like"}
           </Button>
         </>
       }
@@ -123,31 +123,31 @@ export function LikeNoteSheet({
         <span className={cn("tabnum", left < 30 && "text-warning")}>{left}</span>
       </div>
 
-      {/* --------------------------------------------------------- twinkle -- */}
+      {/* -------------------------------------------------------- superlike -- */}
       <button
         type="button"
-        onClick={() => twinklesLeft > 0 && setTwinkle((t) => !t)}
-        disabled={twinklesLeft <= 0}
-        aria-pressed={twinkle}
+        onClick={() => superlikesLeft > 0 && setSuperlike((t) => !t)}
+        disabled={superlikesLeft <= 0}
+        aria-pressed={superlike}
         className={cn(
           "mt-4 flex w-full cursor-pointer items-center gap-3 rounded-[var(--r-md)] border px-3.5 py-3 text-left transition-colors",
-          twinkle ? "border-gold bg-[color-mix(in_oklab,var(--gold)_10%,transparent)]" : "border-border bg-surface",
-          twinklesLeft <= 0 && "cursor-not-allowed opacity-55",
+          superlike ? "border-gold bg-[color-mix(in_oklab,var(--gold)_10%,transparent)]" : "border-border bg-surface",
+          superlikesLeft <= 0 && "cursor-not-allowed opacity-55",
         )}
       >
-        <SparkleIcon size={16} className={twinkle ? "text-gold" : "text-faint"} />
+        <SparkleIcon size={16} className={superlike ? "text-gold" : "text-faint"} />
         <span className="min-w-0 flex-1">
-          <span className="block text-[0.8125rem] font-medium text-text">Send it as a Twinkle</span>
+          <span className="block text-[0.8125rem] font-medium text-text">Send it as a SuperLike</span>
           <span className="block text-[0.75rem] text-muted">
-            {twinklesLeft > 0
-              ? "Goes to the top of their list. One a day."
-              : "You've used today's. It comes back tomorrow."}
+            {superlikesLeft > 0
+              ? `Goes to the top of their list. ${superlikesLeft} left.`
+              : "You're out of SuperLikes — buy more or go premium for 4 a day."}
           </span>
         </span>
         <span
           className={cn(
             "size-4 shrink-0 rounded-full border transition-colors",
-            twinkle ? "border-gold bg-gold" : "border-border-strong",
+            superlike ? "border-gold bg-gold" : "border-border-strong",
           )}
         />
       </button>

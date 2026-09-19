@@ -41,7 +41,7 @@ import {
 export const metadata: Metadata = {
   title: "DronaSphere — your whole campus, in one place",
   description:
-    "One feed, real chats, a night-owl leaderboard, a note locker, and a campus-verified dating deck — for one college at a time.",
+    "One feed, real chats, a night leaderboard, a note locker, and a campus-verified dating deck — for one college at a time.",
   alternates: { canonical: "/" },
 };
 
@@ -50,7 +50,7 @@ const JSON_LD = {
   "@type": "WebSite",
   name: "DronaSphere",
   description:
-    "A campus-verified social platform for one college at a time: feed, chat, note locker, night-owl leaderboard, and a verified dating deck.",
+    "A campus-verified social platform for one college at a time: feed, chat, note locker, night leaderboard, and a verified dating deck.",
   url: process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000",
 };
 
@@ -117,7 +117,7 @@ const SHOWCASE_STEPS: ShowcaseStep[] = [
     screen: <ChatScreenPreview />,
   },
   {
-    eyebrow: "owl board",
+    eyebrow: "night board",
     title: (
       <>
         The night has a curfew,
@@ -408,7 +408,7 @@ export default function LandingPage() {
 
           <TextGenerate
             className="mt-7 max-w-xl text-[0.9375rem] leading-relaxed text-muted"
-            text="DronaSphere is a campus-verified social platform for one college at a time. A feed you post to as yourself, chats and club broadcasts, a night-owl leaderboard that knows when to tell you to sleep, a note locker that saves your semester, and a dating deck where everyone is who they say they are."
+            text="DronaSphere is a campus-verified social platform for one college at a time. A feed you post to as yourself, chats and club broadcasts, a night leaderboard that knows when to tell you to sleep, a note locker that saves your semester, and a dating deck where everyone is who they say they are."
           />
 
           <div className="mt-9 flex flex-wrap items-center gap-3">
@@ -480,7 +480,7 @@ export default function LandingPage() {
             <ul className="mt-8 space-y-3">
               {[
                 ["Nothing is blurred and nothing is sold.", "Who liked you is visible, free, in full, with whatever they wrote."],
-                ["One Twinkle a day.", "Scarce on purpose. A signal only works when it costs something."],
+                ["3 SuperLikes a week.", "Scarce on purpose. A signal only works when it costs something — premium gets 4 a day."],
                 ["Matches wilt in a week.", "If neither of you speaks, it closes quietly and you both get the space back."],
                 ["Off by default.", "Your card never enters the deck until you switch it on, and leaves the moment you switch it off."],
               ].map(([title, body]) => (

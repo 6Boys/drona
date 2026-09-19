@@ -60,7 +60,7 @@ export default function FeedPage() {
           <>
             {/* Below lg, Hot/New and All/Following used to be two separate
                 boxed Segmented controls. The sidebar rail (desktop-only) is
-                the one-tap way to Spaces/Note Locker/Saved/Night Shift on a
+                the one-tap way to Spaces/Note Locker/Night Shift on a
                 wide screen; a phone has no equivalent, so the space the old
                 Hot/New box occupied becomes a menu button instead, and its
                 four options fold into one continuous scrollable strip with

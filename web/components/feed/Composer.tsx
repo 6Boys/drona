@@ -86,7 +86,7 @@ export function Composer({
       }
 
       if (result.owlPoints?.points) {
-        toast(`+${result.owlPoints.points} owl points · ${result.owlPoints.reason}`, "success");
+        toast(`+${result.owlPoints.points} night points · ${result.owlPoints.reason}`, "success");
       } else {
         toast("Posted to the Nest", "success");
       }

@@ -21,7 +21,7 @@ const STEPS: { key: OnboardingStep; label: string }[] = [
   { key: "FOLLOWS", label: "Follows" },
 ];
 
-const BRANCHES = ["CSE", "IT", "ECE", "EEE", "ME", "CE", "MBA", "MCA", "Other"];
+const BRANCHES = ["CSE", "AIML", "IOT", "IT", "ECE", "EEE", "ME", "CE", "MBA", "MCA", "Other"];
 
 function Rail({ current }: { current: OnboardingStep }) {
   const index = STEPS.findIndex((s) => s.key === current);

@@ -46,7 +46,7 @@ function CommentForm({
       setBody("");
       if (result.supportCard) setSupport(result.supportCard);
       if (result.owlPoints?.points) {
-        toast(`+${result.owlPoints.points} owl points · ${result.owlPoints.reason}`, "success");
+        toast(`+${result.owlPoints.points} night points · ${result.owlPoints.reason}`, "success");
       }
       onCancel?.();
     } catch (err) {

@@ -214,7 +214,14 @@ export default function ProfilePage() {
                   >
                     {user.viewerFollows ? "Following" : user.followsViewer ? "Follow back" : "Follow"}
                   </Button>
-                  <Button fullWidth variant="outline" icon={<MessageIcon size={15} />} onClick={message}>
+                  <Button
+                    fullWidth
+                    variant="outline"
+                    icon={<MessageIcon size={15} />}
+                    disabled={!user.viewerFollows}
+                    title={user.viewerFollows ? undefined : `Follow ${user.displayName} first to message them`}
+                    onClick={message}
+                  >
                     Message
                   </Button>
                 </div>

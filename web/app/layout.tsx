@@ -30,7 +30,7 @@ const mono = JetBrains_Mono({
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
 const DESCRIPTION =
-  "A campus-verified social platform: one feed, real chats, a night-owl leaderboard that knows when to tell you to sleep, and a note locker that works on a dead Tuesday.";
+  "A campus-verified social platform: one feed, real chats, a night leaderboard that knows when to tell you to sleep, and a note locker that works on a dead Tuesday.";
 
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
