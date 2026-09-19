@@ -11,7 +11,7 @@ import { Atmosphere } from "@/components/fx/Backdrops";
 import { CoinIcon, MoonIcon, SearchIcon, SettingsIcon, ChevronRightIcon } from "@/components/ui/Icons";
 import { useAuth } from "@/lib/auth-context";
 import { useNight } from "@/lib/night-context";
-import { useApi } from "@/lib/use-api";
+import { useApi, usePoll } from "@/lib/use-api";
 import { channelFor, useLive } from "@/lib/ws";
 import type { Items, Thread } from "@/lib/types";
 import { cn } from "@/lib/cn";
@@ -171,6 +171,7 @@ export function Sidebar() {
 
   const onLive = useCallback(() => refetchThreads(), [refetchThreads]);
   useLive(me ? [channelFor.user(me.user.id)] : [], onLive, !!me);
+  usePoll(() => refetchThreads({ silent: true }), !!me);
 
   const open = hovered || pinned;
 

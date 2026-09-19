@@ -9,7 +9,10 @@ export interface Resource<T> {
   data: T | null;
   loading: boolean;
   error: string | null;
-  refetch: () => Promise<void>;
+  /** `{ silent: true }` re-fetches without flipping `loading` — for a
+   * background poll that shouldn't blank the list with a skeleton every
+   * cycle, as opposed to a user-initiated retry. */
+  refetch: (opts?: { silent?: boolean }) => Promise<void>;
   /** Local write for optimistic updates — vote counts, sticker toggles, a
    * message appended before the socket echoes it back. */
   set: (updater: T | ((prev: T | null) => T | null)) => void;
@@ -33,12 +36,12 @@ export function useApi<T>(path: string | null, query?: Query, enabled = true): R
     };
   }, []);
 
-  const run = useCallback(async () => {
+  const run = useCallback(async (opts?: { silent?: boolean }) => {
     if (!path || !enabled) {
       setLoading(false);
       return;
     }
-    setLoading(true);
+    if (!opts?.silent) setLoading(true);
     try {
       const res = await api.get<T>(path, JSON.parse(queryKey));
       if (alive.current) {
@@ -46,9 +49,9 @@ export function useApi<T>(path: string | null, query?: Query, enabled = true): R
         setError(null);
       }
     } catch (err) {
-      if (alive.current) setError(err instanceof Error ? err.message : "request failed");
+      if (alive.current && !opts?.silent) setError(err instanceof Error ? err.message : "request failed");
     } finally {
-      if (alive.current) setLoading(false);
+      if (alive.current && !opts?.silent) setLoading(false);
     }
   }, [path, queryKey, enabled]);
 
@@ -61,4 +64,22 @@ export function useApi<T>(path: string | null, query?: Query, enabled = true): R
   }, []);
 
   return { data, loading, error, refetch: run, set };
+}
+
+/** Backstops `useLive`: the push channel is what a WS-capable server uses to
+ * say "refetch, something changed," but Vercel's serverless functions can't
+ * hold that socket open at all, so a deployment running there would
+ * otherwise never see a live update. Polling silently underneath the socket
+ * costs one redundant request per interval when the socket does work, and
+ * is the only thing that keeps the inbox/notification badge current when
+ * it doesn't. */
+export function usePoll(fn: () => void, enabled: boolean, intervalMs = 20_000) {
+  const fnRef = useRef(fn);
+  fnRef.current = fn;
+
+  useEffect(() => {
+    if (!enabled) return;
+    const id = setInterval(() => fnRef.current(), intervalMs);
+    return () => clearInterval(id);
+  }, [enabled, intervalMs]);
 }

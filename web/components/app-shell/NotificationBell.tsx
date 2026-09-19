@@ -14,7 +14,7 @@ import {
   UsersIcon,
 } from "@/components/ui/Icons";
 import { api } from "@/lib/api";
-import { useApi } from "@/lib/use-api";
+import { useApi, usePoll } from "@/lib/use-api";
 import { useAuth } from "@/lib/auth-context";
 import { channelFor, useLive } from "@/lib/ws";
 import { timeAgo } from "@/lib/format";
@@ -94,6 +94,7 @@ export function NotificationBell() {
   // New activity on the user channel means the inbox is stale.
   const onLive = useCallback(() => refetch(), [refetch]);
   useLive(me ? [channelFor.user(me.user.id)] : [], onLive, !!me);
+  usePoll(() => refetch({ silent: true }), !!me);
 
   useEffect(() => {
     if (!open) return;

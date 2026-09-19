@@ -13,7 +13,7 @@ import { Skeleton } from "@/components/ui/Skeleton";
 import { PlusIcon } from "@/components/ui/Icons";
 import { useToast } from "@/components/ui/Toast";
 import { api, errorMessage } from "@/lib/api";
-import { useApi } from "@/lib/use-api";
+import { useApi, usePoll } from "@/lib/use-api";
 import { useAuth } from "@/lib/auth-context";
 import { channelFor, useLive } from "@/lib/ws";
 import { timeAgo } from "@/lib/format";
@@ -102,6 +102,7 @@ export function ThreadList({ activeId, className }: { activeId?: string; classNa
   const refetchInbox = inbox.refetch;
   const onLive = useCallback(() => refetchInbox(), [refetchInbox]);
   useLive(me ? [channelFor.user(me.user.id)] : [], onLive, !!me);
+  usePoll(() => refetchInbox({ silent: true }), !!me);
 
   const active = tab === "inbox" ? inbox : requests;
   const threads = useMemo(() => active.data?.items ?? [], [active.data]);
