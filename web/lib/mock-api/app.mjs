@@ -28,6 +28,7 @@
 // (e.g. akshit@dronacharya.info) or a new address to walk onboarding.
 
 import { createHash } from "node:crypto";
+import { exclusive, getMedia, putMedia, readState, storeEnabled, writeState } from "./store.mjs";
 
 const PORT = Number(process.env.MOCK_API_PORT ?? 8080);
 const CAMPUS_ID = "campus-dce";
@@ -473,9 +474,16 @@ for (const user of users.values()) {
 const sessions = new Map(); // token -> userId
 let guestSeq = 0;
 
+// Sessions are part of the persisted state (see "shared state" near the
+// bottom), which is rewritten whole on every change — an uncapped map of
+// every token ever issued would only ever grow. A Map iterates in insertion
+// order, so the first key is always the oldest.
+const MAX_SESSIONS = 4000;
+
 function tokenFor(userId) {
   const token = `mock.${userId}.${Math.random().toString(36).slice(2, 10)}`;
   sessions.set(token, userId);
+  while (sessions.size > MAX_SESSIONS) sessions.delete(sessions.keys().next().value);
   return token;
 }
 
@@ -1405,7 +1413,7 @@ route("DELETE", "/v1/dating/matches/:handle", (ctx) => {
   send(ctx.res, 204);
 });
 
-route("POST", "/v1/media/upload", (ctx) => {
+route("POST", "/v1/media/upload", async (ctx) => {
   const raw = ctx.body.__multipart;
   const contentType = ctx.body.__contentType ?? "";
   if (!Buffer.isBuffer(raw)) {
@@ -1437,11 +1445,17 @@ route("POST", "/v1/media/upload", (ctx) => {
     );
   }
 
-  send(ctx.res, 201, {
-    url: `data:${mime};base64,${data.toString("base64")}`,
-    size: data.length,
-    contentType: mime,
-  });
+  // With the shared store on, the bytes go under their own key and the URL
+  // points back here — inlined as a data: URL, one 5 MB photo would become
+  // part of the state every instance reads and rewrites on every change.
+  let url = `data:${mime};base64,${data.toString("base64")}`;
+  if (storeEnabled) {
+    const mediaId = createHash("sha256").update(data).digest("hex").slice(0, 32);
+    await putMedia(mediaId, mime, data);
+    url = `/v1/media/${mediaId}`;
+  }
+
+  send(ctx.res, 201, { url, size: data.length, contentType: mime });
 });
 
 route("GET", "/v1/avatar/options", (ctx) =>
@@ -2320,6 +2334,11 @@ export async function dispatch(req, res) {
 
   if (path === "/healthz") return send(res, 200, { status: "ok" });
 
+  // Pictures aren't state — no lock, no load/save round trip for an <img>.
+  if (storeEnabled && req.method === "GET" && path.startsWith("/v1/media/")) {
+    return serveMedia(path.slice("/v1/media/".length), res);
+  }
+
   let body = {};
   if (req.method !== "GET" && req.method !== "DELETE") {
     const chunks = [];
@@ -2344,6 +2363,36 @@ export async function dispatch(req, res) {
     }
   }
 
+  if (!storeEnabled) return handleRequest(req, res, url, body);
+
+  return exclusive(async () => {
+    try {
+      for (let attempt = 0; attempt < MAX_SAVE_ATTEMPTS; attempt++) {
+        await loadSharedState();
+        const out = bufferedResponse();
+        await handleRequest(req, out, url, body);
+        if (await saveSharedState()) return flushResponse(out, res);
+        // Another instance saved first. Nothing of this attempt was sent or
+        // stored — drop it and run the request again on top of their state,
+        // so a follow or a vote is applied exactly once, never twice or lost.
+        revertMemory();
+        stateVersion = "";
+        // Randomised and growing, so two instances that keep colliding stop
+        // retrying in lockstep and one of them gets through.
+        await new Promise((r) => setTimeout(r, Math.random() * 15 * 2 ** attempt));
+      }
+      fail(res, 503, "BUSY", "state kept changing underneath this request", "Busy moment — try that again.");
+    } catch (err) {
+      console.error(err);
+      revertMemory();
+      stateVersion = "";
+      fail(res, 503, "STORE_UNAVAILABLE", "the shared state store is unreachable", "Couldn't reach storage — try again in a moment.");
+    }
+  });
+}
+
+async function handleRequest(req, res, url, body) {
+  const path = url.pathname;
   const match = ROUTES.find((r) => r.method === req.method && r.regex.test(path));
   if (!match) return fail(res, 404, "NOT_FOUND", "no route here", "Nothing lives at this address.");
 
@@ -2365,6 +2414,172 @@ export async function dispatch(req, res) {
     console.error(err);
     if (!res.headersSent) fail(res, 500, "INTERNAL", "something broke on our side");
   }
+}
+
+// --------------------------------------------------------- shared state -----
+// Only used when store.mjs has a Redis to talk to (Vercel, once one is
+// connected) — see the top of that file for why. Every Map, Set, array and
+// counter a request can change is listed here; one missing from
+// snapshotState() would silently fork per instance again, exactly like the
+// bug this exists to fix. The WebSocket bookkeeping (channelSubs) is left out
+// on purpose — sockets only exist in the single-process dev server.
+
+function snapshotState() {
+  return {
+    counters: { ghostSeq, postSeq, threadSeq, notificationSeq, guestSeq, afterhoursSeq },
+    users,
+    follows,
+    blocks,
+    posts,
+    comments,
+    threads,
+    messages,
+    bookmarks,
+    notifications,
+    sessions,
+    datingProfiles,
+    swipes,
+    datingMatches,
+    notes: NOTES,
+    anonNumbers,
+    takenAnonNumbers,
+    afterhoursPosts,
+  };
+}
+
+// Maps and Sets (nested ones too: post votes, reactions, poll ballots, thread
+// reads) don't survive JSON on their own.
+const encodeState = (_key, value) =>
+  value instanceof Map ? { __map: [...value] } : value instanceof Set ? { __set: [...value] } : value;
+
+function decodeState(_key, value) {
+  if (value && typeof value === "object" && !Array.isArray(value)) {
+    if ("__map" in value) return new Map(value.__map);
+    if ("__set" in value) return new Set(value.__set);
+  }
+  return value;
+}
+
+const serializeState = () => JSON.stringify(snapshotState(), encodeState);
+
+// Refilled in place rather than reassigned: every function in this file holds
+// these containers by reference.
+function refill(target, source) {
+  if (Array.isArray(target)) {
+    target.length = 0;
+    target.push(...source);
+    return;
+  }
+  target.clear();
+  if (target instanceof Map) for (const [k, v] of source) target.set(k, v);
+  else for (const v of source) target.add(v);
+}
+
+function restoreState(json) {
+  const s = JSON.parse(json, decodeState);
+  ({ ghostSeq, postSeq, threadSeq, notificationSeq, guestSeq, afterhoursSeq } = s.counters);
+  refill(users, s.users);
+  refill(follows, s.follows);
+  refill(blocks, s.blocks);
+  refill(posts, s.posts);
+  refill(comments, s.comments);
+  refill(threads, s.threads);
+  refill(messages, s.messages);
+  refill(bookmarks, s.bookmarks);
+  refill(notifications, s.notifications);
+  refill(sessions, s.sessions);
+  refill(datingProfiles, s.datingProfiles);
+  refill(swipes, s.swipes);
+  refill(datingMatches, s.datingMatches);
+  refill(NOTES, s.notes);
+  refill(anonNumbers, s.anonNumbers);
+  refill(takenAnonNumbers, s.takenAnonNumbers);
+  refill(afterhoursPosts, s.afterhoursPosts);
+}
+
+// With the backoff in dispatch, ~4 s worst case before giving up with a 503 —
+// in testing, 40 simultaneous writes split across two instances all landed.
+const MAX_SAVE_ATTEMPTS = 8;
+
+let stateVersion = ""; // the store's version that memory currently reflects
+let storedJson = null; // exactly what the store holds at that version; null = nothing stored yet
+let seedJson = null; // memory as this module seeded it, before any request touched it
+
+async function loadSharedState() {
+  seedJson ??= serializeState();
+  const { version, state } = await readState(stateVersion);
+  if (state !== null) {
+    restoreState(state);
+    storedJson = serializeState();
+  } else if (version === "0" && storedJson !== null) {
+    // The store was emptied out from under this instance: start over from the
+    // seed, not from whatever memory has since drifted to.
+    restoreState(seedJson);
+    storedJson = null;
+  }
+  stateVersion = version;
+}
+
+// A request that changed nothing (most GETs, heartbeats outside the night)
+// costs no write. Some GETs do change state — the first GET /v1/afterhours/me
+// assigns your anon number — which is why this compares the whole state
+// rather than trusting the HTTP method. The first request an empty store
+// ever sees writes the seed up, which is what makes every instance agree.
+async function saveSharedState() {
+  const next = serializeState();
+  if (next === storedJson) return true;
+  const version = await writeState(stateVersion, next);
+  if (version === null) return false;
+  stateVersion = version;
+  storedJson = next;
+  return true;
+}
+
+function revertMemory() {
+  restoreState(storedJson ?? seedJson);
+}
+
+// Handlers write into this instead of the real response, so an attempt that
+// loses the race above can be thrown away without anything reaching the
+// client.
+function bufferedResponse() {
+  return {
+    status: 200,
+    headers: {},
+    chunks: [],
+    headersSent: false,
+    setHeader(k, v) {
+      this.headers[k] = v;
+    },
+    writeHead(status, headers) {
+      this.status = status;
+      if (headers) Object.assign(this.headers, headers);
+      this.headersSent = true;
+    },
+    end(payload) {
+      if (payload) this.chunks.push(Buffer.isBuffer(payload) ? payload : Buffer.from(payload));
+      this.headersSent = true;
+    },
+  };
+}
+
+function flushResponse(out, res) {
+  for (const [k, v] of Object.entries(out.headers)) res.setHeader(k, v);
+  res.writeHead(out.status);
+  res.end(out.chunks.length ? Buffer.concat(out.chunks) : undefined);
+}
+
+// Content-addressed (the id is a hash of the bytes), so it can be cached
+// forever. Public on purpose: an <img> sends no Authorization header.
+async function serveMedia(mediaId, res) {
+  const media = /^[a-f0-9]{32}$/.test(mediaId) ? await getMedia(mediaId).catch(() => null) : null;
+  if (!media) return fail(res, 404, "NOT_FOUND", "no such picture");
+  res.writeHead(200, {
+    "content-type": media.contentType,
+    "content-length": media.buffer.length,
+    "cache-control": "public, max-age=31536000, immutable",
+  });
+  res.end(media.buffer);
 }
 
 export { PORT, sessions, users, handleUpgrade };
