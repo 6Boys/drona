@@ -1,0 +1,16 @@
+# Build context for the api image. The Go toolchain in the build stage
+# compiles from source; nothing prebuilt on the host should come along.
+bin
+tmp
+coverage.out
+*.test
+
+.git
+.env
+.env.local
+*.log
+.DS_Store
+
+# The binary's own runtime storage, if a local `go run ./cmd/api` ever created
+# it here (MEDIA_DIR defaults to ./data/media). Uploads are not build inputs.
+data

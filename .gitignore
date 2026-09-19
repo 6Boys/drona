@@ -1,0 +1,39 @@
+# deps
+node_modules/
+.pnp
+.pnp.js
+
+# env — never commit real DB links
+.env
+.env.local
+.env.*.local
+!.env.example
+
+# next
+web/.next/
+web/out/
+web/next-env.d.ts
+web/coverage/
+
+# go
+api/bin/
+api/tmp/
+*.test
+api/coverage.out
+
+# uploaded pictures from a local run (MEDIA_DIR defaults to ./data/media);
+# in Docker these live in the `media` volume instead
+api/data/
+data/
+
+# prisma
+prisma/generated/
+prisma/.env
+
+# os / editor
+.DS_Store
+*.log
+.idea/
+.vscode/
+.claude/
+
