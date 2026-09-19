@@ -40,7 +40,10 @@ export const AMBIANCES: Record<Ambiance, { name: string; tagline: string; themeC
   },
 };
 
-export const AMBIANCE_ORDER: Ambiance[] = ["velvet", "candle", "neon", "noir"];
+// Noir first: it's the default look, and the picker lists it where a first-
+// time visitor's eye lands.
+export const AMBIANCE_ORDER: Ambiance[] = ["noir", "velvet", "candle", "neon"];
+const DEFAULT_AMBIANCE: Ambiance = "noir";
 
 export const MOODS: Record<AnonMood, { label: string; emoji: string; prompt: string; hint?: string }> = {
   confession: { label: "Confession", emoji: "🤫", prompt: "I've never told anyone this, but…" },
@@ -98,16 +101,16 @@ function withTransition(apply: () => void) {
 function readStored(): Ambiance {
   try {
     const v = window.localStorage.getItem(AMBIANCE_KEY);
-    return v && v in AMBIANCES ? (v as Ambiance) : "velvet";
+    return v && v in AMBIANCES ? (v as Ambiance) : DEFAULT_AMBIANCE;
   } catch {
-    return "velvet";
+    return DEFAULT_AMBIANCE;
   }
 }
 
 export function useAfterHoursAmbiance() {
   // The (app) routes only render after auth resolves on the client, so this
   // initializer never runs during a server render.
-  const [ambiance, setAmbianceState] = useState<Ambiance>(() => (typeof window === "undefined" ? "velvet" : readStored()));
+  const [ambiance, setAmbianceState] = useState<Ambiance>(() => (typeof window === "undefined" ? DEFAULT_AMBIANCE : readStored()));
 
   useEffect(() => {
     const root = document.documentElement;
