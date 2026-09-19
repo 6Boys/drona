@@ -1948,12 +1948,20 @@ route("POST", "/v1/notes/:id/download", (ctx) => {
   send(ctx.res, 204);
 });
 
-route("POST", "/v1/reports", (ctx) =>
+route("POST", "/v1/reports", (ctx) => {
+  // AfterHours is the one place a report changes what people see right away:
+  // with no name attached to a post there's no author to block instead, so
+  // the reporter stops seeing it at once and enough reporters pull it for
+  // everyone (AFTERHOURS_HIDE_AT). Everything else just queues for review.
+  const { targetType, targetId } = ctx.body;
+  if (targetType === "AFTERHOURS_POST") afterhoursPosts.get(targetId)?.reports.add(ctx.user.id);
+  if (targetType === "AFTERHOURS_REPLY") findAfterHoursReply(targetId)?.reply.reports.add(ctx.user.id);
+
   send(ctx.res, 201, {
     reportId: id("rpt", Date.now() % 10000),
     message: "Thanks. A moderator will review this within 24 hours.",
-  }),
-);
+  });
+});
 
 route("GET", "/v1/safety/support", (ctx) => send(ctx.res, 200, SUPPORT_CARD));
 
@@ -2018,9 +2026,23 @@ route("POST", "/v1/posts/:id/poll", (ctx) => {
 // not: there is no stable identity here to block, by design.
 
 const AFTERHOURS_POST_HOURS = 24;
+const AFTERHOURS_POST_LIMIT = 500;
+const AFTERHOURS_REPLY_LIMIT = 300;
+// Distinct reporters it takes to pull something for everyone. The reporter
+// themselves stops seeing it on the first report — nobody should have to keep
+// looking at the thing they just flagged while a moderator gets to it.
+const AFTERHOURS_HIDE_AT = 3;
+const AFTERHOURS_POSTS_PER_HOUR = 5;
+const AFTERHOURS_REPLIES_PER_HOUR = 30;
 const anonNumbers = new Map(); // userId -> "4821"
-const takenAnonNumbers = new Set(); // every number currently assigned to someone
-const afterhoursPosts = new Map(); // id -> {id, authorId, anonNumber, body, createdAt, expiresAt, votes}
+// Every number ever handed out, including ones since flushed: a flushed
+// number still signs that account's older posts for up to a day, so giving
+// it to someone else would put two people's words under one name.
+const takenAnonNumbers = new Set();
+// id -> {id, authorId, anonNumber, body, createdAt, expiresAt, votes: Map,
+//        reports: Set<userId>, replies: [{id, authorId, anonNumber, body,
+//        createdAt, votes: Map, reports: Set<userId>}]}
+const afterhoursPosts = new Map();
 let afterhoursSeq = 0;
 
 function randomAnonNumber() {
@@ -2044,12 +2066,36 @@ function anonNumberFor(userId) {
 }
 
 function flushAnonNumber(userId) {
-  const old = anonNumbers.get(userId);
-  if (old) takenAnonNumbers.delete(old);
   const next = randomAnonNumber();
   anonNumbers.set(userId, next);
   takenAnonNumbers.add(next);
   return next;
+}
+
+const voteTotal = (votes) => [...votes.values()].reduce((a, b) => a + b, 0);
+const isLive = (post) => new Date(post.expiresAt).getTime() > Date.now();
+const hiddenFrom = (item, viewerId) => item.reports.size >= AFTERHOURS_HIDE_AT || item.reports.has(viewerId);
+
+// Only "yours" if your number hasn't moved on since you wrote it — flushing
+// makes your own older posts stop being yours for UI purposes too, the same
+// as anyone else's the moment you do it.
+const signedByViewer = (item, viewerId) =>
+  item.authorId === viewerId && item.anonNumber === anonNumbers.get(viewerId);
+
+function publicAfterHoursReply(post, reply, viewerId) {
+  return {
+    id: reply.id,
+    postId: post.id,
+    anonNumber: reply.anonNumber,
+    body: reply.body,
+    createdAt: reply.createdAt,
+    score: voteTotal(reply.votes),
+    viewerVote: reply.votes.get(viewerId) ?? 0,
+    viewerIsAuthor: signedByViewer(reply, viewerId),
+    // Same person *and* same number they posted under: a flushed OP replying
+    // later is, as far as the thread can tell, somebody new.
+    isOp: reply.authorId === post.authorId && reply.anonNumber === post.anonNumber,
+  };
 }
 
 function publicAfterHoursPost(post, viewerId) {
@@ -2062,14 +2108,44 @@ function publicAfterHoursPost(post, viewerId) {
     // No seeded base score the way regular posts get one (publicPost above)
     // — a fresh anonymous post has no author identity to make "starts at 1"
     // mean anything, so it starts at exactly what people voted, zero.
-    score: [...post.votes.values()].reduce((a, b) => a + b, 0),
+    score: voteTotal(post.votes),
     viewerVote: post.votes.get(viewerId) ?? 0,
-    // Only "yours" if your number hasn't moved on since you wrote it —
-    // flushing makes your own older posts stop being yours for UI purposes
-    // too, the same as anyone else's the moment you do it.
-    viewerIsAuthor: post.authorId === viewerId && post.anonNumber === anonNumbers.get(viewerId),
+    viewerIsAuthor: signedByViewer(post, viewerId),
+    replyCount: post.replies.filter((r) => !hiddenFrom(r, viewerId)).length,
   };
 }
+
+function findAfterHoursReply(replyId) {
+  for (const post of afterhoursPosts.values()) {
+    const reply = post.replies.find((r) => r.id === replyId);
+    if (reply) return { post, reply };
+  }
+  return null;
+}
+
+function livePostOr404(ctx) {
+  const post = afterhoursPosts.get(ctx.params.id);
+  if (!post || !isLive(post) || hiddenFrom(post, ctx.user.id)) {
+    fail(ctx.res, 404, "NOT_FOUND", "that post is gone");
+    return null;
+  }
+  return post;
+}
+
+function liveReplyOr404(ctx) {
+  const found = findAfterHoursReply(ctx.params.id);
+  if (!found || !isLive(found.post) || hiddenFrom(found.reply, ctx.user.id)) {
+    fail(ctx.res, 404, "NOT_FOUND", "that reply is gone");
+    return null;
+  }
+  return found;
+}
+
+const withinLastHour = (iso) => Date.now() - new Date(iso).getTime() < 3600_000;
+
+// Same ranking the main feed uses: votes, discounted by age. Without the decay
+// a single early post that caught on would sit on top for its whole 24 hours.
+const afterHoursHeat = (p) => p.score / Math.pow((Date.now() - new Date(p.createdAt).getTime()) / 3600_000 + 2, 1.5);
 
 route("GET", "/v1/afterhours/me", (ctx) => {
   send(ctx.res, 200, { anonNumber: anonNumberFor(ctx.user.id) });
@@ -2080,28 +2156,37 @@ route("POST", "/v1/afterhours/flush", (ctx) => {
 });
 
 route("GET", "/v1/afterhours/feed", (ctx) => {
-  const now = Date.now();
   const sort = ctx.query.sort === "new" ? "new" : "hot";
   const items = [...afterhoursPosts.values()]
-    .filter((p) => new Date(p.expiresAt).getTime() > now)
+    .filter((p) => isLive(p) && !hiddenFrom(p, ctx.user.id))
     .map((p) => publicAfterHoursPost(p, ctx.user.id));
 
   items.sort((a, b) =>
     sort === "new"
       ? new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-      : b.score - a.score || new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
+      : afterHoursHeat(b) - afterHoursHeat(a) || new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
   );
 
-  send(ctx.res, 200, { items: items.slice(0, Number(ctx.query.limit ?? 50)) });
+  send(ctx.res, 200, { items: items.slice(0, Math.min(Number(ctx.query.limit ?? 50), 100)) });
 });
 
 route("POST", "/v1/afterhours/posts", (ctx) => {
   const body = String(ctx.body.body ?? "").trim();
   if (!body) return fail(ctx.res, 422, "VALIDATION", "say something first");
-  if (body.length > 500) return fail(ctx.res, 422, "VALIDATION", "500 characters, max");
+  if (body.length > AFTERHOURS_POST_LIMIT) {
+    return fail(ctx.res, 422, "VALIDATION", `${AFTERHOURS_POST_LIMIT} characters, max`);
+  }
+
+  // Expired posts are dropped here, on a write, rather than on a read: a
+  // long-running server would otherwise carry every post ever made forever.
+  for (const [pid, p] of afterhoursPosts) if (!isLive(p)) afterhoursPosts.delete(pid);
+
+  const recent = [...afterhoursPosts.values()].filter((p) => p.authorId === ctx.user.id && withinLastHour(p.createdAt));
+  if (recent.length >= AFTERHOURS_POSTS_PER_HOUR) {
+    return fail(ctx.res, 429, "RATE_LIMITED", "posting limit reached", "That's a lot of posts for one hour — take a breather and come back.");
+  }
 
   const now = new Date();
-  const expiresAt = new Date(now.getTime() + AFTERHOURS_POST_HOURS * 3600_000);
   const pid = id("aft", ++afterhoursSeq);
   const post = {
     id: pid,
@@ -2109,8 +2194,10 @@ route("POST", "/v1/afterhours/posts", (ctx) => {
     anonNumber: anonNumberFor(ctx.user.id),
     body,
     createdAt: now.toISOString(),
-    expiresAt: expiresAt.toISOString(),
+    expiresAt: new Date(now.getTime() + AFTERHOURS_POST_HOURS * 3600_000).toISOString(),
     votes: new Map(),
+    reports: new Set(),
+    replies: [],
   };
   afterhoursPosts.set(pid, post);
 
@@ -2121,8 +2208,8 @@ route("POST", "/v1/afterhours/posts", (ctx) => {
 });
 
 route("POST", "/v1/afterhours/posts/:id/vote", (ctx) => {
-  const post = afterhoursPosts.get(ctx.params.id);
-  if (!post) return fail(ctx.res, 404, "NOT_FOUND", "that post is gone");
+  const post = livePostOr404(ctx);
+  if (!post) return;
   const value = Number(ctx.body.value ?? 0);
   post.votes.set(ctx.user.id, value > 0 ? 1 : value < 0 ? -1 : 0);
   const shaped = publicAfterHoursPost(post, ctx.user.id);
@@ -2137,6 +2224,127 @@ route("DELETE", "/v1/afterhours/posts/:id", (ctx) => {
   }
   afterhoursPosts.delete(ctx.params.id);
   send(ctx.res, 204);
+});
+
+route("GET", "/v1/afterhours/posts/:id/replies", (ctx) => {
+  const post = livePostOr404(ctx);
+  if (!post) return;
+  const items = post.replies
+    .filter((r) => !hiddenFrom(r, ctx.user.id))
+    .map((r) => publicAfterHoursReply(post, r, ctx.user.id));
+  send(ctx.res, 200, { items });
+});
+
+route("POST", "/v1/afterhours/posts/:id/replies", (ctx) => {
+  const post = livePostOr404(ctx);
+  if (!post) return;
+  const body = String(ctx.body.body ?? "").trim();
+  if (!body) return fail(ctx.res, 422, "VALIDATION", "say something first");
+  if (body.length > AFTERHOURS_REPLY_LIMIT) {
+    return fail(ctx.res, 422, "VALIDATION", `${AFTERHOURS_REPLY_LIMIT} characters, max`);
+  }
+
+  let recent = 0;
+  for (const p of afterhoursPosts.values()) {
+    for (const r of p.replies) if (r.authorId === ctx.user.id && withinLastHour(r.createdAt)) recent++;
+  }
+  if (recent >= AFTERHOURS_REPLIES_PER_HOUR) {
+    return fail(ctx.res, 429, "RATE_LIMITED", "reply limit reached", "You've replied a lot this hour — give it a minute.");
+  }
+
+  const reply = {
+    id: id("afr", ++afterhoursSeq),
+    authorId: ctx.user.id,
+    anonNumber: anonNumberFor(ctx.user.id),
+    body,
+    createdAt: new Date().toISOString(),
+    votes: new Map(),
+    reports: new Set(),
+  };
+  post.replies.push(reply);
+
+  send(ctx.res, 201, {
+    reply: publicAfterHoursReply(post, reply, ctx.user.id),
+    supportCard: CRISIS.test(body) ? SUPPORT_CARD : undefined,
+  });
+});
+
+route("POST", "/v1/afterhours/replies/:id/vote", (ctx) => {
+  const found = liveReplyOr404(ctx);
+  if (!found) return;
+  const value = Number(ctx.body.value ?? 0);
+  found.reply.votes.set(ctx.user.id, value > 0 ? 1 : value < 0 ? -1 : 0);
+  const shaped = publicAfterHoursReply(found.post, found.reply, ctx.user.id);
+  send(ctx.res, 200, { score: shaped.score, viewerVote: shaped.viewerVote });
+});
+
+route("DELETE", "/v1/afterhours/replies/:id", (ctx) => {
+  const found = findAfterHoursReply(ctx.params.id);
+  if (!found) return fail(ctx.res, 404, "NOT_FOUND", "that reply is gone");
+  if (found.reply.authorId !== ctx.user.id) {
+    return fail(ctx.res, 403, "FORBIDDEN", "that isn't yours to delete");
+  }
+  found.post.replies = found.post.replies.filter((r) => r.id !== found.reply.id);
+  send(ctx.res, 204);
+});
+
+// Seeded so the surface isn't a dead end on first open. Authors are the
+// PEOPLE cast; nobody can tell which, which is the point of the page.
+[
+  { by: "kabir", h: 1.5, body: "the 2am vending machine on 3rd floor ate my last ₹20 and I've never felt more seen by an inanimate object", votes: 34, replies: [
+    ["tanya", 1.2, "it ate mine on tuesday. it's building a retirement fund"],
+    ["kabir", 1, "at least it's consistent. more than I can say for the wifi"],
+    ["devansh", 0.6, "kick it on the left side, 70% success rate, trust"],
+  ] },
+  { by: "meher", h: 3, body: "whoever plays guitar near the ECE stairwell around 11pm — you're genuinely good. please don't stop", votes: 58, replies: [
+    ["zoya", 2.5, "THANK YOU someone finally said it"],
+    ["arnav", 2, "it's the same three songs but they're the right three songs"],
+  ] },
+  { by: "ira", h: 5, body: "reminder that sleeping 7 hours before the mid-sem is a study technique. the most underrated one, actually", votes: 41, replies: [
+    ["kabir", 4, "said the person who clearly has never done a workshop drawing"],
+    ["ira", 3.5, "the drawing will still be there after you sleep. I checked."],
+  ] },
+  { by: "zoya", h: 7, body: "is it just me or does everyone else also pretend to understand the COA prof for the first 10 minutes and then fully give up", votes: 72, replies: [
+    ["rishab", 6, "4th year here. it does not get better. you just get better at pretending"],
+    ["tanya", 5.5, "10 minutes is generous. I'm out by the attendance call"],
+    ["meher", 5, "the pipelining diagram is a personal attack"],
+  ] },
+  { by: "arnav", h: 9, body: "honest question: does anyone actually eat the mess rajma or is it decorative", votes: 23, replies: [
+    ["tanya", 8, "decorative. it's been the same rajma since 2019"],
+  ] },
+  { by: "devansh", h: 12, body: "got rejected from the robotics fest shortlist after 3 weeks of work. not looking for advice, just wanted to say it somewhere", votes: 49, replies: [
+    ["meher", 11, "that genuinely sucks. 3 weeks is a lot to put in. proud of you for building it anyway"],
+    ["rishab", 10, "got rejected twice before my first shortlist. the thing you built still counts"],
+    ["devansh", 9.5, "thank you, didn't expect replies. this helped"],
+  ] },
+  { by: "tanya", h: 16, body: "library AC is set to arctic tundra again. bring a jacket or become a fossil", votes: 17, replies: [] },
+].forEach((seed) => {
+  const author = byHandle(seed.by);
+  const post = {
+    id: id("aft", ++afterhoursSeq),
+    authorId: author.id,
+    anonNumber: anonNumberFor(author.id),
+    body: seed.body,
+    createdAt: hoursAgo(seed.h),
+    expiresAt: new Date(Date.now() + (AFTERHOURS_POST_HOURS - seed.h) * 3600_000).toISOString(),
+    // Seed voters are synthetic ids — nobody real, so no real account's
+    // viewerVote comes back pre-set on a post they never touched.
+    votes: new Map(Array.from({ length: seed.votes }, (_, i) => [`seed-${i}`, 1])),
+    reports: new Set(),
+    replies: seed.replies.map(([handle, h, body]) => {
+      const replier = byHandle(handle);
+      return {
+        id: id("afr", ++afterhoursSeq),
+        authorId: replier.id,
+        anonNumber: anonNumberFor(replier.id),
+        body,
+        createdAt: hoursAgo(h),
+        votes: new Map(),
+        reports: new Set(),
+      };
+    }),
+  };
+  afterhoursPosts.set(post.id, post);
 });
 
 // ------------------------------------------------------------ websocket -----

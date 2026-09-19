@@ -2,22 +2,20 @@
 
 import { useEffect, useState } from "react";
 import { VoteBar } from "@/components/feed/VoteBar";
-import { Dialog } from "@/components/ui/Dialog";
-import { Button } from "@/components/ui/Button";
-import { FlagIcon, TimerIcon, XIcon } from "@/components/ui/Icons";
+import { FlagIcon, MessageIcon, TimerIcon, XIcon } from "@/components/ui/Icons";
 import { useToast } from "@/components/ui/Toast";
-import { api, errorMessage } from "@/lib/api";
+import { errorMessage } from "@/lib/api";
 import { afterhours } from "@/lib/afterhours-store";
 import { timeAgo, expiresIn } from "@/lib/format";
 import type { AnonPost, VoteResult } from "@/lib/types";
 import { cn } from "@/lib/cn";
-
-const REASONS = ["Harassment or hate speech", "Threat or doxxing", "Explicit content", "Spam", "Something else"];
+import { AnonThread } from "./AnonThread";
+import { ReportDialog } from "./ReportDialog";
 
 export function AnonPostCard({ post, onChange, onRemoved }: { post: AnonPost; onChange: (next: AnonPost) => void; onRemoved: () => void }) {
   const toast = useToast();
   const [reporting, setReporting] = useState(false);
-  const [reason, setReason] = useState("");
+  const [threadOpen, setThreadOpen] = useState(false);
   const [busy, setBusy] = useState(false);
   // A countdown only means something if it actually counts down — re-render
   // once a minute so "23h left" eventually becomes "expired" without a
@@ -37,21 +35,6 @@ export function AnonPostCard({ post, onChange, onRemoved }: { post: AnonPost; on
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [expired]);
 
-  const submitReport = async () => {
-    if (!reason) return;
-    setBusy(true);
-    try {
-      await api.post("/v1/reports", { targetType: "AFTERHOURS_POST", targetId: post.id, reason });
-      toast("Reported. A moderator will review this within 24 hours.", "success");
-      setReporting(false);
-      setReason("");
-    } catch (err) {
-      toast(errorMessage(err, "could not file that report"), "error");
-    } finally {
-      setBusy(false);
-    }
-  };
-
   const deletePost = async () => {
     setBusy(true);
     try {
@@ -68,7 +51,10 @@ export function AnonPostCard({ post, onChange, onRemoved }: { post: AnonPost; on
   return (
     <article className="card p-4">
       <div className="flex items-center justify-between gap-2">
-        <span className="mono-label text-accent-hi">Anon #{post.anonNumber}</span>
+        <span className="mono-label text-accent-hi">
+          Anon #{post.anonNumber}
+          {post.viewerIsAuthor && <span className="ml-1.5 text-faint">· you</span>}
+        </span>
         <span className="flex items-center gap-2 text-[0.6875rem] text-faint">
           <span>{timeAgo(post.createdAt)}</span>
           <span aria-hidden>·</span>
@@ -89,6 +75,22 @@ export function AnonPostCard({ post, onChange, onRemoved }: { post: AnonPost; on
           size="sm"
           onChange={(result: VoteResult) => onChange({ ...post, ...result })}
         />
+
+        <button
+          type="button"
+          aria-expanded={threadOpen}
+          aria-label={threadOpen ? "Hide replies" : `Show replies (${post.replyCount})`}
+          onClick={() => setThreadOpen((o) => !o)}
+          className={cn(
+            "flex h-7 cursor-pointer items-center gap-1.5 rounded-full border px-2.5 text-[0.75rem] transition-colors",
+            threadOpen
+              ? "border-[color-mix(in_oklab,var(--accent)_40%,transparent)] bg-accent-wash text-accent-hi"
+              : "border-border text-muted hover:border-border-strong hover:text-text",
+          )}
+        >
+          <MessageIcon size={13} />
+          {post.replyCount}
+        </button>
 
         <div className="ml-auto flex items-center gap-1">
           {post.viewerIsAuthor ? (
@@ -117,40 +119,17 @@ export function AnonPostCard({ post, onChange, onRemoved }: { post: AnonPost; on
         </div>
       </div>
 
-      <Dialog
+      {threadOpen && (
+        <AnonThread postId={post.id} onCountChange={(replyCount) => onChange({ ...post, replyCount })} />
+      )}
+
+      <ReportDialog
         open={reporting}
         onClose={() => setReporting(false)}
-        title="Report this post"
-        description="Seen by a moderator. The number attached to it doesn't tell them who that is any more than it tells you — reports are handled the same as anywhere else in the app."
-        footer={
-          <>
-            <Button variant="ghost" onClick={() => setReporting(false)}>
-              Cancel
-            </Button>
-            <Button variant="danger" disabled={!reason} loading={busy} onClick={submitReport}>
-              Submit report
-            </Button>
-          </>
-        }
-      >
-        <div className="space-y-2">
-          {REASONS.map((r) => (
-            <button
-              key={r}
-              type="button"
-              onClick={() => setReason(r)}
-              className={cn(
-                "block w-full cursor-pointer rounded-[var(--r-md)] border px-3 py-2.5 text-left text-sm transition-colors",
-                reason === r
-                  ? "border-[color-mix(in_oklab,var(--accent)_45%,transparent)] bg-accent-wash text-accent-hi"
-                  : "border-border text-text hover:border-border-strong",
-              )}
-            >
-              {r}
-            </button>
-          ))}
-        </div>
-      </Dialog>
+        targetType="AFTERHOURS_POST"
+        targetId={post.id}
+        onReported={onRemoved}
+      />
     </article>
   );
 }

@@ -27,15 +27,32 @@ export default function AfterHoursPage() {
         title="AfterHours"
         subtitle="Anonymous · campus-only · posts last 24 hours"
         tabs={
-          <Segmented<AfterHoursSort>
-            size="sm"
-            value={sort}
-            onChange={setSort}
-            options={[
-              { value: "hot", label: "Hot" },
-              { value: "new", label: "New" },
-            ]}
-          />
+          <>
+            <Segmented<AfterHoursSort>
+              size="sm"
+              value={sort}
+              onChange={setSort}
+              options={[
+                { value: "hot", label: "Hot" },
+                { value: "new", label: "New" },
+              ]}
+            />
+            {/* Lives in the sticky bar rather than over the list: anything
+                pinned inside the page scrolls underneath the bar and is
+                hidden exactly when it matters, mid-scroll. */}
+            {feed.newCount > 0 && (
+              <button
+                type="button"
+                onClick={() => {
+                  feed.showPending();
+                  window.scrollTo({ top: 0, behavior: "smooth" });
+                }}
+                className="ml-auto shrink-0 cursor-pointer rounded-full bg-accent-wash px-3 py-1 text-[0.75rem] font-medium whitespace-nowrap text-accent-hi transition-colors hover:bg-accent hover:text-on-accent"
+              >
+                {feed.newCount === 1 ? "1 new post" : `${feed.newCount} new posts`}
+              </button>
+            )}
+          </>
         }
       />
 

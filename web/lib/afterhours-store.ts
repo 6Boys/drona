@@ -1,8 +1,8 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { api } from "./api";
-import type { AnonIdentity, AnonPost } from "./types";
+import type { AnonIdentity, AnonPost, AnonReply, SupportCard } from "./types";
 
 /* -----------------------------------------------------------------------------
    Client state for the anonymous feed. Everything here is a thin wrapper over
@@ -11,6 +11,8 @@ import type { AnonIdentity, AnonPost } from "./types";
    -------------------------------------------------------------------------- */
 
 export type AfterHoursSort = "hot" | "new";
+
+const POLL_MS = 30_000;
 
 /** Your current anon number, and the one action that changes it. */
 export function useAfterHoursIdentity() {
@@ -43,10 +45,17 @@ export function useAfterHoursFeed(sort: AfterHoursSort) {
   const [items, setItems] = useState<AnonPost[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<unknown>(null);
+  // The latest server view, held back rather than swapped in: replacing the
+  // list mid-read would reshuffle Hot under someone's thumb. Shown as a
+  // "new posts" pill instead, and applied when they tap it.
+  const [pending, setPending] = useState<AnonPost[] | null>(null);
+  const itemsRef = useRef(items);
+  itemsRef.current = items;
 
   const load = useCallback(async () => {
     setLoading(true);
     setError(null);
+    setPending(null);
     try {
       const res = await api.get<{ items: AnonPost[] }>("/v1/afterhours/feed", { sort, limit: 50 });
       setItems(res.items ?? []);
@@ -61,28 +70,68 @@ export function useAfterHoursFeed(sort: AfterHoursSort) {
     void load();
   }, [load]);
 
-  /** Drops an expired or deleted post locally, without waiting for the next
-   * poll — the same "advance before the network confirms" pattern the dating
-   * deck uses. */
+  useEffect(() => {
+    const id = setInterval(async () => {
+      if (document.hidden) return;
+      try {
+        const res = await api.get<{ items: AnonPost[] }>("/v1/afterhours/feed", { sort, limit: 50 });
+        const latest = res.items ?? [];
+        const known = new Set(itemsRef.current.map((p) => p.id));
+        if (latest.some((p) => !known.has(p.id))) setPending(latest);
+      } catch {
+        // A missed background poll is not worth a toast; the next one retries.
+      }
+    }, POLL_MS);
+    return () => clearInterval(id);
+  }, [sort]);
+
+  const newCount = pending ? pending.filter((p) => !items.some((i) => i.id === p.id)).length : 0;
+
+  // The arrivals go first regardless of sort: on Hot a brand-new post has no
+  // votes and would rank near the bottom, so the pill would scroll you to the
+  // top of a list whose "new post" is out of sight. They settle into rank on
+  // the next load.
+  const showPending = useCallback(() => {
+    if (pending) {
+      const known = new Set(items.map((p) => p.id));
+      const arrived = pending.filter((p) => !known.has(p.id));
+      setItems([...arrived, ...pending.filter((p) => known.has(p.id))]);
+    }
+    setPending(null);
+  }, [pending, items]);
+
+  /** Drops an expired, deleted or reported post locally, without waiting for
+   * the next poll — the same "advance before the network confirms" pattern
+   * the dating deck uses. */
   const remove = useCallback((postId: string) => {
     setItems((prev) => prev.filter((p) => p.id !== postId));
+    setPending((prev) => prev && prev.filter((p) => p.id !== postId));
   }, []);
 
   const prepend = useCallback((post: AnonPost) => {
     setItems((prev) => [post, ...prev]);
   }, []);
 
-  return { items, loading, error, reload: load, remove, prepend, setItems };
+  return { items, loading, error, reload: load, remove, prepend, setItems, newCount, showPending };
 }
 
 export const afterhours = {
   createPost(body: string) {
-    return api.post<{ post: AnonPost; supportCard?: unknown }>("/v1/afterhours/posts", { body });
-  },
-  vote(postId: string, value: number) {
-    return api.post<{ score: number; viewerVote: number }>(`/v1/afterhours/posts/${postId}/vote`, { value });
+    return api.post<{ post: AnonPost; supportCard?: SupportCard }>("/v1/afterhours/posts", { body });
   },
   deletePost(postId: string) {
     return api.delete<void>(`/v1/afterhours/posts/${postId}`);
+  },
+  replies(postId: string) {
+    return api.get<{ items: AnonReply[] }>(`/v1/afterhours/posts/${postId}/replies`);
+  },
+  reply(postId: string, body: string) {
+    return api.post<{ reply: AnonReply; supportCard?: SupportCard }>(`/v1/afterhours/posts/${postId}/replies`, { body });
+  },
+  deleteReply(replyId: string) {
+    return api.delete<void>(`/v1/afterhours/replies/${replyId}`);
+  },
+  report(targetType: "AFTERHOURS_POST" | "AFTERHOURS_REPLY", targetId: string, reason: string) {
+    return api.post("/v1/reports", { targetType, targetId, reason });
   },
 };

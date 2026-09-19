@@ -528,4 +528,19 @@ export interface AnonPost {
    * flushing your number means your own older posts stop being "yours" for
    * UI purposes too, same as anyone else's. */
   viewerIsAuthor: boolean;
+  /** Replies this viewer can see — ones they reported are already left out. */
+  replyCount: number;
+}
+
+export interface AnonReply {
+  id: string;
+  postId: string;
+  anonNumber: string;
+  body: string;
+  createdAt: string;
+  score: number;
+  viewerVote: number;
+  viewerIsAuthor: boolean;
+  /** Written by the post's author under the same number they posted with. */
+  isOp: boolean;
 }

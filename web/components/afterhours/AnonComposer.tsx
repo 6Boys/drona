@@ -4,10 +4,11 @@ import { useState } from "react";
 import { Button } from "@/components/ui/Button";
 import { Textarea } from "@/components/ui/Field";
 import { RefreshIcon, SendIcon } from "@/components/ui/Icons";
+import { SupportCard } from "@/components/ui/SupportCard";
 import { useToast } from "@/components/ui/Toast";
 import { errorMessage } from "@/lib/api";
 import { afterhours, useAfterHoursIdentity } from "@/lib/afterhours-store";
-import type { AnonPost } from "@/lib/types";
+import type { AnonPost, SupportCard as SupportCardData } from "@/lib/types";
 
 const BODY_LIMIT = 500;
 
@@ -20,15 +21,17 @@ export function AnonComposer({ onPosted }: { onPosted: (post: AnonPost) => void 
   const [body, setBody] = useState("");
   const [posting, setPosting] = useState(false);
   const [flushing, setFlushing] = useState(false);
+  const [support, setSupport] = useState<SupportCardData | null>(null);
 
   const submit = async () => {
     const trimmed = body.trim();
     if (!trimmed || posting) return;
     setPosting(true);
     try {
-      const { post } = await afterhours.createPost(trimmed);
+      const { post, supportCard } = await afterhours.createPost(trimmed);
       onPosted(post);
       setBody("");
+      setSupport(supportCard ?? null);
     } catch (err) {
       toast(errorMessage(err, "that didn't post"), "error");
     } finally {
@@ -79,6 +82,12 @@ export function AnonComposer({ onPosted }: { onPosted: (post: AnonPost) => void 
           Post anonymously
         </Button>
       </div>
+
+      {support && (
+        <div className="mt-3">
+          <SupportCard card={support} />
+        </div>
+      )}
     </div>
   );
 }
